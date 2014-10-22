@@ -62,24 +62,7 @@ object BuildSettings {
         publishArtifact in Test := false,
         pomIncludeRepository := {
             _ => false
-        },
-        pomExtra :=
-            <parent>
-                <groupId>org.sonatype.oss</groupId>
-                <artifactId>oss-parent</artifactId>
-                <version>7</version>
-            </parent> ++
-                <scm>
-                    <connection>scm:git:git@github.com:ckaestne/TypeChef.git</connection>
-                    <url>git@github.com:ckaestne/TypeChef.git</url>
-                </scm> ++
-                <developers>
-                    <developer>
-                        <id>ckaestne</id> <name>Christian Kaestner</name> <url>http://www.cs.cmu.edu/~ckaestne/</url>
-                    </developer>
-                </developers>,
-
-        credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+        }
     )
 }
 
@@ -163,6 +146,7 @@ object TypeChef extends Build {
         jcpp,
         cparser,
         ctypechecker,
+				ccallgraph,
         javaparser,
         crewrite,
         frontend
@@ -219,6 +203,13 @@ object TypeChef extends Build {
         settings = buildSettings ++
             Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
     ) dependsOn(cparser % "test->test;compile->compile", conditionallib, errorlib)
+
+    lazy val ccallgraph = Project(
+        "CCallGraph",
+        file("CCallGraph"),
+        settings = buildSettings ++
+            Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
+    ) dependsOn(cparser % "test->test;compile->compile", ctypechecker, conditionallib, errorlib)
 
     lazy val javaparser = Project(
         "JavaParser",

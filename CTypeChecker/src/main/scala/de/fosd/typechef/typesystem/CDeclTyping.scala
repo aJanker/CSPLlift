@@ -294,6 +294,8 @@ trait CDeclTyping extends CTypes with CEnv with CTypeSystemInterface with CDeclU
                     eenv = eenv.addVar(init.getName, featureExpr and f, init, ctype,
                         declKind, env.scope, linkage)
 
+                    typedExpr(init.getId, ctype, featureExpr and f, eenv)
+
                     init.getExpr map {
                         checkInitializer(_, ctype, featureExpr and f, eenv)
                     }

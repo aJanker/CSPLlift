@@ -64,7 +64,7 @@ class CTypeSystemFrontend(iast: TranslationUnit,
     def checkAST(ignoreWarnings: Boolean = true): Boolean = {
 
         errors = List() // clear error list
-        typecheckTranslationUnit(iast)
+        val env = typecheckTranslationUnit(iast)
         val merrors = if (ignoreWarnings)
             errors.filterNot(Set(Severity.Warning, Severity.SecurityWarning) contains _.severity)
         else errors
@@ -76,6 +76,23 @@ class CTypeSystemFrontend(iast: TranslationUnit,
         //println("\n")
         merrors.isEmpty
     }
+    def checkASTEnv(ignoreWarnings: Boolean = true): Env = {
+
+        errors = List() // clear error list
+        val env = typecheckTranslationUnit(iast)
+        val merrors = if (ignoreWarnings)
+            errors.filterNot(Set(Severity.Warning, Severity.SecurityWarning) contains _.severity)
+        else errors
+        if (merrors.isEmpty)
+            println("No type errors found.")
+        else {
+            println("Found " + merrors.size + " type errors: ")
+        }
+        //println("\n")
+        //        merrors.isEmpty
+        env
+    }
+
     def checkASTSilent: Boolean = {
         isSilent = true
         errors = List() // clear error list
