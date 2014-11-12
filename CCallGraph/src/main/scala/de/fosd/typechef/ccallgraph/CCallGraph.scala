@@ -6,8 +6,9 @@ import de.fosd.typechef.typesystem.{CType, ConditionalTypeMap}
 
 /**
  * Created by gferreir on 9/20/14.
+ *
  */
-class CCallGraph(val lookupExprType: Expr => Conditional[CType], val structLookup: (String, Boolean) => Conditional[ConditionalTypeMap]) {
+class CCallGraph {
 
     var objectNames: Set[String] = Set()
 
@@ -15,91 +16,51 @@ class CCallGraph(val lookupExprType: Expr => Conditional[CType], val structLooku
         println(objectNames)
     }
 
-    def extractObjectNames(ast: AST): Option[String] = {
-        println(ast)
-        ast match {
-            case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(_, e) <- list) extractObjectNames(e); None
-            case FunctionDef(_, _, _, compoundStmt: CompoundStatement) => extractObjectNames(compoundStmt)
-
-            case CompoundStatement(list: List[Opt[Statement]]) => for (Opt(_, e) <- list) extractObjectNames(e); None
-            case AtomicNamedDeclarator(_, _, _) => None
-            case ExprStatement(exprStmt) => extractObjectNames(exprStmt)
-
-            case Declaration(_, initList) => for (Opt(_, e) <- initList) extractObjectNames(e); None
-            case InitDeclaratorI(decl, _, init) =>
-
-                // typesystem lookup
-                // println(decl.getId +" => "+ lookupExprType(decl.getId))
-                // val ctype = lookupExprType(decl.getId)
-                // if (ctype!=null)
-                //      ctype.map(t=>t.atype match {
-                //          case CStruct(name, isUnion) =>
-                //              val fields = structLookup(name, isUnion)
-                //              println(fields)
-                //          case _ =>
-                //      })
-
-                val initNames = init.flatMap(i => extractObjectNames(i.expr))
-                if (initNames.isDefined) {
-                    objectNames += decl.getName
-                    objectNames += initNames.get
-                }
-                initNames
-
-            case DeclarationStatement(d) => extractObjectNames(d); None
-            case ReturnStatement(expr) => {
-                val exprStr = extractObjectNames(expr.get)
-                exprStr
+    def extractExpr(expr: Expr): Option[String] = {
+        println(expr)
+        expr match {
+            case Id(name: String) => Some(name)
+            case Constant(value: String) => None
+            case StringLit(name: List[Opt[String]]) => None
+            case UnaryExpr(kind: String, e: Expr) => extractExpr(e)
+            case SizeOfExprT(typeName: TypeName) => None
+            case SizeOfExprU(expr: Expr) => extractExpr(expr); None
+            case CastExpr(typeName: TypeName, expr: Expr) => extractExpr(expr); None
+            case PointerDerefExpr(castExpr: Expr) => {
+                val exprStr = extractExpr(castExpr)
+                exprStr.map(exprStr => {
+                    objectNames += exprStr
+                    objectNames += ("*" + exprStr)
+                })
+                exprStr.map("*" + _)
             }
-            case LcurlyInitializer(list: List[Opt[Initializer]]) => for (Opt(_, e) <- list) extractObjectNames(e); None
-            case _: ArrayAccess => Some("[]")
-
-            case Initializer(_, expr) =>
-                val exprStr = extractObjectNames(expr); exprStr
-
-            case StringLit(list: List[Opt[String]]) => for (Opt(_, e) <- list) e; None
-
-            case ForStatement(expr1, expr2, expr3, _) => {
-                extractObjectNames(expr1.get)
-                extractObjectNames(expr2.get)
-                extractObjectNames(expr3.get)
-                None
-            }
-
-            case FunctionCall(exprList: ExprList) => extractObjectNames(exprList); None
-            case ExprList(list: List[Opt[Expr]]) => for (Opt(_, e) <- list) extractObjectNames(e); None
-
-            case IfStatement(condition: Conditional[Expr], thenBranch: Conditional[Statement], elifs: List[Opt[ElifStatement]], elseBranch: Option[Conditional[Statement]]) => {
-                condition.map(e => extractObjectNames(e));
-                None
-                thenBranch.map(stmt => extractObjectNames(stmt));
-                None
-                if (elseBranch.isDefined) elseBranch.get.map(stmt => extractObjectNames(stmt));
-                None
-                for (Opt(_, e) <- elifs) extractObjectNames(e);
-                None
-            }
-
-            case AssignExpr(target, operation, source) => {
-                val exprStr1 = extractObjectNames(target)
-                val exprStr2 = extractObjectNames(source)
-                if (exprStr1.isDefined && exprStr2.isDefined) {
-                    objectNames += exprStr1.get
-                    objectNames += exprStr2.get
-                }
-                exprStr2
-            };
-            case Id(value) => Some(value)
-            case PointerCreationExpr(expr) => {
-                val exprStr = extractObjectNames(expr)
+            case PointerCreationExpr(castExpr: Expr) => {
+                val exprStr = extractExpr(castExpr)
                 if (exprStr.isDefined) {
                     objectNames += exprStr.get
                     objectNames += ("&" + exprStr.get)
                 }
                 exprStr.map("&" + _)
             }
+            case UnaryOpExpr(kind: String, castExpr: Expr) => extractExpr(castExpr)
+
+            // pointer arithmetic is ignored by analysis ('others' list is not relevant)
+            case NAryExpr(expr: Expr, others: List[Opt[NArySubExpr]]) => {
+                val exprStr = extractExpr(expr)
+                exprStr
+            }
+            case ConditionalExpr(condition: Expr, thenExpr: Option[Expr], elseExpr: Expr) => extractExpr(condition)
+            case AssignExpr(target: Expr, operation: String, source: Expr) => {
+                val exprStr1 = extractExpr(target)
+                val exprStr2 = extractExpr(source)
+                if (exprStr1.isDefined && exprStr2.isDefined) {
+                    objectNames += exprStr1.get
+                    objectNames += exprStr2.get
+                }
+                exprStr2
+            }
             case PostfixExpr(expr, suffixExpr) => {
-                val exprStr1 = extractObjectNames(expr)
+                val exprStr1 = extractExpr(expr)
                 val exprStr2 = extractObjectNames(suffixExpr)
 
                 if (exprStr1.isDefined && exprStr2.isDefined) {
@@ -114,25 +75,64 @@ class CCallGraph(val lookupExprType: Expr => Conditional[CType], val structLooku
                 }
                 exprStr1.flatMap(e1 => exprStr2.map(e2 => e1 + e2))
             };
+            case ExprList(exprs: List[Opt[Expr]]) => for (Opt(_, e) <- exprs) extractExpr(e); None
+        }
+    }
+
+    def extractStmt(stmt: Statement): Option[String] = {
+        println(stmt)
+        stmt match {
+            case CompoundStatement(innerStatements: List[Opt[Statement]]) => for (Opt(_, e) <- innerStatements) extractStmt(e); None
+            case EmptyStatement() => None
+            case ExprStatement(expr: Expr) => extractExpr(expr)
+            case WhileStatement(expr: Expr, s: Conditional[Statement]) => extractExpr(expr); s.map(stmt => extractStmt(stmt)); None
+            case DoStatement(expr: Expr, s: Conditional[Statement]) => extractExpr(expr); s.map(stmt => extractStmt(stmt)); None
+            case ForStatement(expr1: Option[Expr], expr2: Option[Expr], expr3: Option[Expr], s: Conditional[Statement]) => {
+                extractExpr(expr1.get)
+                extractExpr(expr2.get)
+                extractExpr(expr3.get)
+                None
+            }
+            case GotoStatement(target: Expr) => extractExpr(target); None
+            case ContinueStatement() => None
+            case BreakStatement() => None
+            case ReturnStatement(expr: Option[Expr]) => None
+            case LabelStatement(id: Id, attribute: Option[AttributeSpecifier]) => None
+            case CaseStatement(c: Expr) => None
+            case DefaultStatement() => None
+            case IfStatement(condition: Conditional[Expr], thenBranch: Conditional[Statement], elifs: List[Opt[ElifStatement]], elseBranch: Option[Conditional[Statement]]) => None
+            case SwitchStatement(expr: Expr, s: Conditional[Statement]) => None
+            case DeclarationStatement(decl: Declaration) => extractObjectNames(decl)
+        }
+    }
+
+    def extractDecl(decl: Declarator): Option[String] = {
+        None
+    }
+
+    def extractObjectNames(ast: AST): Option[String] = {
+        ast match {
+            case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(_, e) <- list) extractObjectNames(e); None
+            case FunctionDef(_, _, _, compoundStmt: Statement) => extractStmt(compoundStmt)
+            case Declaration(declSpecs: List[Opt[Specifier]], init: List[Opt[InitDeclarator]]) => for (Opt(_, e) <- init) extractObjectNames(e); None
+            case FunctionCall(exprList: ExprList) => extractObjectNames(exprList); None
             case PointerPostfixSuffix(operator: String, expr) => {
-                val str = extractObjectNames(expr)
+                val str = extractExpr(expr)
                 str.map(operator + _)
             }
-            case PointerDerefExpr(expr) => {
-                val exprStr = extractObjectNames(expr)
-                exprStr.map(exprStr => {
-                    objectNames = objectNames + exprStr
-                    objectNames = objectNames + ("*" + exprStr)
-                })
-                exprStr.map("*" + _)
-            }
-            case _: NAryExpr => None
-            case _: Constant => None
             case _: SimplePostfixSuffix => None
-            case _: CastExpr => None
-            case e: Expr => throw new NotImplementedError("Not implemented!!! %s".format(e))
-            case s: Statement => throw new NotImplementedError("Not implemented!!! %s".format(s))
-            case d: Declarator => throw new NotImplementedError("Not implemented!!! %s".format(d))
+            case ArrayAccess(expr: Expr) => Some("[]")
+            case NArySubExpr(op: String, e: Expr) => None
+            case e: Expr => extractExpr(e)
+            case s: Statement => extractStmt(s)
+            case InitDeclaratorI(decl: Declarator, _, init: Option[Initializer]) => {
+                val initNames = init.flatMap(i => extractObjectNames(i.expr))
+                if (initNames.isDefined) {
+                    objectNames += decl.getName
+                    objectNames += initNames.get
+                }
+                initNames
+            }
         }
     }
 }

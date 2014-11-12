@@ -15,22 +15,23 @@ class CCallGraphTest extends TestHelper with ASTNavigation {
 
     @Test def test_paper_example_fig4() {
         val ast = loadAST("simple_calls.c")
-        testAST(ast, Set())
+        testObjectNames(ast, Set("x", "&x", "t", "*p", "p->f", "p", "&z", "z"))
     }
 
     @Test def test_paper_example_fig1() {
         val ast = loadAST("table_dispatch.c")
-        testAST(ast, Set())
+        testObjectNames(ast, Set("&func2", "table[].func", "&func1", "func2", "table[].name", "func1"))
     }
 
     @Test def test_paper_example_fig2() {
         val ast = loadAST("extensible_func.c")
-        testAST(ast, Set())
+        testObjectNames(ast, Set("h->freefun", "*h", "xmalloc", "h->chunkfun", "xfree", "&h", "h", "&xfree", "&xmalloc"))
     }
 
     @Test def testExpr1() { testExpr("x->a = y;", Set("*x", "x", "x->a", "y")) }
     @Test def testExpr2() { testExpr("a=&(&b);", Set("a", "b", "&b", "&&b")) }
-    @Test def testExpr3() { testExpr("&(a+b);", Set()) }
+    @Test def testExpr3() { testExpr("&(a+b);", Set("a", "&a")) }
+    @Test def testExpr4() { testExpr("&(a+b+c);", Set("a", "&a")) }
 
     val parser = new CParser()
     val emptyFM = FeatureExprFactory.dflt.featureModelFactory.empty
@@ -46,14 +47,11 @@ class CCallGraphTest extends TestHelper with ASTNavigation {
     private def testExpr(expr: String, expected: Set[String]) {
         val code = "void foo() {\n  %s\n}\n".format(expr)
         val ast: TranslationUnit = new ParserMain(parser).parserMain(lex(code), SilentParserOptions, emptyFM)
-        testAST(ast, expected)
+        testObjectNames(ast, expected)
     }
 
-    private def testAST(ast: TranslationUnit, expected: Set[String]) {
-        val typeSystem = new CTypeSystemFrontend(ast) with CTypeCache with CDeclUse
-        val env = typeSystem.checkASTEnv()
-
-        val c = new CCallGraph(typeSystem.lookupExprType, env.structEnv.getFields)
+    private def testObjectNames(ast: TranslationUnit, expected: Set[String]) {
+        val c = new CCallGraph()
         c.extractObjectNames(ast)
 
         assert(c.objectNames equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.objectNames.mkString("[", ", ", "]")))
