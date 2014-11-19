@@ -13,7 +13,7 @@ object BuildSettings {
     val buildVersion = "0.3.6"
     val buildScalaVersion = "2.10.4"
 
-    val testEnvironment = Seq(junit, junitInterface, scalatest, scalacheck)
+    val testEnvironment = Seq(junit, junitInterface, scalatest, scalacheck, graphCore)
 
     val buildSettings = Defaults.defaultSettings ++ Seq(
         organization := buildOrganization,
@@ -95,7 +95,8 @@ object Dependencies {
     val junit = "junit" % "junit" % "4.11" % "test"
     val junitInterface = "com.novocode" % "junit-interface" % "0.10" % "test"
     val scalacheck = "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
-    val scalatest = "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+    val scalatest = "org.scalatest" %% "scalatest" % "1.9.1" % "test" 
+    val graphCore = "com.assembla.scala-incubator" %% "graph-core" % "1.9.0" % "compile"
 }
 
 object VersionGen {
@@ -209,6 +210,7 @@ object TypeChef extends Build {
         file("CCallGraph"),
         settings = buildSettings ++
             Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
+						
     ) dependsOn(cparser % "test->test;compile->compile", ctypechecker, conditionallib, errorlib)
 
     lazy val javaparser = Project(
