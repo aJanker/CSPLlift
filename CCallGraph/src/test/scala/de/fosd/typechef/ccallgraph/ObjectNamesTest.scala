@@ -12,7 +12,7 @@ import org.junit.Test
 /**
  * Created by gferreir on 9/21/14.
  */
-class ObjectNamesTest extends TestHelper with ASTNavigation {
+class ObjectNamesTest extends TestHelper {
 
     @Test def test_paper_example_fig1() {
         val ast = loadAST("table_dispatch.c")
@@ -40,14 +40,6 @@ class ObjectNamesTest extends TestHelper with ASTNavigation {
     val parser = new CParser()
     val emptyFM = FeatureExprFactory.dflt.featureModelFactory.empty
 
-    private def loadAST(filename: String): TranslationUnit = {
-        val folder = "testfiles/"
-        val instream: InputStream = getClass.getResourceAsStream("/" + folder + filename)
-        if (instream == null)
-            throw new FileNotFoundException("Input file not found!")
-        parseFile(instream, folder, filename)
-    }
-
     private def testExpr(expr: String, expected: Set[String]) {
         val code = "void foo() {\n  %s\n}\n".format(expr)
         val ast: TranslationUnit = new ParserMain(parser).parserMain(lex(code), SilentParserOptions, emptyFM)
@@ -55,20 +47,17 @@ class ObjectNamesTest extends TestHelper with ASTNavigation {
     }
 
     private def testTranslationUnit(ast: TranslationUnit, expected: Set[String]) {
-        val c = new CCallGraph()
+        val c = new CCallGraph
         c.extractObjectNames(ast)
 
         assert(c.extractedObjectNames equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.extractedObjectNames.mkString("[", ", ", "]")))
     }
 
-    private def parse(code: String, production: parser.MultiParser[AST]): Any = {
-        val result = parser.parseAny(lex(code.stripMargin), production)
-        result match {
-            case parser.Success(ast, unparsed) => {
-                ast
-            }
-            case parser.NoSuccess(msg, unparsed, inner) =>
-                fail(msg + " at " + unparsed + " " + inner)
-        }
+    private def loadAST(filename: String): TranslationUnit = {
+        val folder = "testfiles/"
+        val instream: InputStream = getClass.getResourceAsStream("/" + folder + filename)
+        if (instream == null)
+            throw new FileNotFoundException("Input file not found!")
+        parseFile(instream, folder, filename)
     }
 }

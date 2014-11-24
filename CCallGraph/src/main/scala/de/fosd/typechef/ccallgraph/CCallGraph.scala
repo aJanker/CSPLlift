@@ -18,25 +18,30 @@ class CCallGraph {
 
     def calculatePERelation(program: AST): Graph[EquivalenceClass, LDiEdge] = {
         // extract object names from the AST
-        //extractObjectNames(program)
-        extractedObjectNames = Set("a", "&a", "*a", "a.c")
+        extractObjectNames(program)
+        //extractedObjectNames = Set("a", "&a", "*a", "a.c")
 
         // create initial equivalance class for each object name
-        initEquivalanceClasses
+        initEquivalanceClasses()
 
-        // create edge between initia; equivalence classes
-        constructPrefixSets
-
-        println(callGraph.nodes)
-        println(callGraph.edges)
+        // create edges between initial equivalence classes
+        constructPrefixSets()
 
         callGraph
     }
 
-    private def initEquivalanceClasses() = {
+    def initEquivalanceClasses() = {
         for (o <- extractedObjectNames) {
             insertEquivalenceClass(new EquivalenceClass(Set(o)))
         }
+    }
+
+    def equivalenceClasses(): Set[EquivalenceClass] = {
+        var set: Set[EquivalenceClass] = Set()
+        for (node: EquivalenceClass <- callGraph.nodes.toOuter) {
+            set += node
+        }
+        set
     }
 
     def find(objectName: String): Option[EquivalenceClass] = {
@@ -48,40 +53,63 @@ class CCallGraph {
         None
     }
 
-    private def constructPrefixSets = {
+    def constructPrefixSets() = {
         val objectNamesCrossProduct = extractedObjectNames flatMap { x => extractedObjectNames map { y => (x, y)}}
 
         for ((o, o1) <- objectNamesCrossProduct) {
             val eqClassObjectO = find(o)
             val eqClassObjectO1 = find(o1)
 
-            if (o.equals("&%s".format(o1)) && eqClassObjectO.isDefined && eqClassObjectO1.isDefined) {
+            if (!eqClassObjectO.isDefined || !eqClassObjectO1.isDefined)
+                throw new Exception("Equivalence class not found for one object name")
+
+            // pointer cretion operator
+            if (o.equals("&%s".format(o1))) {
                 // add * edge from o1 to o
                 callGraph += LDiEdge(eqClassObjectO.get, eqClassObjectO1.get)("*")
 
-            } else if (o.equals("*%s".format(o1)) && eqClassObjectO.isDefined && eqClassObjectO1.isDefined) {
+
+            // pointer dereference operator
+            } else if (o.equals("*%s".format(o1))) {
                 // add * edge from o to o1
                 callGraph += LDiEdge(eqClassObjectO1.get, eqClassObjectO.get)("*")
 
-            } else if (o.startsWith("%s.".format(o1)) && eqClassObjectO.isDefined && eqClassObjectO1.isDefined) {
+            // struct dot access operator
+            } else if (o.startsWith("%s.".format(o1))) {
                 val objectNameFields = o.split('.')
                 if (objectNameFields.size == 2) {
                     val eqClassObjectOPartial = find(objectNameFields(0))
 
                     if (eqClassObjectOPartial.isDefined) {
                         // add field edge from o to o1
-                        callGraph += LDiEdge(eqClassObjectOPartial.get, eqClassObjectO1.get)(objectNameFields(1))
+                        callGraph += LDiEdge(eqClassObjectO1.get, eqClassObjectO.get)(objectNameFields(1))
+                    }
+                }
+
+            /*
+             *  FIXME: should we treat the -> before constructing the graph?
+             *  FIXME: maybe make all structure's access uniform (reduce all to use the . operator)
+             */
+            // struct pointer access operator  (dereference + dot)
+            } else if (o.startsWith("%s->".format(o1))) {
+                val objectNameFields = o.split("->")
+                if (objectNameFields.size == 2) {
+                    val eqClassObjectOPartial = find("*%s".format(objectNameFields(0)))
+
+                    if (eqClassObjectOPartial.isDefined) {
+                        // add field edge from o to o1
+                        callGraph += LDiEdge(eqClassObjectOPartial.get, eqClassObjectO.get)(objectNameFields(1))
                     }
                 }
             }
         }
     }
 
-    private def apply(source: EquivalenceClass, target: EquivalenceClass, operator: String): Unit = {
+    def apply(source: EquivalenceClass, target: EquivalenceClass, operator: String) = {
         callGraph += LDiEdge(source, target)(operator)
     }
 
-    def insertEquivalenceClass(e: EquivalenceClass) = {
+    private def insertEquivalenceClass(e: EquivalenceClass) = {
         callGraph += e
     }
 
@@ -105,6 +133,11 @@ class CCallGraph {
 
     def showExtractedObjectNames() = {
         println(extractedObjectNames)
+    }
+
+    def showCallGraph() = {
+        println(callGraph.nodes)
+        println(callGraph.edges)
     }
 
     private def extractExpr(expr: Expr): Option[String] = {
@@ -213,10 +246,6 @@ class CCallGraph {
         }
     }
 
-    private def extractDecl(decl: Declarator): Option[String] = {
-        None
-    }
-
     def extractObjectNames(ast: AST): Option[String] = {
         //println(ast)
         ast match {
@@ -246,8 +275,10 @@ class CCallGraph {
 }
 
 object Main {
+
     def main(args: Array[String]) {
         val c: CCallGraph = new CCallGraph
+        //c.extractObjectNames(null)
         c.calculatePERelation(null)
     }
 }
