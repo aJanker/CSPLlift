@@ -3,9 +3,6 @@ package de.fosd.typechef.ccallgraph
 import de.fosd.typechef.conditional.{Conditional, Opt}
 import de.fosd.typechef.parser.c._
 
-import scalax.collection.edge.LDiEdge
-import scalax.collection.mutable.Graph
-
 /**
  * Created by gferreir on 9/20/14.
  *
@@ -13,10 +10,10 @@ import scalax.collection.mutable.Graph
 class CCallGraph {
 
     var extractedObjectNames: Set[String] = Set()
-    var callGraph = Graph[EquivalenceClass, LDiEdge]()
+    var equivalenceClasses: Set[EquivalenceClass] = Set()
 
 
-    def calculatePERelation(program: AST): Graph[EquivalenceClass, LDiEdge] = {
+    def calculatePERelation(program: AST): Set[EquivalenceClass] = {
         // extract object names from the AST
         extractObjectNames(program)
         //extractedObjectNames = Set("a", "&a", "*a", "a.c")
@@ -25,27 +22,27 @@ class CCallGraph {
         initEquivalanceClasses()
 
         // create edges between initial equivalence classes
-        constructPrefixSets()
+        createInitialPrefixSets()
 
-        callGraph
+        // merge equivalence classes
+        val assignmentsSet = extractProgramAssignments(program)
+
+        // for each assignment, merge if sets are different
+        for ((assignee, assignor) <- assignmentsSet) {
+            mergeIfDifferent(assignee, assignor)
+        }
+
+        equivalenceClasses
     }
 
     def initEquivalanceClasses() = {
         for (o <- extractedObjectNames) {
-            insertEquivalenceClass(new EquivalenceClass(Set(o)))
+            equivalenceClasses += new EquivalenceClass(Set(o), Set())
         }
-    }
-
-    def equivalenceClasses(): Set[EquivalenceClass] = {
-        var set: Set[EquivalenceClass] = Set()
-        for (node: EquivalenceClass <- callGraph.nodes.toOuter) {
-            set += node
-        }
-        set
     }
 
     def find(objectName: String): Option[EquivalenceClass] = {
-        for (node: EquivalenceClass <- callGraph.nodes.toOuter) {
+        for (node: EquivalenceClass <- equivalenceClasses) {
             if (node.objectNames contains objectName) {
                 return Some(node)
             }
@@ -53,91 +50,102 @@ class CCallGraph {
         None
     }
 
-    def constructPrefixSets() = {
-        val objectNamesCrossProduct = extractedObjectNames flatMap { x => extractedObjectNames map { y => (x, y)}}
+    def createInitialPrefixSets() = {
+        val objectNamesCrossProduct = extractedObjectNames flatMap {
+            x => extractedObjectNames map {
+                y => (x, y)
+            }
+        }
 
         for ((o, o1) <- objectNamesCrossProduct) {
             val eqClassObjectO = find(o)
             val eqClassObjectO1 = find(o1)
 
-            if (!eqClassObjectO.isDefined || !eqClassObjectO1.isDefined)
-                throw new Exception("Equivalence class not found for one object name")
-
             // pointer cretion operator
             if (o.equals("&%s".format(o1))) {
                 // add * edge from o1 to o
-                callGraph += LDiEdge(eqClassObjectO.get, eqClassObjectO1.get)("*")
+                eqClassObjectO.get.addPrefix(("*", o1))
+                //callGraph += LDiEdge(eqClassObjectO, eqClassObjectO1)("*")
 
 
-            // pointer dereference operator
+                // pointer dereference operator
             } else if (o.equals("*%s".format(o1))) {
                 // add * edge from o to o1
-                callGraph += LDiEdge(eqClassObjectO1.get, eqClassObjectO.get)("*")
+                eqClassObjectO1.get.addPrefix(("*", o))
+                //callGraph += LDiEdge(eqClassObjectO1, eqClassObjectO)("*")
 
-            // struct dot access operator
+                // struct dot access operator
             } else if (o.startsWith("%s.".format(o1))) {
                 val objectNameFields = o.split('.')
                 if (objectNameFields.size == 2) {
                     val eqClassObjectOPartial = find(objectNameFields(0))
 
-                    if (eqClassObjectOPartial.isDefined) {
-                        // add field edge from o to o1
-                        callGraph += LDiEdge(eqClassObjectO1.get, eqClassObjectO.get)(objectNameFields(1))
-                    }
+                    // add field edge from o to o1
+                    eqClassObjectO1.get.addPrefix((objectNameFields(1), o))
+                    // callGraph += LDiEdge(eqClassObjectO1, eqClassObjectO)(objectNameFields(1))
                 }
 
-            /*
-             *  FIXME: should we treat the -> before constructing the graph?
-             *  FIXME: maybe make all structure's access uniform (reduce all to use the . operator)
-             */
-            // struct pointer access operator  (dereference + dot)
+                /*
+                 *  FIXME: should we treat the -> before constructing the graph?
+                 *  FIXME: maybe make all structure's access uniform (reduce all to use the . operator)
+                 */
+                // struct pointer access operator  (dereference + dot)
             } else if (o.startsWith("%s->".format(o1))) {
                 val objectNameFields = o.split("->")
                 if (objectNameFields.size == 2) {
                     val eqClassObjectOPartial = find("*%s".format(objectNameFields(0)))
 
-                    if (eqClassObjectOPartial.isDefined) {
-                        // add field edge from o to o1
-                        callGraph += LDiEdge(eqClassObjectOPartial.get, eqClassObjectO.get)(objectNameFields(1))
-                    }
+                    // add field edge from o to o1
+                    eqClassObjectOPartial.get.addPrefix((objectNameFields(1), o))
+                    //callGraph += LDiEdge(eqClassObjectOPartial, eqClassObjectO)(objectNameFields(1))
                 }
             }
         }
     }
 
-    def apply(source: EquivalenceClass, target: EquivalenceClass, operator: String) = {
-        callGraph += LDiEdge(source, target)(operator)
+    def extractProgramAssignments(ast: AST): Set[(String, String)] = {
+        Set(("", ""))
     }
 
-    private def insertEquivalenceClass(e: EquivalenceClass) = {
-        callGraph += e
-    }
+    def mergeIfDifferent(assignee: String, assignor: String) {
+        val eqClassAssignee = find(assignee).get
+        val eqClassAssignor = find(assignor).get
 
-    // Equivalence class of object names
-    class EquivalenceClass(initialSet: Set[String]) {
-
-        private var objectNamesSet: Set[String] = initialSet
-
-        def objectNames(): Set[String] = objectNamesSet
-
-        def addObjectName(objectName: String) = {
-            objectNamesSet += objectName
+        if (!eqClassAssignee.equals(eqClassAssignor)) {
+            merge(eqClassAssignee, eqClassAssignor)
         }
-
-        def union(other: EquivalenceClass): EquivalenceClass = {
-            new EquivalenceClass(this.objectNames().union(other.objectNames()))
-        }
-
-        override def toString: String = objectNamesSet.mkString("{", ",", "}")
     }
+
+    def merge(e1: EquivalenceClass, e2: EquivalenceClass) {
+        val newObjectNamesSet: Set[String] = e1.objectNames().union(e2.objectNames())
+        var newPrefixSet: Set[(String, String)] = e1.prefixes()
+
+        // loop both prefix sets
+        for ((a, o) <- e2.prefixes()) {
+            val commonPrefix = newPrefixSet.filter({ case ((a1, o1)) => a.equals(a1)})
+
+            if (!commonPrefix.isEmpty) {
+                commonPrefix.map({ case ((_, o1)) =>
+
+                    val eqClassO = find(o).get
+                    val eqClassO1 = find(o1).get
+                    //                // if any two eq classes have the same prefix relation, merge them recursevely
+                    if (!eqClassO.equals(eqClassO1)) merge(eqClassO, eqClassO1);
+                })
+            } else newPrefixSet += ((a, o))
+        }
+        equivalenceClasses += new EquivalenceClass(newObjectNamesSet, newPrefixSet)
+        equivalenceClasses -= (e1, e2)
+
+    }
+
 
     def showExtractedObjectNames() = {
         println(extractedObjectNames)
     }
 
     def showCallGraph() = {
-        println(callGraph.nodes)
-        println(callGraph.edges)
+        equivalenceClasses.map(println)
     }
 
     private def extractExpr(expr: Expr): Option[String] = {
@@ -148,9 +156,12 @@ class CCallGraph {
             case StringLit(name: List[Opt[String]]) => None
             case UnaryExpr(kind: String, e: Expr) => extractExpr(e)
             case SizeOfExprT(typeName: TypeName) => None
-            case SizeOfExprU(expr: Expr) => extractExpr(expr); None
-            case CastExpr(typeName: TypeName, expr: Expr) => extractExpr(expr); None
-            case ExprList(exprs: List[Opt[Expr]]) => for (Opt(_, e) <- exprs) extractExpr(e); None
+            case SizeOfExprU(expr: Expr) => extractExpr(expr);
+                None
+            case CastExpr(typeName: TypeName, expr: Expr) => extractExpr(expr);
+                None
+            case ExprList(exprs: List[Opt[Expr]]) => for (Opt(_, e) <- exprs) extractExpr(e);
+                None
 
             case PointerDerefExpr(castExpr: Expr) => {
                 val exprStr = extractExpr(castExpr)
@@ -211,11 +222,16 @@ class CCallGraph {
     private def extractStmt(stmt: Statement): Option[String] = {
         //println(stmt)
         stmt match {
-            case CompoundStatement(innerStatements: List[Opt[Statement]]) => for (Opt(_, e) <- innerStatements) extractStmt(e); None
+            case CompoundStatement(innerStatements: List[Opt[Statement]]) => for (Opt(_, e) <- innerStatements) extractStmt(e);
+                None
             case EmptyStatement() => None
             case ExprStatement(expr: Expr) => extractExpr(expr)
-            case WhileStatement(expr: Expr, s: Conditional[Statement]) => extractExpr(expr); s.map(stmt => extractStmt(stmt)); None
-            case DoStatement(expr: Expr, s: Conditional[Statement]) => extractExpr(expr); s.map(stmt => extractStmt(stmt)); None
+            case WhileStatement(expr: Expr, s: Conditional[Statement]) => extractExpr(expr);
+                s.map(stmt => extractStmt(stmt));
+                None
+            case DoStatement(expr: Expr, s: Conditional[Statement]) => extractExpr(expr);
+                s.map(stmt => extractStmt(stmt));
+                None
             case ForStatement(expr1: Option[Expr], expr2: Option[Expr], expr3: Option[Expr], s: Conditional[Statement]) => {
                 extractExpr(expr1.get)
                 extractExpr(expr2.get)
@@ -223,12 +239,15 @@ class CCallGraph {
                 s.map(stmt => extractStmt(stmt));
                 None
             }
-            case GotoStatement(target: Expr) => extractExpr(target); None
+            case GotoStatement(target: Expr) => extractExpr(target);
+                None
             case ContinueStatement() => None
             case BreakStatement() => None
-            case ReturnStatement(expr: Option[Expr]) => extractExpr(expr.get); None
+            case ReturnStatement(expr: Option[Expr]) => extractExpr(expr.get);
+                None
             case LabelStatement(id: Id, attribute: Option[AttributeSpecifier]) => None
-            case CaseStatement(c: Expr) => extractExpr(c); None
+            case CaseStatement(c: Expr) => extractExpr(c);
+                None
             case DefaultStatement() => None
             case IfStatement(condition: Conditional[Expr], thenBranch: Conditional[Statement], elifs: List[Opt[ElifStatement]], elseBranch: Option[Conditional[Statement]]) => {
                 condition.map(expr => extractExpr(expr))
@@ -249,10 +268,13 @@ class CCallGraph {
     def extractObjectNames(ast: AST): Option[String] = {
         //println(ast)
         ast match {
-            case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(_, e) <- list) extractObjectNames(e); None
+            case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(_, e) <- list) extractObjectNames(e);
+                None
             case FunctionDef(_, _, _, compoundStmt: Statement) => extractStmt(compoundStmt)
-            case Declaration(declSpecs: List[Opt[Specifier]], init: List[Opt[InitDeclarator]]) => for (Opt(_, e) <- init) extractObjectNames(e); None
-            case FunctionCall(exprList: ExprList) => extractObjectNames(exprList); None
+            case Declaration(declSpecs: List[Opt[Specifier]], init: List[Opt[InitDeclarator]]) => for (Opt(_, e) <- init) extractObjectNames(e);
+                None
+            case FunctionCall(exprList: ExprList) => extractObjectNames(exprList);
+                None
             case PointerPostfixSuffix(operator: String, expr) => {
                 val str = extractExpr(expr)
                 str.map(operator + _)
