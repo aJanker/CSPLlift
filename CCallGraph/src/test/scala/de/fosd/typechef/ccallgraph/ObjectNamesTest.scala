@@ -30,9 +30,14 @@ class ObjectNamesTest extends TestHelper {
     }
 
     @Test def testExpr1() { testExpr("x->a = y;", Set("*x", "x", "x->a", "y")) }
-    @Test def testExpr2() { testExpr("a=&(&b);", Set("a", "b", "&b", "&&b")) }
+    @Test def testExpr2() { testExpr("a=&(&b);", Set("a", "b", "&b", "&(&b)")) }
     @Test def testExpr3() { testExpr("&(a+b);", Set("a", "&a")) }
     @Test def testExpr4() { testExpr("&(a+b+c);", Set("a", "&a")) }
+
+    @Test def testExpr5() { testExpr("(((a->b)->c)->d) = a;", Set("a", "*a", "a->b", "*(a->b)", "(a->b)->c", "*((a->b)->c)", "((a->b)->c)->d")) } // full parenthesis
+    @Test def testExpr6() { testExpr("a->b->c->d = a;", Set("a", "*a", "a->b", "*(a->b)", "(a->b)->c", "*((a->b)->c)", "((a->b)->c)->d")) } // no parenthesis
+    @Test def testExpr7() { testExprEquivalence("a->b->c->d = a;", "(((a->b)->c)->d) = a;") }
+
     @Test def testStmt1() { testExpr("while(a = p->x) { }", Set("a", "p", "*p", "p->x")) }
     @Test def testStmt2() { testExpr("for(b=1; a = p->x; p = p->y) { }", Set("a", "p", "*p", "p->x", "p->y")) }
     @Test def testStmt3() { testExpr("if (a = p->x > z) { }", Set("a", "p", "*p", "p->x")) }
@@ -46,11 +51,30 @@ class ObjectNamesTest extends TestHelper {
         testTranslationUnit(ast, expected)
     }
 
+    private def testExprEquivalence(expr1: String, expr2: String) {
+        val code1 = "void foo() {\n %s\n}\n".format(expr1)
+        val code2 = "void foo() {\n %s\n}\n".format(expr2)
+        val ast1: TranslationUnit = new ParserMain(parser).parserMain(lex(code1), SilentParserOptions, emptyFM)
+        val ast2: TranslationUnit = new ParserMain(parser).parserMain(lex(code2), SilentParserOptions, emptyFM)
+        testTranslationUnitEquivalence(ast1, ast2)
+    }
+
     private def testTranslationUnit(ast: TranslationUnit, expected: Set[String]) {
         val c = new CCallGraph
         c.extractObjectNames(ast)
 
         assert(c.extractedObjectNames equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.extractedObjectNames.mkString("[", ", ", "]")))
+    }
+
+    private def testTranslationUnitEquivalence(ast1: TranslationUnit, ast2: TranslationUnit) {
+        val c = new CCallGraph
+        c.extractObjectNames(ast1)
+        val ast1ObjectNames = c.extractedObjectNames
+
+        c.extractObjectNames(ast2)
+        val ast2ObjectNames = c.extractedObjectNames
+
+        assert(ast1ObjectNames equals ast2ObjectNames, "expected %s, but found %s".format(ast1ObjectNames.mkString("[", ", ", "]"), ast2ObjectNames.mkString("[", ", ", "]")))
     }
 
     private def loadAST(filename: String): TranslationUnit = {

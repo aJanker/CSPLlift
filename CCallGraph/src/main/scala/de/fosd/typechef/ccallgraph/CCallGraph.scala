@@ -10,13 +10,20 @@ import de.fosd.typechef.parser.c._
 class CCallGraph {
 
     var extractedObjectNames: Set[String] = Set()
+    var pointerRelatedAssignments : Set[(String,String)] = Set()
     var equivalenceClasses: Set[EquivalenceClass] = Set()
+
+    // constants
+    val StructPointerAccessOp = "->"
+    val PointerDereferenceOp = "*"
+    val PointerCreationOp = "&"
+    val StructAccessOp = "."
 
 
     def calculatePERelation(program: AST): Set[EquivalenceClass] = {
-        // extract object names from the AST
+
+        // extract objectNames and their assignments from the AST
         extractObjectNames(program)
-        //extractedObjectNames = Set("a", "&a", "*a", "a.c")
 
         // create initial equivalance class for each object name
         initEquivalanceClasses()
@@ -24,12 +31,9 @@ class CCallGraph {
         // create edges between initial equivalence classes
         createInitialPrefixSets()
 
-        // merge equivalence classes
-        val assignmentsSet = extractProgramAssignments(program)
-
-        // for each assignment, merge if sets are different
-        for ((assignee, assignor) <- assignmentsSet) {
-            mergeIfDifferent(assignee, assignor)
+        // for each pointer related assignment, merge prefixes if  different
+        for ((assignee, assignor) <- pointerRelatedAssignments) {
+            mergeEquivalenceClasses(assignee, assignor)
         }
 
         equivalenceClasses
@@ -43,7 +47,7 @@ class CCallGraph {
 
     def find(objectName: String): Option[EquivalenceClass] = {
         for (node: EquivalenceClass <- equivalenceClasses) {
-            if (node.objectNames contains objectName) {
+            if ((node.objectNames contains objectName) ||  (node.objectNames contains parenthesize(objectName))) {
                 return Some(node)
             }
         }
@@ -51,6 +55,7 @@ class CCallGraph {
     }
 
     def createInitialPrefixSets() = {
+        // generate cross product of all object names
         val objectNamesCrossProduct = extractedObjectNames flatMap {
             x => extractedObjectNames map {
                 y => (x, y)
@@ -62,52 +67,48 @@ class CCallGraph {
             val eqClassObjectO1 = find(o1)
 
             // pointer cretion operator
-            if (o.equals("&%s".format(o1))) {
+            if (o.equals(apply(PointerCreationOp, o1)) || o.equals(apply(PointerCreationOp, parenthesize(o1)))) {
                 // add * edge from o1 to o
-                eqClassObjectO.get.addPrefix(("*", o1))
-                //callGraph += LDiEdge(eqClassObjectO, eqClassObjectO1)("*")
-
+                eqClassObjectO.get.addPrefix((PointerDereferenceOp, o1))
 
                 // pointer dereference operator
-            } else if (o.equals("*%s".format(o1))) {
+            } else if (o.equals(apply(PointerDereferenceOp, o1)) || o.equals(apply(PointerDereferenceOp, parenthesize(o1)))) {
                 // add * edge from o to o1
-                eqClassObjectO1.get.addPrefix(("*", o))
-                //callGraph += LDiEdge(eqClassObjectO1, eqClassObjectO)("*")
+                eqClassObjectO1.get.addPrefix((PointerDereferenceOp, o))
 
                 // struct dot access operator
-            } else if (o.startsWith("%s.".format(o1))) {
-                val objectNameFields = o.split('.')
-                if (objectNameFields.size == 2) {
-                    val eqClassObjectOPartial = find(objectNameFields(0))
+            } else if (o.startsWith(apply(StructAccessOp, o1)) || o.startsWith(apply(StructAccessOp, parenthesize(o1)))) {
+                val objectNameFields = (o take (o.lastIndexOf(StructAccessOp)), o drop (o.lastIndexOf(StructAccessOp) + StructAccessOp.length))
+                val eqClassObjectOPartial = find(objectNameFields._1)
 
-                    // add field edge from o to o1
-                    eqClassObjectO1.get.addPrefix((objectNameFields(1), o))
-                    // callGraph += LDiEdge(eqClassObjectO1, eqClassObjectO)(objectNameFields(1))
-                }
+                // add field edge from o to o1
+                eqClassObjectO1.get.addPrefix((objectNameFields._2, o))
 
-                /*
-                 *  FIXME: should we treat the -> before constructing the graph?
-                 *  FIXME: maybe make all structure's access uniform (reduce all to use the . operator)
-                 */
                 // struct pointer access operator  (dereference + dot)
-            } else if (o.startsWith("%s->".format(o1))) {
-                val objectNameFields = o.split("->")
-                if (objectNameFields.size == 2) {
-                    val eqClassObjectOPartial = find("*%s".format(objectNameFields(0)))
+            } else if (o.startsWith(apply(StructPointerAccessOp, o1)) || o.startsWith(apply(StructPointerAccessOp, parenthesize(o1)))) {
+                val objectNameFields = (o take (o.lastIndexOf(StructPointerAccessOp)), o drop (o.lastIndexOf(StructPointerAccessOp) + StructPointerAccessOp.length))
+                val eqClassObjectOPartial = find("%s%s".format(PointerDereferenceOp, objectNameFields._1))
 
-                    // add field edge from o to o1
-                    eqClassObjectOPartial.get.addPrefix((objectNameFields(1), o))
-                    //callGraph += LDiEdge(eqClassObjectOPartial, eqClassObjectO)(objectNameFields(1))
-                }
+                // add field edge from o to o1
+                eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o))
             }
         }
     }
 
-    def extractProgramAssignments(ast: AST): Set[(String, String)] = {
-        Set(("", ""))
+    def apply(operator: String, objectName: String): String = {
+        operator match {
+            // suffix operators
+            case StructAccessOp | StructPointerAccessOp => "%s%s".format(objectName, operator)
+            // prefix operators
+            case PointerCreationOp | PointerDereferenceOp =>  "%s%s".format(operator, objectName)
+        }
     }
 
-    def mergeIfDifferent(assignee: String, assignor: String) {
+    def extractProgramAssignments(ast: AST) = {
+        pointerRelatedAssignments
+    }
+
+    def mergeEquivalenceClasses(assignee: String, assignor: String) {
         val eqClassAssignee = find(assignee).get
         val eqClassAssignor = find(assignor).get
 
@@ -122,14 +123,15 @@ class CCallGraph {
 
         // loop both prefix sets
         for ((a, o) <- e2.prefixes()) {
-            val commonPrefix = newPrefixSet.filter({ case ((a1, o1)) => a.equals(a1)})
+            val commonPrefix = newPrefixSet.filter({ case ((a1, o1)) => a.equals(a1) || a.equals() })
 
             if (!commonPrefix.isEmpty) {
                 commonPrefix.map({ case ((_, o1)) =>
 
                     val eqClassO = find(o).get
                     val eqClassO1 = find(o1).get
-                    //                // if any two eq classes have the same prefix relation, merge them recursevely
+
+                    // if any two eq classes have the same prefix relation, merge them recursevely
                     if (!eqClassO.equals(eqClassO1)) merge(eqClassO, eqClassO1);
                 })
             } else newPrefixSet += ((a, o))
@@ -148,8 +150,15 @@ class CCallGraph {
         equivalenceClasses.map(println)
     }
 
+    def parenthesize(objName : String) = {
+        if (objName.contains("->") || objName.contains(".") || objName.contains("*") || objName.contains("&")) {
+            "(%s)".format(objName)
+        }
+        else objName
+    }
+
     private def extractExpr(expr: Expr): Option[String] = {
-        //println(expr)
+        println(expr)
         expr match {
             case Id(name: String) => Some(name)
             case Constant(value: String) => None
@@ -167,17 +176,17 @@ class CCallGraph {
                 val exprStr = extractExpr(castExpr)
                 exprStr.map(exprStr => {
                     extractedObjectNames += exprStr
-                    extractedObjectNames += ("*" + exprStr)
+                    extractedObjectNames += ("*" + parenthesize(exprStr))
                 })
-                exprStr.map("*" + _)
+                exprStr.map("*" + parenthesize(_))
             }
             case PointerCreationExpr(castExpr: Expr) => {
                 val exprStr = extractExpr(castExpr)
                 if (exprStr.isDefined) {
                     extractedObjectNames += exprStr.get
-                    extractedObjectNames += ("&" + exprStr.get)
+                    extractedObjectNames += ("&" + parenthesize(exprStr.get))
                 }
-                exprStr.map("&" + _)
+                exprStr.map("&" + parenthesize(_))
             }
             case UnaryOpExpr(kind: String, castExpr: Expr) => extractExpr(castExpr)
 
@@ -193,6 +202,7 @@ class CCallGraph {
                 if (exprStr1.isDefined && exprStr2.isDefined) {
                     extractedObjectNames += exprStr1.get
                     extractedObjectNames += exprStr2.get
+                    pointerRelatedAssignments += ((exprStr1.get, exprStr2.get))
                 }
                 exprStr2
             }
@@ -205,22 +215,22 @@ class CCallGraph {
                     // -> operator
                     if (exprStr2.get startsWith "->") {
                         extractedObjectNames += exprStr1.get
-                        extractedObjectNames += ("*" + exprStr1.get)
-                        extractedObjectNames += (exprStr1.get + exprStr2.get)
+                        extractedObjectNames += ("*" + parenthesize(exprStr1.get))
+                        extractedObjectNames += (parenthesize(exprStr1.get) + exprStr2.get)
                         // . (dot) operator
                     } else if (exprStr2.get startsWith ".") {
                         extractedObjectNames += exprStr1.get
-                        extractedObjectNames += (exprStr1.get + exprStr2.get)
+                        extractedObjectNames += (parenthesize(exprStr1.get) + exprStr2.get)
                     }
                 }
-                exprStr1.flatMap(e1 => exprStr2.map(e2 => e1 + e2))
+                exprStr1.flatMap(e1 => exprStr2.map(e2 => parenthesize(e1) + e2))
             };
 
         }
     }
 
     private def extractStmt(stmt: Statement): Option[String] = {
-        //println(stmt)
+        println(stmt)
         stmt match {
             case CompoundStatement(innerStatements: List[Opt[Statement]]) => for (Opt(_, e) <- innerStatements) extractStmt(e);
                 None
@@ -266,7 +276,7 @@ class CCallGraph {
     }
 
     def extractObjectNames(ast: AST): Option[String] = {
-        //println(ast)
+        println(ast)
         ast match {
             case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(_, e) <- list) extractObjectNames(e);
                 None
@@ -293,14 +303,5 @@ class CCallGraph {
                 initNames
             }
         }
-    }
-}
-
-object Main {
-
-    def main(args: Array[String]) {
-        val c: CCallGraph = new CCallGraph
-        //c.extractObjectNames(null)
-        c.calculatePERelation(null)
     }
 }

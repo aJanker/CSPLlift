@@ -29,5 +29,5 @@ class EquivalenceClass(initialObjNamesSet: Set[String], initialPrefixSet: Set[(S
         this.objectNames().equals(other.objectNames()) && this.prefixes().equals(other.prefixes())
     }
 
-    override def toString: String = "Equivalance Set: %s \n\tPrefixes: %s\n".format(objectNamesSet.mkString("{ ", ", ", " }"), prefixes().mkString("{ ", ", ", " }"))
+    override def toString: String = "%s\n%s\n".format(objectNamesSet.mkString("( ", ", ", " )"), prefixes().mkString("( ", ", ", " )"))
 }
