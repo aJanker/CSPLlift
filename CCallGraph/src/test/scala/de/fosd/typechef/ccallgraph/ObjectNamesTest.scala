@@ -15,7 +15,7 @@ import org.junit.Test
 class ObjectNamesTest extends TestHelper {
 
     @Test def test_paper_example_fig1() {
-        val ast = loadAST("table_dispatch.c")
+        val ast = loadAST("fig1_table_dispatch.c")
         testTranslationUnit(ast, Set("func1", "func2", "&func1", "&func2", "parse_func", "*parse_func", "table[]", "table[].func", "table[].name"))
     }
 
@@ -25,7 +25,7 @@ class ObjectNamesTest extends TestHelper {
     }
 
     @Test def test_paper_example_fig4() {
-        val ast = loadAST("simple_calls.c")
+        val ast = loadAST("fig4_simple_sets_statements.c")
         testTranslationUnit(ast, Set("x", "&x", "t", "*p", "p->f", "p", "&z", "z"))
     }
 

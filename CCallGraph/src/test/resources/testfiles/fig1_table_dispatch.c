@@ -23,9 +23,6 @@ void init() {
     table[1].func = &func2;
 }
 
-int strcmp(void* a, void* b);
-#define NULL 0
-
 PBF find_p_func(char *s) {
     int i;
     int num_func;
