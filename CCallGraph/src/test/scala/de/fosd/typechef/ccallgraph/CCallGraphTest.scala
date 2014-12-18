@@ -139,7 +139,7 @@ class CCallGraphTest extends TestHelper {
     }
 
     @Test def test_paper_example_fig2() {
-        val ast = loadAST("extensible_func.c")
+        val ast = loadAST("fig2_extensible_func.c")
 
         val c: CCallGraph = new CCallGraph()
         c.calculatePERelation(ast)

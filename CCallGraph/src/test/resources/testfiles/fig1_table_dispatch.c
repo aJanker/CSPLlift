@@ -5,17 +5,18 @@ struct parse_table {
     PBF func;
 };
 
-int func1() {
-    int a1;
-    return a1;
+int func1(int *func1_param) {
+    int func1_a1;
+    return func1_a1;
 }
 
-int func2() {
-    int a2;
-    return a2;
+int func2(int func2_param) {
+    int func2_a2;
+    return func2_a2;
 }
 
 struct parse_table table[2];
+
 void init() {
     table[0].name = "name1";
     table[1].name = "name2";
