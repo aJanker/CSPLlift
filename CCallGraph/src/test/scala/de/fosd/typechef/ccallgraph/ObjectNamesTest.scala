@@ -101,6 +101,11 @@ class ObjectNamesTest extends TestHelper {
 
     }
 
+    @Test def testVariablesScope() {
+        //test("int x;", Set("GLOBAL$x"))
+        test("int x; int foo() { int x; }", Set("GLOBAL$x", "foo$x"))
+    }
+
     @Test def testPaperExamples() {
         testFile("fig1_table_dispatch.c", Set("func1", "func2", "&func1", "&func2", "parse_func", "*parse_func", "table[]", "table[].func", "table[].name"))
         //testFile("fig2_extensible_func.c", Set("*h", "*f", "&h", "f", "h", "xmalloc", "xfree", "h->freefun", "h->chunkfun", "&xfree", "&xmalloc"))

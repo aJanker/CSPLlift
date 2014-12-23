@@ -1,7 +1,9 @@
 package de.fosd.typechef.ccallgraph
 
-import de.fosd.typechef.conditional.{One, Conditional, Opt}
+import de.fosd.typechef.conditional.{Conditional, One, Opt}
 import de.fosd.typechef.parser.c._
+
+import scala.collection.mutable.Stack
 
 /**
  * Created by gferreir on 9/20/14.
@@ -17,6 +19,10 @@ class CCallGraph() {
     // map of function defs and all possible return values
     var functionDefReturns: Map[String, Set[String]] = Map()
     var functionDefParameters: Map[String, List[String]] = Map()
+
+    // control object names scope (handle nested expressions)
+    var objectNamesScope: Map[String, Set[String]] = Map()
+    var objectNamesScopeStack: Stack[String] = Stack()
 
     // context variables
     var currentFunction: String = "GLOBAL"
@@ -44,7 +50,7 @@ class CCallGraph() {
         extractObjectNames(program)
 
         // extract program assignments considering function returns
-        replaceFunctionReturnsValuesForAssignments()
+        replaceFunctionCallByReturnValues()
 
         // create initial equivalance class for each object name
         initEquivalanceClasses()
@@ -125,8 +131,12 @@ class CCallGraph() {
         }
     }
 
+    def objectNameScope(rawObjectName: String): String = {
+       ""
+    }
+
     // replace each auxiliary function call reference for its real return values
-    def replaceFunctionReturnsValuesForAssignments() = {
+    def replaceFunctionCallByReturnValues() = {
         val assignmentsPartition = objectNameAssignments.partition({ a: ((String, String)) => !a._1.contains(FunctionCallOp) && !a._2.contains(FunctionCallOp)})
         var normalizedAssignments: Set[(String, String)] = assignmentsPartition._1
 
@@ -180,9 +190,9 @@ class CCallGraph() {
 
     }
 
-    def addObjectName(objectName: String, scope: String) : String = {
+    def addObjectName(objectName: String, scope: String): String = {
 
-        
+
         val scopedObjectName = "%s$%s".format(scope, objectName)
         extractedObjectNames = extractedObjectNames ++ List(scopedObjectName)
         scopedObjectName
@@ -210,6 +220,7 @@ class CCallGraph() {
 
     private def extractExpr(expr: Expr): Option[String] = {
         println(expr)
+
         expr match {
             case Id(name: String) => Some(name)
             // constants are no important, variables are (changing this may affect the whole algorithm)
@@ -312,13 +323,13 @@ class CCallGraph() {
             case ExprStatement(expr: Expr) => extractExpr(expr)
             case WhileStatement(expr: Expr, s: Conditional[Statement]) => {
                 val exprStr = extractExpr(expr)
-                if (exprStr.isDefined) { addObjectName(exprStr.get, currentFunction)  }
+                if (exprStr.isDefined) {addObjectName(exprStr.get, currentFunction)}
                 s.map(stmt => extractStmt(stmt))
                 None
             }
             case DoStatement(expr: Expr, s: Conditional[Statement]) => {
                 val exprStr = extractExpr(expr)
-                if (exprStr.isDefined) { addObjectName(exprStr.get, currentFunction)  }
+                if (exprStr.isDefined) {addObjectName(exprStr.get, currentFunction)}
                 s.map(stmt => extractStmt(stmt))
                 None
             }
@@ -327,9 +338,9 @@ class CCallGraph() {
                 val expr2Str = extractExpr(expr2.getOrElse(new Constant("")))
                 val expr3Str = extractExpr(expr3.getOrElse(new Constant("")))
 
-                if (expr1Str.isDefined) { addObjectName(expr1Str.get, currentFunction)  }
-                if (expr2Str.isDefined) { addObjectName(expr2Str.get, currentFunction)  }
-                if (expr3Str.isDefined) { addObjectName(expr3Str.get, currentFunction)  }
+                if (expr1Str.isDefined) {addObjectName(expr1Str.get, currentFunction)}
+                if (expr2Str.isDefined) {addObjectName(expr2Str.get, currentFunction)}
+                if (expr3Str.isDefined) {addObjectName(expr3Str.get, currentFunction)}
 
                 s.map(stmt => extractStmt(stmt))
                 None
@@ -352,7 +363,7 @@ class CCallGraph() {
                     case One(e) => extractExpr(e)
                     case c => throw new Exception("%s is not supported".format(c))
                 }
-                if (exprStr.isDefined) { addObjectName(exprStr.get, currentFunction) }
+                if (exprStr.isDefined) {addObjectName(exprStr.get, currentFunction)}
 
                 thenBranch.map(stmt => extractStmt(stmt))
                 for (Opt(_, s) <- elifs) extractObjectNames(s)
@@ -444,6 +455,7 @@ class CCallGraph() {
                 // variable declaration with initializer
                 if (isNotTypedefSpecifier && declStr.isDefined) {
                     val objName1 = addObjectName(declStr.get, currentFunction)
+                    objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + objName1)
 
                     if (initNames.isDefined) {
                         val objName2 = addObjectName(initNames.get, currentFunction)
@@ -469,9 +481,12 @@ class CCallGraph() {
                 for (Opt(_, e) <- extensions) extractObjectNames(e);
 
                 if (isDeclarationStatement && isNotTypedefSpecifier) {
-                    addObjectName(id.name, currentFunction)
+                    val objName1 = addObjectName(id.name, currentFunction)
+                    objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + objName1)
+
                     if (isPointer) {
-                        addObjectName(PointerDereferenceOp + parenthesize(id.name), currentFunction)
+                        val objName2 = addObjectName(PointerDereferenceOp + parenthesize(id.name), currentFunction)
+                        objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + objName2)
                         isPointer = false
                     }
                 }
@@ -555,7 +570,7 @@ class CCallGraph() {
                     case One(e) => extractExpr(e)
                     case c => throw new Exception("%s is not supported".format(c))
                 }
-                if (exprStr.isDefined) { addObjectName(exprStr.get, currentFunction) }
+                if (exprStr.isDefined) {addObjectName(exprStr.get, currentFunction)}
                 thenBranch.map(stmt => extractStmt(stmt))
                 exprStr
             }
