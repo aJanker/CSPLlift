@@ -45,12 +45,12 @@ class FunctionDeclarationsTest extends TestHelper {
     }
 
     @Test def testVariablesOrParametersDeclarations(): Unit = {
-        test("void foo(int x) { }", Map(("foo", Set("foo$x"))), testVariablesDeclarations)
-        test("void foo(int x) { int y; }", Map(("foo", Set("foo$x", "foo$y"))), testVariablesDeclarations)
-        test("int x; void foo(int y) { int z; }", Map(("foo", Set("foo$y", "foo$z")), ("GLOBAL", Set("GLOBAL$x"))), testVariablesDeclarations)
-        test("int *x; void foo(int y) { int z; }", Map(("foo", Set("foo$y", "foo$z")), ("GLOBAL", Set("GLOBAL$x", "GLOBAL$*x"))), testVariablesDeclarations)
-        test("int x; void foo(int x) { int y; }", Map(("foo", Set("foo$x", "foo$y")), ("GLOBAL", Set("GLOBAL$x"))), testVariablesDeclarations)
-        test("int x; void foo(int *x) { int y; }", Map(("foo", Set("foo$x", "foo$*x", "foo$y")), ("GLOBAL", Set("GLOBAL$x"))), testVariablesDeclarations)
+        test("void foo(int x) { }", Map(("foo", Set("x"))), testVariablesDeclarations)
+        test("void foo(int x) { int y; }", Map(("foo", Set("x", "y"))), testVariablesDeclarations)
+        test("int x; void foo(int y) { int z; }", Map(("foo", Set("y", "z")), ("GLOBAL", Set("x"))), testVariablesDeclarations)
+        test("int *x; void foo(int y) { int z; }", Map(("foo", Set("y", "z")), ("GLOBAL", Set("x", "*x"))), testVariablesDeclarations)
+        test("int x; void foo(int x) { int y; }", Map(("foo", Set("x", "y")), ("GLOBAL", Set("x"))), testVariablesDeclarations)
+        test("int x; void foo(int *x) { int y; }", Map(("foo", Set("x", "*x", "y")), ("GLOBAL", Set("x"))), testVariablesDeclarations)
 
     }
 

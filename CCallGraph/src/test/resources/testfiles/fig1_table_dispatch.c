@@ -5,14 +5,12 @@ struct parse_table {
     PBF func;
 };
 
-int func1(int *func1_param) {
-    int func1_a1;
-    return func1_a1;
+int func1() {
+    return 1;
 }
 
-int func2(int func2_param) {
-    int func2_a2;
-    return func2_a2;
+int func2() {
+    return 1;
 }
 
 struct parse_table table[2];
