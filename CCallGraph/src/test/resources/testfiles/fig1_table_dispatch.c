@@ -39,6 +39,5 @@ int main(int argc, char *argv[]) {
     if (parse_func) {
         (*parse_func)();
     }
-    table[i].func();
 }
 

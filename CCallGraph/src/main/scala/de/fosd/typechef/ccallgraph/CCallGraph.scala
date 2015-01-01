@@ -1,6 +1,6 @@
 package de.fosd.typechef.ccallgraph
 
-import de.fosd.typechef.conditional.{Conditional, One, Opt}
+import de.fosd.typechef.conditional.{Opt, Conditional, One}
 import de.fosd.typechef.parser.c._
 
 /**
@@ -17,6 +17,11 @@ class CCallGraph() {
     // map of function defs and [return values, parameters]
     var functionDefReturns: Map[String, Set[String]] = Map()
     var functionDefParameters: Map[String, List[String]] = Map()
+    var functionCallParameters: List[(String, List[String])] = List()
+
+    var functonCallExpr : String = ""
+    var functionParamList : List[String] = List()
+    var functionCalls : Set[(String, String)] = Set()
 
     //  variables scope (key = function OR GLOBAL, set = set of variables declared)
     var objectNamesScope: Map[String, Set[String]] = Map()
@@ -48,8 +53,10 @@ class CCallGraph() {
         // extract objectNames and their assignments from the AST
         extractObjectNames(program)
 
-        // extract program assignments considering function returns
-        replaceFunctionCallByReturnValues()
+        // extract program assignments (function call parameters and return values)
+        addAssignmentsFromFunctionCallParameters()
+        addAssignmentsFromFunctionCallReturnValues()
+        println(functionCalls)
 
         // create initial equivalance class for each object name
         initEquivalanceClasses()
@@ -142,8 +149,17 @@ class CCallGraph() {
         rawObjectName
     }
 
+
+    def addAssignmentsFromFunctionCallParameters() = {
+        for ((function, listParams) <- functionCallParameters) {
+            val listParamsDecl = functionDefParameters.getOrElse(function, List())
+            val assignments = listParams.zip(listParamsDecl)
+            assignments.foreach({ a  => objectNameAssignments += a  })
+        }
+    }
+
     // replace each auxiliary function call reference for its real return values
-    def replaceFunctionCallByReturnValues() = {
+    def addAssignmentsFromFunctionCallReturnValues() = {
         val assignmentsPartition = objectNameAssignments.partition({ a: ((String, String)) => !a._1.contains(FunctionCallOp) && !a._2.contains(FunctionCallOp)})
         var normalizedAssignments: Set[(String, String)] = assignmentsPartition._1
 
@@ -260,8 +276,16 @@ class CCallGraph() {
                 None
             case CastExpr(typeName: TypeName, expr: Expr) => val exprStr = extractExpr(expr);
                 exprStr
-            case ExprList(exprs: List[Opt[Expr]]) => for (Opt(_, e) <- exprs) extractExpr(e);
+            case ExprList(exprs: List[Opt[Expr]]) => {
+                functionParamList = List()
+                for (Opt(_, e) <- exprs) {
+                    val exprStr = extractObjectNames(e);
+                    val scope = findScopeForObjectName(exprStr.get, currentFunction)
+                    functionParamList = functionParamList :+ applyScope(exprStr.get, scope)
+                }
                 None
+            };
+
             case PointerDerefExpr(castExpr: Expr) => {
                 val exprStr = extractExpr(castExpr)
                 if (exprStr.isDefined) {
@@ -324,6 +348,8 @@ class CCallGraph() {
 
                 // member access operators
                 if (exprStr1.isDefined && exprStr2.isDefined) {
+                    // potential function call name
+                    functonCallExpr = exprStr1.get
                     val scope = findScopeForObjectName(exprStr1.get, currentFunction)
 
                     // -> (sctruct pointer access operator)
@@ -343,9 +369,15 @@ class CCallGraph() {
                         addObjectName(applyScope(parenthesize(exprStr1.get) + exprStr2.get, scope))
                     }
 
-                    // is a declaration followed by a function call assignment?
-                    else if (isDeclarationStatement && (exprStr2.get equals FunctionCallOp)) {
-                        addObjectName(applyScope(parenthesize(exprStr1.get) + FunctionCallOp, currentFunction))
+                    // is a function call?
+                    else if (exprStr2.get equals FunctionCallOp) {
+                        functionCallParameters +:= (exprStr1.get, functionParamList)
+                        functionCalls += ((currentFunction, exprStr1.get))
+
+                        // is a declaration followed by a function call assignment?
+                        if (isDeclarationStatement) {
+                            addObjectName(applyScope(parenthesize(exprStr1.get) + FunctionCallOp, currentFunction))
+                        }
                     }
                 }
                 exprStr1.flatMap(e1 => exprStr2.map(e2 => parenthesize(e1) + e2))
@@ -458,9 +490,8 @@ class CCallGraph() {
                 isDeclarationStatement = true
                 for (Opt(_, e) <- declSpecs) extractObjectNames(e)
                 declSpecs.head match {
-                    case Opt(_, ts: TypeDefTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case Opt(_, ps: PrimitiveTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case _ => isNotTypedefSpecifier = false;
+                    case Opt(_, t : TypedefSpecifier) => isNotTypedefSpecifier = false;
+                    case _ => isNotTypedefSpecifier = true;
                 }
                 for (Opt(_, e) <- init) extractObjectNames(e)
                 isNotTypedefSpecifier = false;
@@ -473,9 +504,11 @@ class CCallGraph() {
                 None
             }
 
-            case FunctionCall(exprList: ExprList) => extractObjectNames(exprList);
+            case FunctionCall(exprList: ExprList) => {
+                extractExpr(exprList)
 
                 Some(FunctionCallOp)
+            };
             /*
              * TODO: analyze function defs and calls to relate parameters
              *
@@ -611,7 +644,7 @@ class CCallGraph() {
                 val declStr = extractObjectNames(decl)
                 if (isDeclarationStatement && declStr.isDefined) {
                     objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + declStr.get)
-                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ declStr.get)
+                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ applyScope(declStr.get, currentFunction))
                 }
                 declStr
             }
@@ -628,7 +661,7 @@ class CCallGraph() {
                 val declStr = extractObjectNames(decl)
                 if (isDeclarationStatement && declStr.isDefined) {
                     objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + declStr.get)
-                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ declStr.get)
+                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ applyScope(declStr.get, currentFunction))
                 }
                 declStr
             }
