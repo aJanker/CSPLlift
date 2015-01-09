@@ -24,7 +24,11 @@ class CCallGraph() {
     var functionCalls : Set[(String, String)] = Set()
 
     //  variables scope (key = function OR GLOBAL, set = set of variables declared)
-    var objectNamesScope: Map[String, Set[String]] = Map()
+    //var objectNamesScope: Map[String, Set[String]] = Map()
+    // object names scope (key =  object name, value = scope)
+    var objectNamesScope: Map[String, String] = Map()
+
+
 
     // context variables
     var currentFunction: String = "GLOBAL"
@@ -217,7 +221,6 @@ class CCallGraph() {
         // add object name with scope defined
         extractedObjectNames = extractedObjectNames + scopedObjectName
 
-
         scopedObjectName
     }
 
@@ -226,7 +229,7 @@ class CCallGraph() {
         val scopedObjectName = "%s$%s".format(currentScope, objectName)
 
         // include object name with scope (according to the variable declarations)
-        objectNamesScope = objectNamesScope.updated(currentScope, objectNamesScope.getOrElse(currentScope, Set()) + objectName)
+        objectNamesScope = objectNamesScope.updated(objectName, currentScope)
 
         scopedObjectName
     }
@@ -234,12 +237,8 @@ class CCallGraph() {
     def findScopeForObjectName(objectName: String, currentScope: String) : String = {
 
         // trivial scopes (current function or global)
-        val scopedVariables = objectNamesScope.get(currentScope)
-        if (scopedVariables.isDefined && scopedVariables.get.exists(o => o == objectName)) {
-            currentScope
-        } else {
-            "GLOBAL"
-        }
+        val scopedVariable = objectNamesScope.getOrElse(objectName, "GLOBAL")
+        scopedVariable
     }
 
     def showExtractedObjectNames() = {
@@ -280,8 +279,10 @@ class CCallGraph() {
                 functionParamList = List()
                 for (Opt(_, e) <- exprs) {
                     val exprStr = extractObjectNames(e);
-                    val scope = findScopeForObjectName(exprStr.get, currentFunction)
-                    functionParamList = functionParamList :+ applyScope(exprStr.get, scope)
+                    if (exprStr.isDefined) {
+                        val scope = findScopeForObjectName(exprStr.get, currentFunction)
+                        functionParamList = functionParamList :+ applyScope(exprStr.get, scope)
+                    }
                 }
                 None
             };
@@ -483,19 +484,25 @@ class CCallGraph() {
     def extractObjectNames(ast: AST): Option[String] = {
         println(ast)
         ast match {
-            case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(_, e) <- list) extractObjectNames(e);
+            case EmptyExternalDef() => None
+            case TypelessDeclaration(declList: List[Opt[InitDeclarator]]) => for (Opt(_, e) <- declList) extractObjectNames(e); None
+            case TypeName(specifiers: List[Opt[Specifier]], decl: Option[AbstractDeclarator])  => {
+                for (Opt(_, s) <- specifiers) extractObjectNames(s);
+                if (decl.isDefined) extractObjectNames(decl.get);
                 None
+            }
+            case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(_, e) <- list) extractObjectNames(e); None
 
             case Declaration(declSpecs: List[Opt[Specifier]], init: List[Opt[InitDeclarator]]) => {
                 isDeclarationStatement = true
                 for (Opt(_, e) <- declSpecs) extractObjectNames(e)
-                declSpecs.head match {
+                declSpecs.map {
                     case Opt(_, t : TypedefSpecifier) => isNotTypedefSpecifier = false;
-                    case _ => isNotTypedefSpecifier = true;
+                    case _ =>
                 }
                 for (Opt(_, e) <- init) extractObjectNames(e)
-                isNotTypedefSpecifier = false;
                 isDeclarationStatement = false;
+                isNotTypedefSpecifier = true;
                 None
             }
 
@@ -536,13 +543,15 @@ class CCallGraph() {
                 currentFunction = declarator.getName
                 functionDefReturns += (currentFunction -> Set())
                 functionDefParameters += (currentFunction -> List())
+                val oldObjectNamesScope = objectNamesScope
 
                 extractObjectNames(declarator)
-                extractStmt(stmt)
                 for (Opt(_, p) <- parameters) extractObjectNames(p)
+                extractStmt(stmt)
 
-                isFunctionDef = false
+                objectNamesScope = oldObjectNamesScope
                 currentFunction = "GLOBAL"
+                isFunctionDef = false
                 None
             }
 
@@ -553,11 +562,11 @@ class CCallGraph() {
 
                 // variable declaration with initializer
                 if (isNotTypedefSpecifier && declStr.isDefined) {
-                    objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + declStr.get)
+                    objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
                     val objName1 = applyScope(declStr.get, currentFunction)
 
                     if (initNames.isDefined) {
-                        objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + initNames.get)
+                        objectNamesScope = objectNamesScope.updated(initNames.get, currentFunction)
 
                         val objName2 = applyScope(initNames.get, currentFunction)
                         objectNameAssignments += ((objName1, objName2))
@@ -622,47 +631,47 @@ class CCallGraph() {
 
             case PlainParameterDeclaration(declSpecs: List[Opt[Specifier]], attr: List[Opt[AttributeSpecifier]]) => {
                 for (Opt(_, e) <- declSpecs) extractObjectNames(e)
-                declSpecs.head match {
-                    case Opt(_, ts: TypeDefTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case Opt(_, ps: PrimitiveTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case _ => isNotTypedefSpecifier = false;
+                declSpecs.map {
+                    case Opt(_, t : TypedefSpecifier) => isNotTypedefSpecifier = false;
+                    case _ =>
                 }
 
                 for (Opt(_, e) <- attr) extractObjectNames(e)
+                isNotTypedefSpecifier = true
                 None
             }
 
             case ParameterDeclarationD(declSpecs: List[Opt[Specifier]], decl: Declarator, attr: List[Opt[AttributeSpecifier]]) => {
                 for (Opt(_, e) <- declSpecs) extractObjectNames(e)
-                declSpecs.head match {
-                    case Opt(_, ts: TypeDefTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case Opt(_, ps: PrimitiveTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case _ => isNotTypedefSpecifier = false;
+                declSpecs.map {
+                    case Opt(_, t : TypedefSpecifier) => isNotTypedefSpecifier = false;
+                    case _ =>
                 }
 
                 for (Opt(_, e) <- attr) extractObjectNames(e)
                 val declStr = extractObjectNames(decl)
                 if (isDeclarationStatement && declStr.isDefined) {
-                    objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + declStr.get)
+                    objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
                     functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ applyScope(declStr.get, currentFunction))
                 }
+                isNotTypedefSpecifier = true
                 declStr
             }
 
             case ParameterDeclarationAD(declSpecs: List[Opt[Specifier]], decl: AbstractDeclarator, attr: List[Opt[AttributeSpecifier]]) => {
                 for (Opt(_, e) <- declSpecs) extractObjectNames(e)
-                declSpecs.head match {
-                    case Opt(_, ts: TypeDefTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case Opt(_, ps: PrimitiveTypeSpecifier) => isNotTypedefSpecifier = true;
-                    case _ => isNotTypedefSpecifier = false;
+                declSpecs.map {
+                    case Opt(_, t : TypedefSpecifier) => isNotTypedefSpecifier = false;
+                    case _ =>
                 }
 
                 for (Opt(_, e) <- attr) extractObjectNames(e)
                 val declStr = extractObjectNames(decl)
                 if (isDeclarationStatement && declStr.isDefined) {
-                    objectNamesScope = objectNamesScope.updated(currentFunction, objectNamesScope.getOrElse(currentFunction, Set()) + declStr.get)
+                    objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
                     functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ applyScope(declStr.get, currentFunction))
                 }
+                isNotTypedefSpecifier = true
                 declStr
             }
 

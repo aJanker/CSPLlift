@@ -44,16 +44,6 @@ class FunctionDeclarationsTest extends TestHelper {
         test("typedef int* PBF; int foo(int x, float y, char z, PBF* w) { }", Map(("foo", List("foo$x", "foo$y", "foo$z", "foo$w"))), testFunctionParameters)
     }
 
-    @Test def testVariablesOrParametersDeclarations(): Unit = {
-        test("void foo(int x) { }", Map(("foo", Set("x"))), testVariablesDeclarations)
-        test("void foo(int x) { int y; }", Map(("foo", Set("x", "y"))), testVariablesDeclarations)
-        test("int x; void foo(int y) { int z; }", Map(("foo", Set("y", "z")), ("GLOBAL", Set("x"))), testVariablesDeclarations)
-        test("int *x; void foo(int y) { int z; }", Map(("foo", Set("y", "z")), ("GLOBAL", Set("x", "*x"))), testVariablesDeclarations)
-        test("int x; void foo(int x) { int y; }", Map(("foo", Set("x", "y")), ("GLOBAL", Set("x"))), testVariablesDeclarations)
-        test("int x; void foo(int *x) { int y; }", Map(("foo", Set("x", "*x", "y")), ("GLOBAL", Set("x"))), testVariablesDeclarations)
-
-    }
-
     val parser = new CParser()
     val emptyFM = FeatureExprFactory.dflt.featureModelFactory.empty
 
@@ -83,12 +73,6 @@ class FunctionDeclarationsTest extends TestHelper {
         val c = new CCallGraph
         c.extractObjectNames(ast)
         assert(c.functionDefParameters equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.functionDefParameters.mkString("[", ", ", "]")))
-    }
-
-    private def testVariablesDeclarations(ast: TranslationUnit, expected: Map[String, Iterable[String]])  {
-        val c = new CCallGraph
-        c.extractObjectNames(ast)
-        assert(c.objectNamesScope equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.objectNamesScope.mkString("[", ", ", "]")))
     }
 
     private def loadAST(code: String): TranslationUnit = {

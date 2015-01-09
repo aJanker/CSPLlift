@@ -125,6 +125,7 @@ class ObjectNamesTest extends TestHelper {
         test("int x;", Set("GLOBAL$x"))
         test("int x; int foo() { int x; }", Set("GLOBAL$x", "foo$x"))
         test("int x; int foo(int y) { int x; return x+y; }", Set("GLOBAL$x", "foo$x", "foo$y"))
+        testFile("scope.c", Set("GLOBAL$ptr", "GLOBAL$*ptr", "GLOBAL$ptr->a", "foo$ptr", "foo$*ptr", "foo$c", "foo$ptr->b", "main$a"))
     }
 
     @Test def testPaperExamples() {
