@@ -18,8 +18,13 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
 
     def union = ++ _
     def +(key: A, f: FeatureExpr) = new ConditionalSet[A](this.entries.+(key -> (f or this.entries.getOrElse(key, False))))
+    def keys = entries.keys
 
-    def contains(name: A): FeatureExpr =this.entries.getOrElse(name, False)
+    def get(key : A) : FeatureExpr = {
+        this.entries.getOrElse(key, False)
+    }
+
+    def contains(name: A): FeatureExpr = this.entries.getOrElse(name, False)
     def isEmpty = entries.isEmpty
 
     /**
@@ -42,5 +47,7 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
 
 object ConditionalSet {
     def apply[A]() = new ConditionalSet[A]()
+    def apply[A](map : Map[A, FeatureExpr]) = new ConditionalSet[A](map)
+    def apply[A](key: A, f: FeatureExpr) = new ConditionalSet[A](Map((key -> f)))
 }
 

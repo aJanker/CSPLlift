@@ -2,7 +2,9 @@ package de.fosd.typechef.ccallgraph
 
 import java.io.{FileNotFoundException, InputStream}
 
+import de.fosd.typechef.conditional.ConditionalSet
 import de.fosd.typechef.featureexpr.FeatureExprFactory
+import de.fosd.typechef.featureexpr.sat.True
 import de.fosd.typechef.parser.c._
 import org.junit.Test
 
@@ -12,40 +14,41 @@ import org.junit.Test
  */
 class CCallGraphTest extends TestHelper {
 
-//    @Test def test_init_equivalence_classes() {
-//        val c: CCallGraph = new CCallGraph()
-//        c.extractedObjectNames = new ConditionalSet("a")
-//        c.initEquivalanceClasses()
-//
-//        assert(c.equivalenceClasses.size equals c.extractedObjectNames.size)
-//        c.equivalenceClasses.map(s => s.prefixes().size equals 0)
-//    }
-//
-//    @Test def test_create_initial_prefix_sets_1() {
-//        val c: CCallGraph = new CCallGraph()
-//        c.extractedObjectNames = Set("x")
-//
-//        c.initEquivalanceClasses()
-//        c.createInitialPrefixSets()
-//        c.showCallGraph()
-//
-//        assert(c.equivalenceClasses.size equals 1)
-//        assert(c.find("x").get equals new EquivalenceClass(Set("x"), Set()))
-//    }
-//
-//    @Test def test_create_initial_prefix_sets_2() {
-//        val c: CCallGraph = new CCallGraph()
-//        c.extractedObjectNames = Set("x", "&x")
-//
-//        c.initEquivalanceClasses()
-//        c.createInitialPrefixSets()
-//        c.showCallGraph()
-//
-//        assert(c.equivalenceClasses.size equals 2)
-//        assert(c.find("x").get equals new EquivalenceClass(Set("x"), Set()))
-//        assert(c.find("&x").get equals new EquivalenceClass(Set("&x"), Set(("*", "x"))))
-//
-//    }
+    @Test def test_init_equivalence_classes() {
+        val c: CCallGraph = new CCallGraph()
+        c.extractedObjectNames = ConditionalSet("a", True)
+        c.initEquivalanceClasses()
+
+        assert(c.equivalenceClasses.size equals c.extractedObjectNames.toPlainSet().size)
+        c.equivalenceClasses.map(s => s.prefixes().toPlainSet().size equals 0)
+    }
+
+    @Test def test_create_initial_prefix_sets_1() {
+        val c: CCallGraph = new CCallGraph()
+        c.extractedObjectNames = ConditionalSet("x", True)
+
+        c.initEquivalanceClasses()
+        //c.createInitialPrefixSets()
+        c.showCallGraph()
+
+        assert(c.equivalenceClasses.size equals 1)
+        assert(c.find("x").get equals new EquivalenceClass(ConditionalSet("x", True), ConditionalSet()))
+    }
+
+    @Test def test_create_initial_prefix_sets_2() {
+        val c: CCallGraph = new CCallGraph()
+        val map = Map("x" -> True, "&x" -> True)
+        c.extractedObjectNames = ConditionalSet(map)
+
+        c.initEquivalanceClasses()
+        c.createInitialPrefixSets()
+        c.showCallGraph()
+
+        assert(c.equivalenceClasses.size equals 2)
+        assert(c.find("x").get equals new EquivalenceClass(ConditionalSet("x", True), ConditionalSet()))
+        assert(c.find("&x").get equals new EquivalenceClass(ConditionalSet("&x", True), ConditionalSet(("*", "x"), True)))
+
+    }
 //
 //    @Test def test_create_initial_prefix_sets_3() {
 //        val c: CCallGraph = new CCallGraph()

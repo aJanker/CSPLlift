@@ -21,32 +21,27 @@ class ObjectNamesTest extends TestHelper {
     }
 
     @Test def testVariableDeclarations() {
-        test(
-            """
-               #ifdef A
-               int a;
-               #endif """, Set("GLOBAL$a"))
-
-        testExprStmt("int a;", Set("foo$a"))
-        test("int *b;", Set("GLOBAL$b", "GLOBAL$*b"))
-        testExprStmt("int *b;", Set("foo$b", "foo$*b"))
-        test("int **b;", Set("GLOBAL$b", "GLOBAL$*b"))
-        testExprStmt("int **b;", Set("foo$b", "foo$*b"))
-        test("int a, b;", Set("GLOBAL$a", "GLOBAL$b"))
-        testExprStmt("int a, b;", Set("foo$a", "foo$b"))
-        test("int *c, *d;", Set("GLOBAL$c", "GLOBAL$*c", "GLOBAL$d", "GLOBAL$*d"))
-        testExprStmt("int *c, *d;", Set("foo$c", "foo$*c", "foo$d", "foo$*d"))
-        test("int e, *f;", Set("GLOBAL$e", "GLOBAL$*f", "GLOBAL$f"))
-        testExprStmt("int e, *f;", Set("foo$e", "foo$*f", "foo$f"))
-        test("int a, b; a = b;", Set("GLOBAL$a", "GLOBAL$b"))
-        testExprStmt("int a, b; a = b;", Set("foo$a", "foo$b"))
-        test("int a, *b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$b", "GLOBAL$*b"))
-        testExprStmt("int a, *b; b = &a;", Set("foo$a", "foo$&a", "foo$b", "foo$*b"))
-        test("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
-        testExprStmt("int *a, **b; b = &a;", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b"))
-        test("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
-        testExprStmt("int *a, **b; b = *(&a);", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
-        test("typedef int* PBF; PBF *g, h;", Set("GLOBAL$g", "GLOBAL$*g", "GLOBAL$h"))
+        test("#ifdef A\n int a; \n#endif" , Set("GLOBAL$a"))
+//        testExprStmt("int a;", Set("foo$a"))
+//        test("int *b;", Set("GLOBAL$b", "GLOBAL$*b"))
+//        testExprStmt("int *b;", Set("foo$b", "foo$*b"))
+//        test("int **b;", Set("GLOBAL$b", "GLOBAL$*b"))
+//        testExprStmt("int **b;", Set("foo$b", "foo$*b"))
+//        test("int a, b;", Set("GLOBAL$a", "GLOBAL$b"))
+//        testExprStmt("int a, b;", Set("foo$a", "foo$b"))
+//        test("int *c, *d;", Set("GLOBAL$c", "GLOBAL$*c", "GLOBAL$d", "GLOBAL$*d"))
+//        testExprStmt("int *c, *d;", Set("foo$c", "foo$*c", "foo$d", "foo$*d"))
+//        test("int e, *f;", Set("GLOBAL$e", "GLOBAL$*f", "GLOBAL$f"))
+//        testExprStmt("int e, *f;", Set("foo$e", "foo$*f", "foo$f"))
+//        test("int a, b; a = b;", Set("GLOBAL$a", "GLOBAL$b"))
+//        testExprStmt("int a, b; a = b;", Set("foo$a", "foo$b"))
+//        test("int a, *b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$b", "GLOBAL$*b"))
+//        testExprStmt("int a, *b; b = &a;", Set("foo$a", "foo$&a", "foo$b", "foo$*b"))
+//        test("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
+//        testExprStmt("int *a, **b; b = &a;", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b"))
+//        test("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
+//        testExprStmt("int *a, **b; b = *(&a);", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
+//        test("typedef int* PBF; PBF *g, h;", Set("GLOBAL$g", "GLOBAL$*g", "GLOBAL$h"))
     }
 
     @Test def testAssignmentExpressions() {
@@ -160,6 +155,7 @@ class ObjectNamesTest extends TestHelper {
     private def testObjectNames(ast: TranslationUnit, expected: Set[String]) {
         val c = new CCallGraph
         c.extractObjectNames(ast, True)
+        c.initEquivalanceClasses()
         assert(c.extractedObjectNames.toPlainSet() equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.extractedObjectNames.toPlainSet().mkString("[", ", ", "]")))
     }
 

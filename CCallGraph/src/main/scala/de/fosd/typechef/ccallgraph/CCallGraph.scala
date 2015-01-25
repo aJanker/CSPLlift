@@ -38,7 +38,7 @@ class CCallGraph() {
     var isDeclarationStatement: FeatureExpr = False
     var isPointer: FeatureExpr = False
     var isFunctionDef: FeatureExpr = False
-    var isNotTypedefSpecifier: FeatureExpr = False
+    var isNotTypedefSpecifier: FeatureExpr = True
 
     // constants
     val StructPointerAccessOp = "->"
@@ -63,31 +63,30 @@ class CCallGraph() {
         // extract program assignments (function call parameters and return values)
         addAssignmentsFromFunctionCallParameters()
         addAssignmentsFromFunctionCallReturnValues()
-        println(functionCalls)
 
         // create initial equivalance class for each object name
         initEquivalanceClasses()
 
         // create edges between initial equivalence classes
-        createInitialPrefixSets()
+        //createInitialPrefixSets()
 
         // for each pointer related assignment, merge prefixes if  different
-        for ((assignee, assignor) <- objectNameAssignments.toPlainSet()) {
-            mergeEquivalenceClasses(assignee, assignor)
-        }
+        //for ((assignee, assignor) <- objectNameAssignments.toPlainSet()) {
+        //    mergeEquivalenceClasses(assignee, assignor)
+        //}
 
         equivalenceClasses
     }
 
     def initEquivalanceClasses(): Unit = {
-        for (o <- extractedObjectNames.toPlainSet()) {
-            equivalenceClasses += new EquivalenceClass(Set(o), Set())
-        }
+        extractedObjectNames.keys.foreach({ k =>
+            equivalenceClasses += new EquivalenceClass(ConditionalSet(k, extractedObjectNames.get(k)), ConditionalSet())
+        })
     }
 
-    def find(objectName: String): Option[EquivalenceClass] = {
+    def find(objectName: ObjectName): Option[EquivalenceClass] = {
         for (node: EquivalenceClass <- equivalenceClasses) {
-            if ((node.objectNames contains objectName) || (node.objectNames contains parenthesize(objectName))) {
+            if ((node.objectNames().contains(objectName)).isSatisfiable() || (node.objectNames().contains(parenthesize(objectName))).isSatisfiable()) {
                 return Some(node)
             }
         }
@@ -102,44 +101,44 @@ class CCallGraph() {
             }
         }
 
-        for ((o, o1) <- objectNamesCrossProduct) {
-            val eqClassObjectO = find(o)
-            val eqClassObjectO1 = find(o1)
-
-            val uo = unscope(o)
-            val uo1 = unscope(o1)
-
-            // pointer cretion operator
-            if (uo.equals(apply(PointerCreationOp, uo1)) || uo.equals(apply(PointerCreationOp, parenthesize(uo1)))) {
-                // add * edge from o1 to o
-                eqClassObjectO.get.addPrefix((PointerDereferenceOp, o1))
-
-                // pointer dereference operator
-            } else if (uo.equals(apply(PointerDereferenceOp, uo1)) || uo.equals(apply(PointerDereferenceOp, parenthesize(uo1)))) {
-                // add * edge from o to o1
-                eqClassObjectO1.get.addPrefix((PointerDereferenceOp, o))
-
-                // struct dot access operator
-            } else if (uo.startsWith(apply(StructAccessOp, uo1)) || uo.startsWith(apply(StructAccessOp, parenthesize(uo1)))) {
-                val objectNameFields = (uo.take(uo.lastIndexOf(StructAccessOp)), uo.drop(uo.lastIndexOf(StructAccessOp) + StructAccessOp.length))
-                val eqClassObjectOPartial = find(objectNameFields._1)
-
-                // add field edge from o to o1
-                if (eqClassObjectOPartial.isDefined) {
-                    eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o))
-                }
-
-                // struct pointer access operator  (dereference + dot)
-            } else if (uo.startsWith(apply(StructPointerAccessOp, uo1)) || uo.startsWith(apply(StructPointerAccessOp, parenthesize(uo1)))) {
-                val objectNameFields = (uo.take(uo.lastIndexOf(StructPointerAccessOp)), uo.drop(uo.lastIndexOf(StructPointerAccessOp) + StructPointerAccessOp.length))
-                val eqClassObjectOPartial = find(apply(PointerDereferenceOp, objectNameFields._1))
-
-                // add field edge from o to o1
-                if (eqClassObjectOPartial.isDefined) {
-                    eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o))
-                }
-            }
-        }
+//        for ((o, o1) <- objectNamesCrossProduct) {
+//            val eqClassObjectO = find(o)
+//            val eqClassObjectO1 = find(o1)
+//
+//            val uo = unscope(o)
+//            val uo1 = unscope(o1)
+//
+//            // pointer cretion operator
+//            if (uo.equals(apply(PointerCreationOp, uo1)) || uo.equals(apply(PointerCreationOp, parenthesize(uo1)))) {
+//                // add * edge from o1 to o
+//                eqClassObjectO.get.addPrefix((PointerDereferenceOp, o1))
+//
+//                // pointer dereference operator
+//            } else if (uo.equals(apply(PointerDereferenceOp, uo1)) || uo.equals(apply(PointerDereferenceOp, parenthesize(uo1)))) {
+//                // add * edge from o to o1
+//                eqClassObjectO1.get.addPrefix((PointerDereferenceOp, o))
+//
+//                // struct dot access operator
+//            } else if (uo.startsWith(apply(StructAccessOp, uo1)) || uo.startsWith(apply(StructAccessOp, parenthesize(uo1)))) {
+//                val objectNameFields = (uo.take(uo.lastIndexOf(StructAccessOp)), uo.drop(uo.lastIndexOf(StructAccessOp) + StructAccessOp.length))
+//                val eqClassObjectOPartial = find(objectNameFields._1)
+//
+//                // add field edge from o to o1
+//                if (eqClassObjectOPartial.isDefined) {
+//                    eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o))
+//                }
+//
+//                // struct pointer access operator  (dereference + dot)
+//            } else if (uo.startsWith(apply(StructPointerAccessOp, uo1)) || uo.startsWith(apply(StructPointerAccessOp, parenthesize(uo1)))) {
+//                val objectNameFields = (uo.take(uo.lastIndexOf(StructPointerAccessOp)), uo.drop(uo.lastIndexOf(StructPointerAccessOp) + StructPointerAccessOp.length))
+//                val eqClassObjectOPartial = find(apply(PointerDereferenceOp, objectNameFields._1))
+//
+//                // add field edge from o to o1
+//                if (eqClassObjectOPartial.isDefined) {
+//                    eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o))
+//                }
+//            }
+//        }
     }
 
     def apply(operator: String, objectName: String): String = {
@@ -186,40 +185,40 @@ class CCallGraph() {
         //        objectNameAssignments = normalizedAssignments
     }
 
-    def mergeEquivalenceClasses(assignee: String, assignor: String) {
-        val eqClassAssignor = find(assignor)
-        val eqClassAssignee = find(assignee)
+//    def mergeEquivalenceClasses(assignee: String, assignor: String) {
+//        val eqClassAssignor = find(assignor)
+//        val eqClassAssignee = find(assignee)
+//
+//        if (eqClassAssignee.isDefined && eqClassAssignor.isDefined && !eqClassAssignee.equals(eqClassAssignor)) {
+//            merge(eqClassAssignee.get, eqClassAssignor.get)
+//        }
+//    }
 
-        if (eqClassAssignee.isDefined && eqClassAssignor.isDefined && !eqClassAssignee.equals(eqClassAssignor)) {
-            merge(eqClassAssignee.get, eqClassAssignor.get)
-        }
-    }
-
-    def merge(e1: EquivalenceClass, e2: EquivalenceClass) {
-        val newObjectNamesSet: Set[String] = e1.objectNames().union(e2.objectNames())
-        var newPrefixSet: Set[(String, String)] = e1.prefixes()
-
-        // loop both prefix sets
-        for ((a, o) <- e2.prefixes()) {
-            val sharedPrefix = newPrefixSet.filter({ case ((a1, o1)) => a.equals(a1)})
-
-            if (sharedPrefix.nonEmpty) {
-                // if equivalence classes share the same prefix (i.e., if they have edges to the same object name)
-                sharedPrefix.map({ case ((_, o1)) =>
-
-                    val eqClassO = find(o).get
-                    val eqClassO1 = find(o1).get
-
-                    // if any two eq classes have the same prefix relation, merge them recursevely
-                    if (!eqClassO.equals(eqClassO1)) merge(eqClassO, eqClassO1);
-                })
-            } else newPrefixSet += ((a, o))
-        }
-        // add new equivalence class and delete merged ones
-        equivalenceClasses += new EquivalenceClass(newObjectNamesSet, newPrefixSet)
-        equivalenceClasses -=(e1, e2)
-
-    }
+//    def merge(e1: EquivalenceClass, e2: EquivalenceClass) {
+//        val newObjectNamesSet: Set[String] = e1.objectNames().union(e2.objectNames())
+//        var newPrefixSet: Set[(String, String)] = e1.prefixes()
+//
+//        // loop both prefix sets
+//        for ((a, o) <- e2.prefixes()) {
+//            val sharedPrefix = newPrefixSet.filter({ case ((a1, o1)) => a.equals(a1)})
+//
+//            if (sharedPrefix.nonEmpty) {
+//                // if equivalence classes share the same prefix (i.e., if they have edges to the same object name)
+//                sharedPrefix.map({ case ((_, o1)) =>
+//
+//                    val eqClassO = find(o).get
+//                    val eqClassO1 = find(o1).get
+//
+//                    // if any two eq classes have the same prefix relation, merge them recursevely
+//                    if (!eqClassO.equals(eqClassO1)) merge(eqClassO, eqClassO1);
+//                })
+//            } else newPrefixSet += ((a, o))
+//        }
+//        // add new equivalence class and delete merged ones
+//        equivalenceClasses += new EquivalenceClass(newObjectNamesSet, newPrefixSet)
+//        equivalenceClasses -=(e1, e2)
+//
+//    }
 
     def addObjectName(scopedObjectName: ObjectName, ctx: FeatureExpr): (ObjectName, FeatureExpr) = {
         // add object name with scope defined
