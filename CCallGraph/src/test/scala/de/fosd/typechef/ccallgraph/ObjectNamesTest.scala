@@ -2,12 +2,10 @@ package de.fosd.typechef.ccallgraph
 
 import java.io.{FileNotFoundException, InputStream}
 
-import de.fosd.typechef.featureexpr.FeatureExprFactory
+import de.fosd.typechef.featureexpr._
+import de.fosd.typechef.featureexpr.sat.True
 import de.fosd.typechef.parser.c._
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.scalatest.FunSuite
-import org.scalatest.junit.JUnitRunner
 
 
 /**
@@ -23,7 +21,12 @@ class ObjectNamesTest extends TestHelper {
     }
 
     @Test def testVariableDeclarations() {
-        test("int a;", Set("GLOBAL$a"))
+        test(
+            """
+               #ifdef A
+               int a;
+               #endif """, Set("GLOBAL$a"))
+
         testExprStmt("int a;", Set("foo$a"))
         test("int *b;", Set("GLOBAL$b", "GLOBAL$*b"))
         testExprStmt("int *b;", Set("foo$b", "foo$*b"))
@@ -39,17 +42,17 @@ class ObjectNamesTest extends TestHelper {
         testExprStmt("int a, b; a = b;", Set("foo$a", "foo$b"))
         test("int a, *b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$b", "GLOBAL$*b"))
         testExprStmt("int a, *b; b = &a;", Set("foo$a", "foo$&a", "foo$b", "foo$*b"))
-        test("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a","GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
-        testExprStmt("int *a, **b; b = &a;", Set("foo$a", "foo$&a","foo$*a", "foo$b", "foo$*b"))
-        test("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a","GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
-        testExprStmt("int *a, **b; b = *(&a);", Set("foo$a", "foo$&a","foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
+        test("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
+        testExprStmt("int *a, **b; b = &a;", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b"))
+        test("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
+        testExprStmt("int *a, **b; b = *(&a);", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
         test("typedef int* PBF; PBF *g, h;", Set("GLOBAL$g", "GLOBAL$*g", "GLOBAL$h"))
     }
 
     @Test def testAssignmentExpressions() {
         testExprStmt("a = b;", Set("GLOBAL$a", "GLOBAL$b"))
         testExprStmt("a = *b;", Set("GLOBAL$a", "GLOBAL$b", "GLOBAL$*b"))
-        testExprStmt("a = *(*b);", Set("GLOBAL$a", "GLOBAL$b", "GLOBAL$*b","GLOBAL$*(*b)"))
+        testExprStmt("a = *(*b);", Set("GLOBAL$a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(*b)"))
         testExprStmt("a = *(&b);", Set("GLOBAL$a", "GLOBAL$b", "GLOBAL$&b", "GLOBAL$*(&b)"))
         testExprStmt("*a = b;", Set("GLOBAL$a", "GLOBAL$*a", "GLOBAL$b"))
         testExprStmt("a = &b;", Set("GLOBAL$a", "GLOBAL$b", "GLOBAL$&b"))
@@ -156,8 +159,8 @@ class ObjectNamesTest extends TestHelper {
 
     private def testObjectNames(ast: TranslationUnit, expected: Set[String]) {
         val c = new CCallGraph
-        c.extractObjectNames(ast)
-        assert(c.extractedObjectNames equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.extractedObjectNames.mkString("[", ", ", "]")))
+        c.extractObjectNames(ast, True)
+        assert(c.extractedObjectNames.toPlainSet() equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.extractedObjectNames.toPlainSet().mkString("[", ", ", "]")))
     }
 
 

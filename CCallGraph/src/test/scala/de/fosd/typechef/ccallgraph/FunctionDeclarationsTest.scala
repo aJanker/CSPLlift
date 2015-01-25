@@ -3,6 +3,7 @@ package de.fosd.typechef.ccallgraph
 import java.io.{FileNotFoundException, InputStream}
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
+import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
 import org.junit.Test
 
@@ -65,13 +66,13 @@ class FunctionDeclarationsTest extends TestHelper {
 
     private def testFunctionReturns(ast: TranslationUnit, expected: Map[String, Iterable[String]]) {
         val c = new CCallGraph
-        c.extractObjectNames(ast)
+        c.extractObjectNames(ast, True)
         assert(c.functionDefReturns equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.functionDefReturns.mkString("[", ", ", "]")))
     }
 
     private def testFunctionParameters(ast: TranslationUnit, expected: Map[String, Iterable[String]]) {
         val c = new CCallGraph
-        c.extractObjectNames(ast)
+        c.extractObjectNames(ast, True)
         assert(c.functionDefParameters equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.functionDefParameters.mkString("[", ", ", "]")))
     }
 

@@ -2,7 +2,7 @@ package de.fosd.typechef.ccallgraph
 
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.featureexpr.bdd.{False, True}
+import de.fosd.typechef.featureexpr.sat.{False, True}
 import de.fosd.typechef.parser.c._
 
 /**
@@ -25,21 +25,20 @@ class CCallGraph() {
     var functionDefParameters: Map[String, List[ObjectName]] = Map()
     var functionCallParameters: List[(String, List[ObjectName])] = List()
 
-    var functonCallExpr : String = ""
-    var functionParamList : List[String] = List()
-    var functionCalls : Set[(String, String)] = Set()
+    var functonCallExpr: String = ""
+    var functionParamList: List[String] = List()
+    var functionCalls: Set[(String, String)] = Set()
 
     // object names scope (key =  object name, value = scope)
     var objectNamesScope: Map[ObjectName, Scope] = Map()
 
 
-
     // context variables
     var currentFunction: Scope = "GLOBAL"
-    var isDeclarationStatement : FeatureExpr = False
-    var isPointer : FeatureExpr = False
+    var isDeclarationStatement: FeatureExpr = False
+    var isPointer: FeatureExpr = False
     var isFunctionDef: FeatureExpr = False
-    var isNotTypedefSpecifier : FeatureExpr = False
+    var isNotTypedefSpecifier: FeatureExpr = False
 
     // constants
     val StructPointerAccessOp = "->"
@@ -73,7 +72,7 @@ class CCallGraph() {
         createInitialPrefixSets()
 
         // for each pointer related assignment, merge prefixes if  different
-        for ((assignee, assignor) <- objectNameAssignments) {
+        for ((assignee, assignor) <- objectNameAssignments.toPlainSet()) {
             mergeEquivalenceClasses(assignee, assignor)
         }
 
@@ -152,7 +151,7 @@ class CCallGraph() {
         }
     }
 
-    def unscope(scopedObjectName : String): String = {
+    def unscope(scopedObjectName: String): String = {
         val rawObjectName = scopedObjectName.replaceFirst("[A-Za-z1-9]+?\\$", "")
         rawObjectName
     }
@@ -162,28 +161,29 @@ class CCallGraph() {
         for ((function, listParams) <- functionCallParameters) {
             val listParamsDecl = functionDefParameters.getOrElse(function, List())
             val assignments = listParams.zip(listParamsDecl)
-            assignments.foreach({ a  => objectNameAssignments += a  })
+            // TODO: FIX
+            // assignments.foreach({ a  => objectNameAssignments += a  })
         }
     }
 
     // replace each auxiliary function call reference for its real return values
     def addAssignmentsFromFunctionCallReturnValues() = {
-        val assignmentsPartition = objectNameAssignments.partition({ a: ((String, String)) => !a._1.contains(FunctionCallOp) && !a._2.contains(FunctionCallOp)})
-        var normalizedAssignments: Set[(String, String)] = assignmentsPartition._1
-
-        // replace function call by the all return values
-        assignmentsPartition._2.foreach({ assign =>
-            if (assign._1 contains FunctionCallOp) {
-                functionDefReturns.getOrElse(unscope(assign._1.replaceAll("\\(\\)", "")), Set()).foreach({
-                    x => normalizedAssignments += ((x, assign._2))
-                })
-            } else if (assign._2 contains FunctionCallOp) {
-                functionDefReturns.getOrElse(unscope(assign._2.replaceAll("\\(\\)", "")), Set()).foreach({
-                    x => normalizedAssignments += ((x, assign._1))
-                })
-            }
-        })
-        objectNameAssignments = normalizedAssignments
+        //        val assignmentsPartition = objectNameAssignments.partition({ a: ((String, String)) => !a._1.contains(FunctionCallOp) && !a._2.contains(FunctionCallOp)})
+        //        var normalizedAssignments: Set[(String, String)] = assignmentsPartition._1
+        //
+        //        // replace function call by the all return values
+        //        assignmentsPartition._2.foreach({ assign =>
+        //            if (assign._1 contains FunctionCallOp) {
+        //                functionDefReturns.getOrElse(unscope(assign._1.replaceAll("\\(\\)", "")), Set()).foreach({
+        //                    x => normalizedAssignments += ((x, assign._2))
+        //                })
+        //            } else if (assign._2 contains FunctionCallOp) {
+        //                functionDefReturns.getOrElse(unscope(assign._2.replaceAll("\\(\\)", "")), Set()).foreach({
+        //                    x => normalizedAssignments += ((x, assign._1))
+        //                })
+        //            }
+        //        })
+        //        objectNameAssignments = normalizedAssignments
     }
 
     def mergeEquivalenceClasses(assignee: String, assignor: String) {
@@ -221,13 +221,13 @@ class CCallGraph() {
 
     }
 
-    def addObjectName(scopedObjectName: String, ctx : FeatureExpr) : (ObjectName, FeatureExpr) = {
+    def addObjectName(scopedObjectName: ObjectName, ctx: FeatureExpr): (ObjectName, FeatureExpr) = {
         // add object name with scope defined
         extractedObjectNames = extractedObjectNames + (scopedObjectName, ctx)
         (scopedObjectName, ctx)
     }
 
-    def applyScope(objectName: String, currentScope: String) : String = {
+    def applyScope(objectName: ObjectName, currentScope: Scope): ObjectName = {
         // format object name with scope
         val scopedObjectName = "%s$%s".format(currentScope, objectName)
 
@@ -236,10 +236,10 @@ class CCallGraph() {
         scopedObjectName
     }
 
-    def findScopeForObjectName(objectName: String, currentScope: String) : String = {
+    def findScopeForObjectName(rawObjectName: ObjectName, currentScope: Scope): ObjectName = {
 
         // trivial scopes (current function or global)
-        val scopedVariable = objectNamesScope.getOrElse(objectName, "GLOBAL")
+        val scopedVariable = objectNamesScope.getOrElse(rawObjectName, "GLOBAL")
         scopedVariable
     }
 
@@ -263,7 +263,7 @@ class CCallGraph() {
         else objName
     }
 
-    private def extractExpr(expr: Expr, ctx : FeatureExpr): Option[String] = {
+    private def extractExpr(expr: Expr, ctx: FeatureExpr): Option[String] = {
         println(expr)
 
         expr match {
@@ -341,7 +341,8 @@ class CCallGraph() {
                     val objName1 = addObjectName(applyScope(exprStr1.get, scopeObj1), ctx)
                     val objName2 = addObjectName(applyScope(exprStr2.get, scopeObj2), ctx)
 
-                    objectNameAssignments += ((objName1, objName2))
+                    // object names and context (disjunction of both subexpressions)
+                    objectNameAssignments +=((objName1._1, objName2._1), objName1._2 or objName2._2)
                 }
                 exprStr2
             }
@@ -374,7 +375,7 @@ class CCallGraph() {
 
                     // is a function call?
                     else if (exprStr2.get equals FunctionCallOp) {
-                        functionCallParameters +:= (exprStr1.get, functionParamList)
+                        functionCallParameters +:=(exprStr1.get, functionParamList)
                         functionCalls += ((currentFunction, exprStr1.get))
 
                         // is a declaration followed by a function call assignment?
@@ -475,15 +476,15 @@ class CCallGraph() {
                 None
             }
             case DeclarationStatement(decl: Declaration) => {
-                isDeclarationStatement = true
-                val declStr = extractObjectNames(decl)
-                isDeclarationStatement = false
+                isDeclarationStatement = True
+                val declStr = extractObjectNames(decl, ctx)
+                isDeclarationStatement = False
                 declStr
             }
         }
     }
 
-    def extractObjectNames(ast: AST, ctx : FeatureExpr): Option[String] = {
+    def extractObjectNames(ast: AST, ctx: FeatureExpr): Option[String] = {
         println(ast)
         ast match {
             case EmptyExternalDef() => None
@@ -502,12 +503,12 @@ class CCallGraph() {
                 isDeclarationStatement = True
                 for (Opt(featExpr, e) <- declSpecs) extractObjectNames(e, ctx and featExpr)
                 declSpecs.map {
-                    case Opt(featExpr, t : TypedefSpecifier) => isNotTypedefSpecifier = isNotTypedefSpecifier andNot featExpr;
+                    case Opt(featExpr, t: TypedefSpecifier) => isNotTypedefSpecifier = isNotTypedefSpecifier andNot featExpr;
                     case _ =>
                 }
-                for (Opt(_, e) <- init) extractObjectNames(e)
-                isDeclarationStatement = false;
-                isNotTypedefSpecifier = true;
+                for (Opt(featExpr, e) <- init) extractObjectNames(e, ctx and featExpr)
+                isDeclarationStatement = False;
+                isNotTypedefSpecifier = True;
                 None
             }
 
@@ -556,7 +557,7 @@ class CCallGraph() {
 
                 objectNamesScope = oldObjectNamesScope
                 currentFunction = "GLOBAL"
-                isFunctionDef = false
+                isFunctionDef = False
                 None
             }
 
@@ -572,9 +573,10 @@ class CCallGraph() {
 
                     if (initNames.isDefined) {
                         objectNamesScope = objectNamesScope.updated(initNames.get, currentFunction)
-
                         val objName2 = applyScope(initNames.get, currentFunction)
-                        objectNameAssignments += ((objName1, objName2))
+
+                        // assignment (no need to get a new presence condition, objet names already in the same context)
+                        objectNameAssignments +=((objName1, objName2), ctx)
                     }
                     initNames
                 } else None
@@ -585,9 +587,9 @@ class CCallGraph() {
 
             // function parameters declaration
             case DeclParameterDeclList(parameterDecls: List[Opt[ParameterDeclaration]]) => {
-                isDeclarationStatement = true;
-                for (Opt(_, e) <- parameterDecls) extractObjectNames(e);
-                isDeclarationStatement = false;
+                isDeclarationStatement = True;
+                for (Opt(featExpr, e) <- parameterDecls) extractObjectNames(e, ctx and featExpr);
+                isDeclarationStatement = False;
                 None
             };
             case DeclArrayAccess(expr: Option[Expr]) => if (expr.isDefined) {
@@ -637,7 +639,7 @@ class CCallGraph() {
             case PlainParameterDeclaration(declSpecs: List[Opt[Specifier]], attr: List[Opt[AttributeSpecifier]]) => {
                 for (Opt(featExpr, e) <- declSpecs) extractObjectNames(e, ctx and featExpr)
                 declSpecs.map {
-                    case Opt(featExpr, ts: TypeDefTypeSpecifier) => isNotTypedefSpecifier = isNotTypedefSpecifier andNot featExpr;
+                    case Opt(featExpr, ts: TypeDefTypeSpecifier) => isNotTypedefSpecifier = isNotTypedefSpecifier andNot  featExpr;
                     case _ =>
                 }
 
