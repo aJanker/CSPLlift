@@ -33,8 +33,8 @@ class EquivalenceClass(initialObjNamesSet: ConditionalSet[String], initialPrefix
     }
 
     def equals(other: EquivalenceClass): Boolean = {
-        this.objectNames().equals(other.objectNames()) && this.prefixes().equals(other.prefixes())
+        this.objectNames().toPlainSet().equals(other.objectNames().toPlainSet()) && this.prefixes().toPlainSet().equals(other.prefixes().toPlainSet())
     }
 
-    override def toString: String = "%s ---> %s".format(objectNamesSet.toPlainSet().mkString("{", ", ", "}"), prefixes().toPlainSet().mkString("{", ", ", "}"))
+    override def toString: String = "\n%s ---> %s".format(objectNamesSet.toPlainSetWithConditionals().mkString("{", ", ", "}"), prefixes().toPlainSetWithConditionals().mkString("{", ", ", "}"))
 }

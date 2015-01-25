@@ -43,6 +43,10 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
         System.err.print(">>> remove me!")
         entries.keys.toSet
     }
+
+    def toPlainSetWithConditionals() : Set[(A, FeatureExpr)] = {
+        entries.map{ case (k,v) => (k,v) }.toSet
+    }
 }
 
 object ConditionalSet {
