@@ -2,7 +2,7 @@ package de.fosd.typechef.ccallgraph
 
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.featureexpr.sat.{False, True}
+import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
 import de.fosd.typechef.parser.c._
 
 /**
@@ -21,13 +21,13 @@ class CCallGraph() {
     var equivalenceClasses: Set[EquivalenceClass] = Set()
 
     // map of function defs and [return values, parameters]
-    var functionDefReturns: Map[String, Set[ObjectName]] = Map()
-    var functionDefParameters: Map[String, List[ObjectName]] = Map()
-    var functionCallParameters: List[(String, List[ObjectName])] = List()
+    var functionDefReturns: Map[String, ConditionalSet[ObjectName]] = Map()
+    var functionDefParameters: Map[String, List[Opt[ObjectName]]] = Map()
+    var functionCallParameters: List[(String, List[Opt[ObjectName]])] = List()
 
     var functonCallExpr: String = ""
-    var functionParamList: List[String] = List()
-    var functionCalls: Set[(String, String)] = Set()
+    var functionParamList: List[Opt[ObjectName]] = List()
+    var functionCalls: ConditionalSet[(String, String)] = ConditionalSet()
 
     // object names scope (key =  object name, value = scope)
     var objectNamesScope: Map[ObjectName, Scope] = Map()
@@ -145,7 +145,7 @@ class CCallGraph() {
         }
     }
 
-    def objectNamePresenceCondition(objectName : ObjectName) : FeatureExpr = {
+    def objectNamePresenceCondition(objectName: ObjectName): FeatureExpr = {
         extractedObjectNames.get(objectName)
     }
 
@@ -166,67 +166,76 @@ class CCallGraph() {
 
     def addAssignmentsFromFunctionCallParameters() = {
         for ((function, listParams) <- functionCallParameters) {
-            val listParamsDecl = functionDefParameters.getOrElse(function, List())
-            val assignments = listParams.zip(listParamsDecl)
-            // TODO: FIX
-            // assignments.foreach({ a  => objectNameAssignments += a  })
+
+            val listParamsFuncDef: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(functionDefParameters.getOrElse(function, List()))
+            val listParamsFuncCal: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(listParams)
+
+            val assignments = ConditionalLib.zip(listParamsFuncCal, listParamsFuncDef).toList
+
+            assignments.foreach({ t =>
+                val expr = t._1
+                val (list1, list2) = t._2
+                val condAssignments = list1.zip(list2)
+
+                condAssignments.foreach({ a => objectNameAssignments += (a, expr) })
+            })
         }
     }
 
     // replace each auxiliary function call reference for its real return values
     def addAssignmentsFromFunctionCallReturnValues() = {
-        //        val assignmentsPartition = objectNameAssignments.partition({ a: ((String, String)) => !a._1.contains(FunctionCallOp) && !a._2.contains(FunctionCallOp)})
-        //        var normalizedAssignments: Set[(String, String)] = assignmentsPartition._1
-        //
-        //        // replace function call by the all return values
-        //        assignmentsPartition._2.foreach({ assign =>
-        //            if (assign._1 contains FunctionCallOp) {
-        //                functionDefReturns.getOrElse(unscope(assign._1.replaceAll("\\(\\)", "")), Set()).foreach({
-        //                    x => normalizedAssignments += ((x, assign._2))
-        //                })
-        //            } else if (assign._2 contains FunctionCallOp) {
-        //                functionDefReturns.getOrElse(unscope(assign._2.replaceAll("\\(\\)", "")), Set()).foreach({
-        //                    x => normalizedAssignments += ((x, assign._1))
-        //                })
-        //            }
-        //        })
-        //        objectNameAssignments = normalizedAssignments
+        val assignmentsPartition = objectNameAssignments.partition({ a: ((String, String)) => !a._1.contains(FunctionCallOp) && !a._2.contains(FunctionCallOp)})
+        var normalizedAssignments: ConditionalSet[Assignment] = assignmentsPartition._1
+
+        // replace function call by the all return values
+        assignmentsPartition._2.toPlainSetWithConditionals.foreach({ case (assign, featExpr) =>
+            if (assign._1 contains FunctionCallOp) {
+                functionDefReturns.getOrElse(unscope(assign._1.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
+                    x => normalizedAssignments += ((x._1, assign._2), featExpr and x._2)
+                })
+            } else if (assign._2 contains FunctionCallOp) {
+                functionDefReturns.getOrElse(unscope(assign._2.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals.foreach({
+                    x => normalizedAssignments += ((x._1, assign._1), featExpr and x._2)
+                })
+            }
+        })
+        objectNameAssignments = normalizedAssignments
     }
 
-        def mergeEquivalenceClasses(assignee: String, assignor: String) {
-            val eqClassAssignor = find(assignor)
-            val eqClassAssignee = find(assignee)
+    def mergeEquivalenceClasses(assignee: String, assignor: String) {
+        val eqClassAssignor = find(assignor)
+        val eqClassAssignee = find(assignee)
 
-            if (eqClassAssignee.isDefined && eqClassAssignor.isDefined && !eqClassAssignee.equals(eqClassAssignor)) {
-                merge(eqClassAssignee.get, eqClassAssignor.get)
-            }
+        if (eqClassAssignee.isDefined && eqClassAssignor.isDefined && !eqClassAssignee.equals(eqClassAssignor)) {
+            merge(eqClassAssignee.get, eqClassAssignor.get)
         }
+    }
 
-        def merge(e1: EquivalenceClass, e2: EquivalenceClass) {
-            val newObjectNamesSet: EquivalenceClass = e1.union(e2)
-            var newPrefixSet: ConditionalSet[(String, String)] = e1.prefixes()
+    def merge(e1: EquivalenceClass, e2: EquivalenceClass) {
+        val newObjectNamesSet: EquivalenceClass = e1.union(e2)
+        var newPrefixSet: ConditionalSet[(String, String)] = e1.prefixes()
 
-            // loop both prefix sets
-            for ((a, o) <- e2.prefixes().toPlainSet()) {
-                val sharedPrefix = newPrefixSet.toPlainSet().filter({ case (a1, o1) => a.equals(a1) })
+        // loop both prefix sets
+        for ((a, o) <- e2.prefixes().toPlainSet()) {
+            val sharedPrefix = newPrefixSet.toPlainSet().filter({ case (a1, o1) => a.equals(a1)})
 
-                if (sharedPrefix.nonEmpty) {
-                    // if equivalence classes share the same prefix (i.e., if they have edges to the same object name)
-                    sharedPrefix.map({ case ((_, o1)) =>
+            if (sharedPrefix.nonEmpty) {
+                // if equivalence classes share the same prefix (i.e., if they have edges to the same object name)
+                sharedPrefix.map({ case ((_, o1)) =>
 
-                        val eqClassO = find(o).get
-                        val eqClassO1 = find(o1).get
+                    val eqClassO = find(o).get
+                    val eqClassO1 = find(o1).get
 
-                        // if any two eq classes have the same prefix relation, merge them recursevely
-                        if (!eqClassO.equals(eqClassO1)) merge(eqClassO, eqClassO1);
-                    })
-                } else newPrefixSet += ((a, o), e2.prefixes().get((a,o)))
-            }
-            // add new equivalence class and delete merged ones
-            equivalenceClasses += new EquivalenceClass(newObjectNamesSet.objectNames(), newPrefixSet)
-            equivalenceClasses -=(e1, e2)
-
+                    // if any two eq classes have the same prefix relation, merge them recursevely
+                    if (!eqClassO.equals(eqClassO1)) merge(eqClassO, eqClassO1);
+                })
+            } else newPrefixSet +=((a, o), e2.prefixes().get((a, o)))
         }
+        // add new equivalence class and delete merged ones
+        equivalenceClasses += new EquivalenceClass(newObjectNamesSet.objectNames(), newPrefixSet)
+        equivalenceClasses -=(e1, e2)
+
+    }
 
     def addObjectName(scopedObjectName: ObjectName, ctx: FeatureExpr): (ObjectName, FeatureExpr) = {
         // add object name with scope defined
@@ -290,7 +299,7 @@ class CCallGraph() {
                     val exprStr = extractObjectNames(e, ctx and fExpr);
                     if (exprStr.isDefined) {
                         val scope = findScopeForObjectName(exprStr.get, currentFunction)
-                        functionParamList = functionParamList :+ applyScope(exprStr.get, scope)
+                        functionParamList = functionParamList :+ Opt(ctx and fExpr, applyScope(exprStr.get, scope))
                     }
                 }
                 None
@@ -383,7 +392,7 @@ class CCallGraph() {
                     // is a function call?
                     else if (exprStr2.get equals FunctionCallOp) {
                         functionCallParameters +:=(exprStr1.get, functionParamList)
-                        functionCalls += ((currentFunction, exprStr1.get))
+                        functionCalls +=((currentFunction, exprStr1.get), ctx)
 
                         // is a declaration followed by a function call assignment?
                         if (isDeclarationStatement.isSatisfiable()) {
@@ -453,7 +462,7 @@ class CCallGraph() {
                 val exprStr = extractExpr(expr.get, ctx)
                 if (exprStr.isDefined) {
                     val scope = findScopeForObjectName(exprStr.get, currentFunction)
-                    functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, Set()) + applyScope(exprStr.get, scope))
+                    functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, ConditionalSet()) +(applyScope(exprStr.get, scope), ctx))
                 }
                 None
             }
@@ -495,15 +504,15 @@ class CCallGraph() {
         println(ast)
         ast match {
             case EmptyExternalDef() => None
-            //            case TypelessDeclaration(declList: List[Opt[InitDeclarator]]) => {
-            //                for (Opt(featExpr, e) <- declList) { extractObjectNames(e, ctx and featExpr); }
-            //                None
-            //            }
-            //            case TypeName(specifiers: List[Opt[Specifier]], decl: Option[AbstractDeclarator])  => {
-            //                for (Opt(featExpr, s) <- specifiers) extractObjectNames(s, ctx and featExpr);
-            //                if (decl.isDefined) extractObjectNames(decl.get, ctx);
-            //                None
-            //            }
+            case TypelessDeclaration(declList: List[Opt[InitDeclarator]]) => {
+                for (Opt(featExpr, e) <- declList) {extractObjectNames(e, ctx and featExpr);}
+                None
+            }
+            case TypeName(specifiers: List[Opt[Specifier]], decl: Option[AbstractDeclarator]) => {
+                for (Opt(featExpr, s) <- specifiers) extractObjectNames(s, ctx and featExpr);
+                if (decl.isDefined) extractObjectNames(decl.get, ctx);
+                None
+            }
             case TranslationUnit(list: List[Opt[ExternalDef]]) => for (Opt(featExpr, e) <- list) extractObjectNames(e, ctx and featExpr); None
 
             case Declaration(declSpecs: List[Opt[Specifier]], init: List[Opt[InitDeclarator]]) => {
@@ -554,8 +563,8 @@ class CCallGraph() {
             case FunctionDef(specifiers: List[Opt[Specifier]], declarator: Declarator, parameters: List[Opt[OldParameterDeclaration]], stmt: CompoundStatement) => {
                 isFunctionDef = True
                 currentFunction = declarator.getName
-                functionDefReturns += (currentFunction -> Set())
-                functionDefParameters += (currentFunction -> List())
+                functionDefReturns += (currentFunction -> ConditionalSet())
+                functionDefParameters += (currentFunction -> List[Opt[ObjectName]]())
                 val oldObjectNamesScope = objectNamesScope
 
                 extractObjectNames(declarator, ctx)
@@ -666,7 +675,7 @@ class CCallGraph() {
                 val declStr = extractObjectNames(decl, ctx)
                 if (isDeclarationStatement.isSatisfiable() && declStr.isDefined) {
                     objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
-                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ applyScope(declStr.get, currentFunction))
+                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List[Opt[ObjectName]]()) :+ Opt(ctx, applyScope(declStr.get, currentFunction)))
                 }
                 isNotTypedefSpecifier = True
                 declStr
@@ -683,7 +692,7 @@ class CCallGraph() {
                 val declStr = extractObjectNames(decl, ctx)
                 if (isDeclarationStatement.isSatisfiable() && declStr.isDefined) {
                     objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
-                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List()) :+ applyScope(declStr.get, currentFunction))
+                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List[Opt[ObjectName]]()) :+ Opt(ctx, applyScope(declStr.get, currentFunction)))
                 }
                 isNotTypedefSpecifier = True
                 declStr

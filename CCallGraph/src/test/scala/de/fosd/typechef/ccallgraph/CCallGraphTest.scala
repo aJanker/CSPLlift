@@ -4,7 +4,7 @@ import java.io.{FileNotFoundException, InputStream}
 
 import de.fosd.typechef.conditional.ConditionalSet
 import de.fosd.typechef.featureexpr.FeatureExprFactory
-import de.fosd.typechef.featureexpr.sat.True
+import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
 import de.fosd.typechef.parser.c._
 import org.junit.Test
 
@@ -148,15 +148,15 @@ class CCallGraphTest extends TestHelper {
     //
     //    }
     //
-    //    @Test def test_paper_example_fig3() {
-    //        val ast = loadAST("fig3_sample_prog.c")
-    //
-    //        val c: CCallGraph = new CCallGraph()
-    //        c.calculatePERelation(ast)
-    //
-    //        c.showCallGraph()
-    //
-    //    }
+        @Test def test_paper_example_fig3() {
+            val ast = loadAST("fig3_sample_prog.c")
+
+            val c: CCallGraph = new CCallGraph()
+            c.calculatePERelation(ast)
+
+            c.showCallGraph()
+
+        }
 
     @Test def test_paper_example_fig4() {
         val ast = loadAST("fig4_simple_sets_statements.c")

@@ -16,6 +16,10 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
         new ConditionalSet(newMap.toMap)
     }
 
+    def partition(p: (A) ⇒ Boolean): (ConditionalSet[A], ConditionalSet[A]) = {
+        (new ConditionalSet(this.entries.filter({ e => p(e._1) })), new ConditionalSet(this.entries.filterNot({ e => p(e._1) })))
+    }
+
     def union = ++ _
     def +(key: A, f: FeatureExpr) = new ConditionalSet[A](this.entries.+(key -> (f or this.entries.getOrElse(key, False))))
     def keys = entries.keys
@@ -45,7 +49,7 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
     }
 
     def toPlainSetWithConditionals() : Set[(A, FeatureExpr)] = {
-        entries.map{ case (k,v) => (k,v) }.toSet
+        entries.toSet
     }
 }
 
