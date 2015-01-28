@@ -29,7 +29,7 @@ class CCallGraphTest extends TestHelper {
 
         c.initEquivalanceClasses()
         //c.createInitialPrefixSets()
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         assert(c.equivalenceClasses.size equals 1)
         assert(c.find("x").get equals new EquivalenceClass(ConditionalSet("x", True), ConditionalSet()))
@@ -42,7 +42,7 @@ class CCallGraphTest extends TestHelper {
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         assert(c.equivalenceClasses.size equals 2)
 
@@ -58,7 +58,7 @@ class CCallGraphTest extends TestHelper {
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         assert(c.equivalenceClasses.size equals 3)
         assert(c.find("x").get equals new EquivalenceClass(ConditionalSet("x", True), ConditionalSet()))
@@ -73,7 +73,7 @@ class CCallGraphTest extends TestHelper {
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         assert(c.equivalenceClasses.size equals 7)
         assert(c.find("a").get equals new EquivalenceClass(ConditionalSet("a", True), ConditionalSet(("*", "*a"), True)))
@@ -92,7 +92,7 @@ class CCallGraphTest extends TestHelper {
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         assert(c.equivalenceClasses.count(eqC => eqC.prefixes().toPlainSet().size > 0) equals 4)
         assert(c.find("p").get equals new EquivalenceClass(ConditionalSet("p", True), ConditionalSet(("*", "*p"), True)))
@@ -112,7 +112,7 @@ class CCallGraphTest extends TestHelper {
         c.merge(c.find("p").get, c.find("&x").get)
         c.merge(c.find("p").get, c.find("t").get)
         c.merge(c.find("p->f").get, c.find("&z").get)
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         assert(c.equivalenceClasses.size equals 4)
         // TODO: fix
@@ -131,9 +131,10 @@ class CCallGraphTest extends TestHelper {
         val ast = loadAST("fig1_table_dispatch.c")
 
         val c: CCallGraph = new CCallGraph()
-        c.calculatePERelation(ast)
-
+        c.calculatePointerEquivalenceRelation(ast)
+        c.extractCallGraph()
         c.showCallGraph()
+
     }
 
 
@@ -142,7 +143,7 @@ class CCallGraphTest extends TestHelper {
     //        val ast = loadAST("fig2_extensible_func.c")
     //
     //        val c: CCallGraph = new CCallGraph()
-    //        c.calculatePERelation(ast)
+    //        c.calculatePointerEquivalenceRelation(ast)
     //
     //        c.showCallGraph()
     //
@@ -152,8 +153,12 @@ class CCallGraphTest extends TestHelper {
             val ast = loadAST("fig3_sample_prog.c")
 
             val c: CCallGraph = new CCallGraph()
-            c.calculatePERelation(ast)
 
+            c.calculatePointerEquivalenceRelation(ast)
+            c.showPointerEquivalenceClasses()
+            c.showFunctionCalls()
+
+            c.extractCallGraph()
             c.showCallGraph()
 
         }
@@ -162,9 +167,9 @@ class CCallGraphTest extends TestHelper {
         val ast = loadAST("fig4_simple_sets_statements.c")
 
         val c: CCallGraph = new CCallGraph()
-        c.calculatePERelation(ast)
+        c.calculatePointerEquivalenceRelation(ast)
 
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         //        assert(c.equivalenceClasses.size equals 4)
         //        assert(c.find("p").get equals new EquivalenceClass(Set("p", "&x", "t"), Set(("*", "*p"))))
@@ -178,9 +183,9 @@ class CCallGraphTest extends TestHelper {
         val ast = loadAST("variational_function_calls.c")
 
         val c: CCallGraph = new CCallGraph()
-        c.calculatePERelation(ast)
+        c.calculatePointerEquivalenceRelation(ast)
 
-        c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
         //        assert(c.equivalenceClasses.size equals 4)
         //        assert(c.find("p").get equals new EquivalenceClass(Set("p", "&x", "t"), Set(("*", "*p"))))

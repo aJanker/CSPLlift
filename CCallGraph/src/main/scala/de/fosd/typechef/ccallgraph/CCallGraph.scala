@@ -16,10 +16,14 @@ class CCallGraph() {
     type Scope = String
     type Assignment = (ObjectName, ObjectName)
 
+    var callGraphNodes: ConditionalSet[String] = ConditionalSet()
+    var callGraphEdges: ConditionalSet[(String, String)] = ConditionalSet()
+    var callGraphPointerEdges: ConditionalSet[(String, String)] = ConditionalSet()
+
     var extractedObjectNames: ConditionalSet[ObjectName] = ConditionalSet()
     var objectNameAssignments: ConditionalSet[Assignment] = ConditionalSet()
     var equivalenceClasses: Set[EquivalenceClass] = Set()
-    var equivalenceClassePrefixSets : Set[(ObjectName, ObjectName)] = Set()
+    var equivalenceClassePrefixSets: Set[(ObjectName, ObjectName)] = Set()
 
     // map of function defs and [return values, parameters]
     var functionDefReturns: Map[String, ConditionalSet[ObjectName]] = Map()
@@ -50,7 +54,39 @@ class CCallGraph() {
     val FunctionCallOp = "()"
     val ArrayAccessOp = "[]"
 
-    def calculatePERelation(program: TranslationUnit): Set[EquivalenceClass] = {
+    def extractCallGraph() = {
+        extractFunctionDef() // nodes
+        extractFunctionCalls() // edges
+    }
+
+    def extractFunctionDef() = {
+        for (fdef <- functionDefParameters.keySet) {
+            callGraphNodes = callGraphNodes.+(fdef, True)
+        }
+    }
+
+    def extractFunctionCalls() = {
+        for (((sourceFunction: String, targetFunction: String), fcallCondition: FeatureExpr) <- functionCalls.toPlainSetWithConditionals()) {
+            if (!functionDefParameters.keySet.contains(targetFunction)) {
+                val pointerEquivalanceClass = equivalenceClasses.find({ e => e.unscopedObjectNames.contains(targetFunction)})
+                if (!pointerEquivalanceClass.isDefined) {
+                    callGraphEdges +=((sourceFunction, targetFunction), fcallCondition)
+                } else {
+                    for ((objName: String, fnameCondition: FeatureExpr) <- pointerEquivalanceClass.get.objectNames().toPlainSetWithConditionals()) {
+                        // if the object name is a function name
+                        if (functionDefParameters.keySet.contains(unscope(objName))) {
+                            callGraphEdges +=((sourceFunction, objName), fnameCondition)
+                            callGraphPointerEdges +=((sourceFunction, objName), fnameCondition)
+                        }
+                    }
+                }
+            } else {
+                callGraphEdges +=((sourceFunction, targetFunction), fcallCondition)
+            }
+        }
+    }
+
+    def calculatePointerEquivalenceRelation(program: TranslationUnit): Set[EquivalenceClass] = {
 
 
         /* TODO: fix assignments extraction (they are not only pointer assignments)
@@ -61,27 +97,21 @@ class CCallGraph() {
 
         // extract objectNames and their assignments from the AST
         extractObjectNames(program, True)
-        println("object names extracted..")
 
         // extract program assignments (function call parameters and return values)
         addAssignmentsFromFunctionCallParameters()
         addAssignmentsFromFunctionCallReturnValues()
-        println("assignments extracted..")
 
         // create initial equivalance class for each object name
         initEquivalanceClasses()
-        println("equival. classes created..")
 
         // create edges between initial equivalence classes
         createInitialPrefixSets()
-        println("equival. classes prefix sets created..")
-
 
         // for each pointer related assignment, merge prefixes if  different
         for ((assignee, assignor) <- objectNameAssignments.toPlainSet()) {
             mergeEquivalenceClasses(assignee, assignor)
         }
-        println("equival. classes merged..")
 
         equivalenceClasses
     }
@@ -102,14 +132,14 @@ class CCallGraph() {
     }
 
 
-    def addPrefixSet(o1 : ObjectName, o2 : ObjectName) = {
+    def addPrefixSet(o1: ObjectName, o2: ObjectName) = {
         equivalenceClassePrefixSets += ((o1, o2))
     }
 
     def createInitialPrefixSets(): Unit = {
         // generate cross product of all object names
-//        val objectNamesSet = extractedObjectNames.toPlainSet()
-//        val objectNamesCrossProduct = for { x <- objectNamesSet; y <- objectNamesSet } yield (x, y)
+        //        val objectNamesSet = extractedObjectNames.toPlainSet()
+        //        val objectNamesCrossProduct = for { x <- objectNamesSet; y <- objectNamesSet } yield (x, y)
 
         for ((o, o1) <- equivalenceClassePrefixSets) {
             val eqClassObjectO = find(o)
@@ -190,7 +220,7 @@ class CCallGraph() {
                 val (list1, list2) = t._2
                 val condAssignments = list1.zip(list2)
 
-                condAssignments.foreach({ a => objectNameAssignments += (a, expr) })
+                condAssignments.foreach({ a => objectNameAssignments +=(a, expr)})
             })
         }
     }
@@ -204,11 +234,11 @@ class CCallGraph() {
         assignmentsPartition._2.toPlainSetWithConditionals.foreach({ case (assign, featExpr) =>
             if (assign._1 contains FunctionCallOp) {
                 functionDefReturns.getOrElse(unscope(assign._1.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
-                    x => normalizedAssignments += ((x._1, assign._2), featExpr and x._2)
+                    x => normalizedAssignments +=((x._1, assign._2), featExpr and x._2)
                 })
             } else if (assign._2 contains FunctionCallOp) {
                 functionDefReturns.getOrElse(unscope(assign._2.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals.foreach({
-                    x => normalizedAssignments += ((x._1, assign._1), featExpr and x._2)
+                    x => normalizedAssignments +=((x._1, assign._1), featExpr and x._2)
                 })
             }
         })
@@ -280,8 +310,16 @@ class CCallGraph() {
         println(functionDefReturns)
     }
 
-    def showCallGraph() = {
+    def showPointerEquivalenceClasses() = {
         equivalenceClasses.map(println)
+    }
+
+    def showFunctionCalls() = {
+        println("Function calls (%d): %s".format(functionCalls.toPlainSet().size, functionCalls.toPlainSetWithConditionals()))
+    }
+
+    def showCallGraph() = {
+        println("\nCall graph [N = %d, E = %d, PAE = %d]\nNodes: %s\nEdges: %s".format(callGraphNodes.toPlainSet().size, callGraphEdges.toPlainSet().size, callGraphPointerEdges.toPlainSet().size, callGraphNodes, callGraphEdges))
     }
 
     def parenthesize(objName: String) = {
@@ -299,7 +337,7 @@ class CCallGraph() {
             // constants are no important, variables are (changing this may affect the whole algorithm)
             case Constant(value: String) => None
             case StringLit(name: List[Opt[String]]) => None
-            case l : LcurlyInitializer => None
+            case l: LcurlyInitializer => None
             case UnaryExpr(kind: String, e: Expr) => extractExpr(e, ctx)
             case SizeOfExprT(typeName: TypeName) => None
             case SizeOfExprU(expr: Expr) => extractExpr(expr, ctx);
@@ -436,8 +474,9 @@ class CCallGraph() {
                 }
                 exprStr1.flatMap(e1 => exprStr2.map(e2 => parenthesize(e1) + e2))
             };
-
+            case GnuAsmExpr(isVolatile: Boolean, isGoto: Boolean, expr: StringLit, stuff: Any) => None
         }
+
     }
 
     private def extractStmt(stmt: Statement, ctx: FeatureExpr): Option[String] = {
@@ -493,10 +532,12 @@ class CCallGraph() {
             case ContinueStatement() => None
             case BreakStatement() => None
             case ReturnStatement(expr: Option[Expr]) => {
-                val exprStr = extractExpr(expr.get, ctx)
-                if (exprStr.isDefined) {
-                    val scope = findScopeForObjectName(exprStr.get, currentFunction)
-                    functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, ConditionalSet()) +(applyScope(exprStr.get, scope), ctx))
+                if (expr.isDefined) {
+                    val exprStr = extractExpr(expr.get, ctx)
+                    if (exprStr.isDefined) {
+                        val scope = findScopeForObjectName(exprStr.get, currentFunction)
+                        functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, ConditionalSet()) +(applyScope(exprStr.get, scope), ctx))
+                    }
                 }
                 None
             }
@@ -770,8 +811,8 @@ class CCallGraph() {
                 exprStr
             }
 
-            case va : VarArgs => None
-            case p : Pragma => None
+            case va: VarArgs => None
+            case p: Pragma => None
             case e: Expr => extractExpr(e, ctx)
             case s: Statement => extractStmt(s, ctx)
             case z => throw new Exception("%s is not supported".format(z.getClass))
