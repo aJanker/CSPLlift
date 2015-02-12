@@ -134,6 +134,7 @@ class CCallGraphTest extends TestHelper {
         c.calculatePointerEquivalenceRelation(ast)
         c.extractCallGraph()
         c.showCallGraph()
+        c.showPointerEquivalenceClasses()
 
     }
 

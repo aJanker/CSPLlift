@@ -1,6 +1,5 @@
 package de.fosd.typechef.options;
 
-import de.fosd.typechef.VALexer;
 import de.fosd.typechef.error.Position;
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory$;
@@ -11,7 +10,6 @@ import gnu.getopt.LongOpt;
 import scala.Function3;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -22,6 +20,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             decluse = false,
             writeInterface = false,
             dumpcfg = false,
+            dumpcg = false,
             serializeAST = false,
             reuseAST = false,
             writeDebugInterface = false,
@@ -41,6 +40,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     private final static char F_WRITEPI = Options.genOptionId();
     private final static char F_DEBUGINTERFACE = Options.genOptionId();
     private final static char F_DUMPCFG = Options.genOptionId();
+    private final static char F_DUMPCG = Options.genOptionId();
     private final static char F_SERIALIZEAST = Options.genOptionId();
     private final static char F_REUSEAST = Options.genOptionId();
     private final static char F_RECORDTIMING = Options.genOptionId();
@@ -67,6 +67,9 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
                         "Lex, parse, and type check; but do not create interfaces."),
                 new Option("interface", LongOpt.NO_ARGUMENT, F_INTERFACE, null,
                         "Lex, parse, type check, and create interfaces."),
+
+                new Option("dumpcg", LongOpt.NO_ARGUMENT, F_DUMPCG, null,
+                        "Lex, parse, and dump call graph"),
 
                 new Option("dumpcfg", LongOpt.NO_ARGUMENT, F_DUMPCFG, null,
                         "Lex, parse, and dump control flow graph"),
@@ -125,6 +128,8 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             writeInterface = false;
         } else if (c == F_INTERFACE) {//--interface
             parse = typecheck = writeInterface = true;
+        } else if (c == F_DUMPCG) {
+            parse = dumpcg = true;
         } else if (c == F_DUMPCFG) {
             parse = dumpcfg = true;
         } else if (c == F_SERIALIZEAST) {
@@ -158,7 +163,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
         } else if (c == TY_VERSION) { // --version
             printVersion = true;
         } else if (c == TY_HELP) {//--help
-            printUsage();
+            //printUsage();
             printVersion = true;
         } else
             return super.interpretOption(c, g);
@@ -230,6 +235,10 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
 
     public String getSerializedASTFilename() {
         return outputStem + ".ast";
+    }
+
+    public String getCGFilename() {
+        return outputStem + ".cg";
     }
 
     public String getCCFGFilename() {

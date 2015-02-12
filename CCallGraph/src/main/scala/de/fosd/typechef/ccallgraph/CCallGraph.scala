@@ -17,7 +17,7 @@ class CCallGraph() {
     type Assignment = (ObjectName, ObjectName)
 
     var callGraphNodes: ConditionalSet[String] = ConditionalSet()
-    var callGraphEdges: ConditionalSet[(String, String)] = ConditionalSet()
+    var callGraphEdges: ConditionalSet[(String, String, String)] = ConditionalSet()
     var callGraphPointerEdges: ConditionalSet[(String, String)] = ConditionalSet()
 
     var extractedObjectNames: ConditionalSet[ObjectName] = ConditionalSet()
@@ -29,6 +29,7 @@ class CCallGraph() {
     var functionDefReturns: Map[String, ConditionalSet[ObjectName]] = Map()
     var functionDefParameters: Map[String, List[Opt[ObjectName]]] = Map()
     var functionCallParameters: List[(String, List[Opt[ObjectName]])] = List()
+    var functionDefs: ConditionalSet[ObjectName] = ConditionalSet()
 
     var functonCallExpr: String = ""
     var functionParamList: List[Opt[ObjectName]] = List()
@@ -41,6 +42,7 @@ class CCallGraph() {
 
     // context variables
     var currentFunction: Scope = "GLOBAL"
+    var currentDeclarator: ObjectName = ""
     var isDeclarationStatement: FeatureExpr = False
     var isPointer: FeatureExpr = False
     var isFunctionDef: FeatureExpr = False
@@ -66,22 +68,36 @@ class CCallGraph() {
     }
 
     def extractFunctionCalls() = {
-        for (((sourceFunction: String, targetFunction: String), fcallCondition: FeatureExpr) <- functionCalls.toPlainSetWithConditionals()) {
-            if (!functionDefParameters.keySet.contains(targetFunction)) {
-                val pointerEquivalanceClass = equivalenceClasses.find({ e => e.unscopedObjectNames.contains(targetFunction)})
+        var found: Boolean = false
+        for (((source, target), condition) <- functionCalls.toPlainSetWithConditionals()) {
+
+            // check if object name is not a function name
+            if (!functionDefs.toPlainSet().contains(target)) {
+
+                // search for equivalence class that contains the object name
+                val pointerEquivalanceClass = equivalenceClasses.find({ e => e.unscopedObjectNames.contains(target)})
+
+                // if no equivalence class is found, throw exception (this should never occur)
+                // reason: an equivalence class is created for each object name in the beginning of the analysis
                 if (!pointerEquivalanceClass.isDefined) {
-                    callGraphEdges +=((sourceFunction, targetFunction), fcallCondition)
-                } else {
-                    for ((objName: String, fnameCondition: FeatureExpr) <- pointerEquivalanceClass.get.objectNames().toPlainSetWithConditionals()) {
-                        // if the object name is a function name
-                        if (functionDefParameters.keySet.contains(unscope(objName))) {
-                            callGraphEdges +=((sourceFunction, objName), fnameCondition)
-                            callGraphPointerEdges +=((sourceFunction, objName), fnameCondition)
-                        }
+                    throw new Exception("Equivalence class not found for function call target %s".format(target))
+                }
+
+                // add an indirect function call for each function name found in the equivalence class
+                found = false
+                for ((objName, functionCondition) <- pointerEquivalanceClass.get.objectNames().toPlainSetWithConditionals()) {
+                    if (functionDefs.toPlainSet().contains(unscope(objName))) {
+                        callGraphEdges +=((source, objName, "I"), functionCondition)
+                        found = true
                     }
                 }
+                // if no function name was found, insert an "unresolved" edge with the original object name
+                if (!found) {
+                    callGraphEdges +=((source, target, "U"), condition)
+                }
             } else {
-                callGraphEdges +=((sourceFunction, targetFunction), fcallCondition)
+                // add direct function call
+                callGraphEdges +=((source, target, "D"), condition)
             }
         }
     }
@@ -322,6 +338,17 @@ class CCallGraph() {
         println("\nCall graph [N = %d, E = %d, PAE = %d]\nNodes: %s\nEdges: %s".format(callGraphNodes.toPlainSet().size, callGraphEdges.toPlainSet().size, callGraphPointerEdges.toPlainSet().size, callGraphNodes, callGraphEdges))
     }
 
+    def writeCallGraph(fileName: String, writer: GraphWriter) = {
+        callGraphNodes.toPlainSetWithConditionals().foreach({ case (v, expr) =>
+            writer.writeNode(v, expr)
+        })
+        callGraphEdges.toPlainSetWithConditionals().foreach({ case ((s, t, etype), expr) =>
+            writer.writeEdge(s, t, etype, expr)
+        })
+        writer.close()
+
+    }
+
     def parenthesize(objName: String) = {
         val operators = List(StructAccessOp, StructPointerAccessOp, PointerCreationOp, PointerDereferenceOp)
         if (operators.exists(objName.contains)) {
@@ -331,7 +358,7 @@ class CCallGraph() {
     }
 
     private def extractExpr(expr: Expr, ctx: FeatureExpr): Option[String] = {
-        //println(expr)
+//        println(expr)
         expr match {
             case Id(name: String) => Some(name)
             // constants are no important, variables are (changing this may affect the whole algorithm)
@@ -480,7 +507,7 @@ class CCallGraph() {
     }
 
     private def extractStmt(stmt: Statement, ctx: FeatureExpr): Option[String] = {
-        //println(stmt)
+//        println(stmt)
         stmt match {
             case CompoundStatement(innerStatements: List[Opt[Statement]]) => {
                 for (Opt(fExpr, e) <- innerStatements) extractStmt(e, ctx and fExpr)
@@ -575,8 +602,77 @@ class CCallGraph() {
         }
     }
 
+    private def extractDeclarator(declarator: AST, ctx: FeatureExpr): Option[String] = {
+        declarator match {
+            // variable declarator with initializer
+            case InitDeclaratorI(decl: Declarator, _, init: Option[Initializer]) => {
+                val declStr = extractObjectNames(decl, ctx)
+                currentDeclarator = declStr.getOrElse("")
+                val initNames = init.flatMap(i => extractObjectNames(i, ctx))
+
+                if (isNotTypedefSpecifier.isSatisfiable() && declStr.isDefined) {
+                    objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
+                    val objName1 = applyScope(declStr.get, currentFunction)
+
+                    if (initNames.isDefined) {
+                        objectNamesScope = objectNamesScope.updated(initNames.get, currentFunction)
+                        val objName2 = applyScope(initNames.get, currentFunction)
+
+                        // assignment (no need to get a new presence condition, objet names already in the same context)
+                        objectNameAssignments +=((objName1, objName2), ctx and objectNamePresenceCondition(objName2))
+                    }
+                    initNames
+                } else None
+            }
+
+            // variable declarator
+            case AtomicNamedDeclarator(pointers: List[Opt[Pointer]], id: Id, extensions: List[Opt[DeclaratorExtension]]) => {
+                currentDeclarator = id.name
+                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr);
+                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr);
+
+                if (isDeclarationStatement.isSatisfiable() && isNotTypedefSpecifier.isSatisfiable()) {
+
+                    addObjectName(applyScope(id.name, currentFunction), ctx)
+
+                    if (isPointer.isSatisfiable()) {
+                        addObjectName(applyScope(PointerDereferenceOp + parenthesize(id.name), currentFunction), ctx)
+                        isPointer = False
+                    }
+                }
+                Some(id.name)
+
+            }
+
+            case NestedNamedDeclarator(pointers: List[Opt[Pointer]], nestedDecl: Declarator, extensions: List[Opt[DeclaratorExtension]], attr: List[Opt[AttributeSpecifier]]) => {
+                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr)
+
+                val declStr = extractObjectNames(nestedDecl, ctx)
+                currentDeclarator = declStr.getOrElse("")
+
+                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr)
+                for (Opt(featExpr, e) <- attr) extractObjectNames(e, ctx and featExpr)
+                declStr
+            }
+            case AtomicAbstractDeclarator(pointers: List[Opt[Pointer]], extensions: List[Opt[DeclaratorAbstrExtension]]) => {
+                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr)
+                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr)
+                None
+            }
+
+            case NestedAbstractDeclarator(pointers: List[Opt[Pointer]], nestedDecl: AbstractDeclarator, extensions: List[Opt[DeclaratorAbstrExtension]], attr: List[Opt[AttributeSpecifier]]) => {
+                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr)
+                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr)
+                for (Opt(featExpr, e) <- attr) extractObjectNames(e, ctx and featExpr)
+                val declStr = extractObjectNames(nestedDecl, ctx)
+                declStr
+            }
+        }
+
+    }
+
     def extractObjectNames(ast: AST, ctx: FeatureExpr): Option[String] = {
-        //println(ast)
+//        println(ast)
         ast match {
             case EmptyExternalDef() => None
             case TypelessDeclaration(declList: List[Opt[InitDeclarator]]) => {
@@ -617,14 +713,13 @@ class CCallGraph() {
              * TODO: analyze function defs and calls to relate parameters
              *
              */
+            case SimplePostfixSuffix(t: String) => None
             case PointerPostfixSuffix(operator: String, expr) => {
                 val str = extractExpr(expr, ctx)
                 str.map(operator + _)
             }
 
             case specif: Specifier => None
-            // TODO: fix
-            case _: SimplePostfixSuffix => None
             case ArrayAccess(expr: Expr) => Some(ArrayAccessOp)
 
             // ignore any kind of subexpression (with exception of assingments)
@@ -641,6 +736,7 @@ class CCallGraph() {
                 currentFunction = declarator.getName
                 functionDefReturns += (currentFunction -> ConditionalSet())
                 functionDefParameters += (currentFunction -> List[Opt[ObjectName]]())
+                functionDefs +=(currentFunction, ctx)
                 val oldObjectNamesScope = objectNamesScope
 
                 extractObjectNames(declarator, ctx)
@@ -653,79 +749,24 @@ class CCallGraph() {
                 None
             }
 
-            // variable declaration with initializer
-            case InitDeclaratorI(decl: Declarator, _, init: Option[Initializer]) => {
-                val declStr = extractObjectNames(decl, ctx)
-                val initNames = init.flatMap(i => extractObjectNames(i, ctx))
-
-                // variable declaration with initializer
-                if (isNotTypedefSpecifier.isSatisfiable() && declStr.isDefined) {
-                    objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
-                    val objName1 = applyScope(declStr.get, currentFunction)
-
-                    if (initNames.isDefined) {
-                        objectNamesScope = objectNamesScope.updated(initNames.get, currentFunction)
-                        val objName2 = applyScope(initNames.get, currentFunction)
-
-                        // assignment (no need to get a new presence condition, objet names already in the same context)
-                        objectNameAssignments +=((objName1, objName2), ctx and objectNamePresenceCondition(objName2))
-                    }
-                    initNames
-                } else None
-            }
-
             case DeclIdentifierList(idList: List[Opt[Id]]) => for (Opt(fExpr, e) <- idList) extractObjectNames(e, fExpr);
                 None
 
             // function parameters declaration
             case DeclParameterDeclList(parameterDecls: List[Opt[ParameterDeclaration]]) => {
                 isDeclarationStatement = True;
+                functionDefs = functionDefs +(currentDeclarator, ctx)
                 for (Opt(featExpr, e) <- parameterDecls) extractObjectNames(e, ctx and featExpr);
                 isDeclarationStatement = False;
                 None
-            };
-            case DeclArrayAccess(expr: Option[Expr]) => if (expr.isDefined) {
-                val exprStr = extractExpr(expr.get, ctx);
-                exprStr
-            };
-            else None
+            }
 
-            // variable declarator
-            case AtomicNamedDeclarator(pointers: List[Opt[Pointer]], id: Id, extensions: List[Opt[DeclaratorExtension]]) => {
-                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr);
-                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr);
-
-                if (isDeclarationStatement.isSatisfiable() && isNotTypedefSpecifier.isSatisfiable()) {
-                    addObjectName(applyScope(id.name, currentFunction), ctx)
-
-                    if (isPointer.isSatisfiable()) {
-                        addObjectName(applyScope(PointerDereferenceOp + parenthesize(id.name), currentFunction), ctx)
-                        isPointer = False
-                    }
+            case DeclArrayAccess(expr: Option[Expr]) => {
+                if (expr.isDefined) {
+                    val exprStr = extractExpr(expr.get, ctx);
+                    exprStr
                 }
-                Some(id.name)
-
-            }
-
-            case NestedNamedDeclarator(pointers: List[Opt[Pointer]], nestedDecl: Declarator, extensions: List[Opt[DeclaratorExtension]], attr: List[Opt[AttributeSpecifier]]) => {
-                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr)
-                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr)
-                for (Opt(featExpr, e) <- attr) extractObjectNames(e, ctx and featExpr)
-                val declStr = extractObjectNames(nestedDecl, ctx)
-                declStr
-            }
-            case AtomicAbstractDeclarator(pointers: List[Opt[Pointer]], extensions: List[Opt[DeclaratorAbstrExtension]]) => {
-                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr)
-                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr)
-                None
-            }
-
-            case NestedAbstractDeclarator(pointers: List[Opt[Pointer]], nestedDecl: AbstractDeclarator, extensions: List[Opt[DeclaratorAbstrExtension]], attr: List[Opt[AttributeSpecifier]]) => {
-                for (Opt(featExpr, e) <- pointers) extractObjectNames(e, ctx and featExpr)
-                for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr)
-                for (Opt(featExpr, e) <- attr) extractObjectNames(e, ctx and featExpr)
-                val declStr = extractObjectNames(nestedDecl, ctx)
-                declStr
+                else None
             }
 
             case PlainParameterDeclaration(declSpecs: List[Opt[Specifier]], attr: List[Opt[AttributeSpecifier]]) => {
@@ -815,6 +856,9 @@ class CCallGraph() {
             case p: Pragma => None
             case e: Expr => extractExpr(e, ctx)
             case s: Statement => extractStmt(s, ctx)
+            case d: Declarator => extractDeclarator(d, ctx)
+            case ad: AbstractDeclarator => extractDeclarator(ad, ctx)
+            case id: InitDeclarator => extractDeclarator(id, ctx)
             case z => throw new Exception("%s is not supported".format(z.getClass))
         }
     }

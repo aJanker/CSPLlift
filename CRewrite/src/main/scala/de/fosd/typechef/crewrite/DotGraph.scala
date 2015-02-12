@@ -1,11 +1,11 @@
 package de.fosd.typechef.crewrite
 
-import de.fosd.typechef.parser.c._
-import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureExpr}
-import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.parser.c.FunctionDef
 import java.io.Writer
 import java.util
+
+import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.FeatureExpr
+import de.fosd.typechef.parser.c.{FunctionDef, _}
 
 trait CFGWriter {
 
