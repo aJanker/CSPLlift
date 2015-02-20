@@ -37,6 +37,7 @@ fork.pi
 sparse
 systems
 .history
+*.iml
 .idea_modules
 KiamaExp
 TypeChef.iml
