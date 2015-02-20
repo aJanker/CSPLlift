@@ -5,6 +5,8 @@ struct parse_table {
     PBF func;
 };
 
+int strcmp() { }
+
 int func1() {
     return 1;
 }

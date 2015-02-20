@@ -29,6 +29,8 @@ class CTypeSystemFrontend(iast: TranslationUnit,
 
     var isSilent = false
 
+    var finalEnv : Env = EmptyEnv
+
     val DEBUG_PRINT = false
 
     def dbgPrint(o: Any) { if (DEBUG_PRINT) print(o) }
@@ -37,6 +39,7 @@ class CTypeSystemFrontend(iast: TranslationUnit,
 
     val verbose = false
 
+    def typeCheckedEnv() : Env = { finalEnv }
 
     var externalDefCounter: Int = 0
     override def checkingExternal(externalDef: ExternalDef) {
@@ -74,6 +77,7 @@ class CTypeSystemFrontend(iast: TranslationUnit,
             println("Found " + merrors.size + " type errors: ")
         }
         //println("\n")
+        finalEnv = env
         merrors.isEmpty
     }
     def checkASTEnv(ignoreWarnings: Boolean = true): Env = {
