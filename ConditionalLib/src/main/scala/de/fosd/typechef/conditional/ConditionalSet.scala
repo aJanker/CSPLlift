@@ -7,9 +7,7 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
  * maintains a map
  * a name may be mapped to alternative entries with different feature expressions
  */
-class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) extends Iterable[A] {
-    override def iterator = entries.keysIterator
-
+class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
     def this() = this(Map())
 
     def ++(that: ConditionalSet[A]) = {
@@ -18,7 +16,7 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) extends Iterab
         new ConditionalSet(newMap.toMap)
     }
 
-    override def partition(p: (A) ⇒ Boolean): (ConditionalSet[A], ConditionalSet[A]) = {
+     def partition(p: (A) ⇒ Boolean): (ConditionalSet[A], ConditionalSet[A]) = {
         (new ConditionalSet(this.entries.filter({ e => p(e._1) })), new ConditionalSet(this.entries.filterNot({ e => p(e._1) })))
     }
 
@@ -31,7 +29,7 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) extends Iterab
     }
 
     def contains(name: A): FeatureExpr = this.entries.getOrElse(name, False)
-    override def isEmpty = entries.isEmpty
+    def isEmpty = entries.isEmpty
 
     /**
      * restricts the feature expression of all entries
