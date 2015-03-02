@@ -14,6 +14,16 @@ import org.junit.Test
  */
 class CCallGraphTest extends TestHelper {
 
+    @Test def unscopedObjectNames() {
+        var cset = ConditionalSet[String]()
+        cset = cset + ("GLOBAL$x", True)
+        cset = cset + ("foo$x", True)
+        cset = cset + ("bar$y", True)
+
+        val eq = new EquivalenceClass(cset, ConditionalSet())
+        assert(eq.unscopedObjectNames() equals Set(), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set()))
+    }
+
     @Test def test_init_equivalence_classes() {
         val c: CCallGraph = new CCallGraph()
         c.extractedObjectNames = ConditionalSet("a", True)

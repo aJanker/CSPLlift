@@ -182,9 +182,11 @@ object Frontend extends EnforceTreeHelper {
                     val c = new CCallGraph()
                     c.calculatePointerEquivalenceRelation(ast)
                     c.extractCallGraph()
-                    c.showFunctionCalls()
-                    c.showAssignments()
-                    c.showPointerEquivalenceClasses()
+
+                    // DEBUG
+                    //c.showFunctionDefs()
+                    //c.showFunctionCalls()
+                    //c.showAssignments()
 
                     val writer = new CallGraphWriter(new FileWriter(new File(opt.getCGFilename)))
                     c.writeCallGraph(opt.getFile, writer)
