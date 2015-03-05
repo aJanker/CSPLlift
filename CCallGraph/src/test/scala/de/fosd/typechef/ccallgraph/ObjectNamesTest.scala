@@ -14,36 +14,36 @@ import org.junit.Test
 class ObjectNamesTest extends TestHelper {
 
     @Test def testFunctionDecl() {
-//        test("int* foo(int* x) { return 0; }", Set("foo$x", "foo$*x"))
-//        test("int* id(int* x) { return x; } int main() { int b; int* a = id(&b); }", Set("id$x", "id$*x", "main$a", "main$*a", "main$b", "main$&b", "main$id()"))
-//        test("int* id(int* x) { return x; } int main() { int b; int* x = id(&b); }", Set("id$x", "id$*x", "main$x", "main$*x", "main$b", "main$&b", "main$id()"))
-//        test("int* foo(int* x) { return x; } int bar(int *x) { return x; } int main() { int *x; foo(); bar(); return x; }", Set("foo$x", "foo$*x", "main$x", "main$*x", "bar$x", "bar$*x"))
-          test("typedef int (*stat_func)(const char *fn, struct stat *ps); int foo(stat_func sf) { sf(); } ", Set("GLOBAL$stat_func", "stat_func$*ps", "stat_func$ps", "stat_func$*fn", "stat_func$fn", "GLOBAL$foo", "foo$sf"))
+        test("int* foo(int* x) { return 0; }", Set("GLOBAL$foo", "foo$x", "foo$*x"))
+        test("int* id(int* x) { return x; } int main() { int b; int* a = id(&b); }", Set("GLOBAL$id", "GLOBAL$main", "id$x", "id$*x", "main$a", "main$*a", "main$b", "main$&b", "main$id()"))
+        test("int* id(int* x) { return x; } int main() { int b; int* x = id(&b); }", Set("GLOBAL$main", "GLOBAL$id", "id$x", "id$*x", "main$x", "main$*x", "main$b", "main$&b", "main$id()"))
+        test("int* foo(int* x) { return x; } int bar(int *x) { return x; } int main() { int *x; foo(); bar(); return x; }", Set("GLOBAL$main", "GLOBAL$foo", "GLOBAL$bar", "foo$x", "foo$*x", "main$x", "main$*x", "bar$x", "bar$*x", "main$foo()", "main$bar()"))
+        test("typedef int (*stat_func)(const char *fn, struct stat *ps); int foo(stat_func sf) { sf(); } ", Set("GLOBAL$foo", "foo$sf", "foo$sf()"))
 
     }
 
     @Test def testVariableDeclarations() {
-        test("#ifdef A\n int a; \n#endif" , Set("GLOBAL$a"))
-//        testExprStmt("int a;", Set("foo$a"))
-//        test("int *b;", Set("GLOBAL$b", "GLOBAL$*b"))
-//        testExprStmt("int *b;", Set("foo$b", "foo$*b"))
-//        test("int **b;", Set("GLOBAL$b", "GLOBAL$*b"))
-//        testExprStmt("int **b;", Set("foo$b", "foo$*b"))
-//        test("int a, b;", Set("GLOBAL$a", "GLOBAL$b"))
-//        testExprStmt("int a, b;", Set("foo$a", "foo$b"))
-//        test("int *c, *d;", Set("GLOBAL$c", "GLOBAL$*c", "GLOBAL$d", "GLOBAL$*d"))
-//        testExprStmt("int *c, *d;", Set("foo$c", "foo$*c", "foo$d", "foo$*d"))
-//        test("int e, *f;", Set("GLOBAL$e", "GLOBAL$*f", "GLOBAL$f"))
-//        testExprStmt("int e, *f;", Set("foo$e", "foo$*f", "foo$f"))
-//        test("int a, b; a = b;", Set("GLOBAL$a", "GLOBAL$b"))
-//        testExprStmt("int a, b; a = b;", Set("foo$a", "foo$b"))
-//        test("int a, *b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$b", "GLOBAL$*b"))
-//        testExprStmt("int a, *b; b = &a;", Set("foo$a", "foo$&a", "foo$b", "foo$*b"))
-//        test("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
-//        testExprStmt("int *a, **b; b = &a;", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b"))
-//        test("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
-//        testExprStmt("int *a, **b; b = *(&a);", Set("foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
-//        test("typedef int* PBF; PBF *g, h;", Set("GLOBAL$g", "GLOBAL$*g", "GLOBAL$h"))
+        test("#ifdef A\n int a; \n#endif", Set("GLOBAL$a"))
+        testExprStmt("int a;", Set("GLOBAL$foo", "foo$a"))
+        test("int *b;", Set("GLOBAL$b", "GLOBAL$*b"))
+        testExprStmt("int *b;", Set("GLOBAL$foo", "foo$b", "foo$*b"))
+        test("int **b;", Set("GLOBAL$b", "GLOBAL$*b"))
+        testExprStmt("int **b;", Set("GLOBAL$foo", "foo$b", "foo$*b"))
+        test("int a, b;", Set("GLOBAL$a", "GLOBAL$b"))
+        testExprStmt("int a, b;", Set("GLOBAL$foo", "foo$a", "foo$b"))
+        test("int *c, *d;", Set("GLOBAL$c", "GLOBAL$*c", "GLOBAL$d", "GLOBAL$*d"))
+        testExprStmt("int *c, *d;", Set("GLOBAL$foo", "foo$c", "foo$*c", "foo$d", "foo$*d"))
+        test("int e, *f;", Set("GLOBAL$e", "GLOBAL$*f", "GLOBAL$f"))
+        testExprStmt("int e, *f;", Set("GLOBAL$foo", "foo$e", "foo$*f", "foo$f"))
+        test("int a, b; a = b;", Set("GLOBAL$a", "GLOBAL$b"))
+        testExprStmt("int a, b; a = b;", Set("GLOBAL$foo", "foo$a", "foo$b"))
+        test("int a, *b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$b", "GLOBAL$*b"))
+        testExprStmt("int a, *b; b = &a;", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$b", "foo$*b"))
+        test("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
+        testExprStmt("int *a, **b; b = &a;", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b"))
+        test("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
+        testExprStmt("int *a, **b; b = *(&a);", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
+        test("typedef int* PBF; PBF *g, h;", Set("GLOBAL$g", "GLOBAL$*g", "GLOBAL$h"))
     }
 
     @Test def testAssignmentExpressions() {
@@ -126,7 +126,7 @@ class ObjectNamesTest extends TestHelper {
         test("int x;", Set("GLOBAL$x"))
         test("int x; int foo() { int x; }", Set("GLOBAL$foo", "GLOBAL$x", "foo$x"))
         test("int x; int foo(int y) { int x; return x+y; }", Set("GLOBAL$foo", "GLOBAL$x", "GLOBAL$foo", "foo$x", "foo$y"))
-        testFile("scope.c", Set("GLOBAL$foo", "GLOBAL$ptr", "GLOBAL$*ptr", "GLOBAL$ptr->a", "foo$ptr", "foo$*ptr", "foo$c", "foo$ptr->b", "main$a"))
+        testFile("scope.c", Set("GLOBAL$foo", "GLOBAL$main", "GLOBAL$ptr", "GLOBAL$*ptr", "GLOBAL$ptr->a", "foo$ptr", "foo$*ptr", "foo$c", "foo$ptr->b", "main$a"))
     }
 
     @Test def testPaperExamples() {
@@ -159,7 +159,7 @@ class ObjectNamesTest extends TestHelper {
         val c = new CCallGraph
         c.extractObjectNames(ast, True)
         c.initEquivalanceClasses()
-        assert(c.extractedObjectNames.toPlainSet() equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.extractedObjectNames.toPlainSet().mkString("[", ", ", "]")))
+        assert(c.objectNames.toPlainSet() equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.objectNames.toPlainSet().mkString("[", ", ", "]")))
     }
 
 

@@ -5,6 +5,7 @@ void baz() { }
 int main() {
 #ifdef B
     void (*fp)();
+    foo();
 #ifdef A
     fp= &bar;
 #else

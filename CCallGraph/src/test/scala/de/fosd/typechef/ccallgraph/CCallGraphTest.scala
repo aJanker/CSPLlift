@@ -16,26 +16,25 @@ class CCallGraphTest extends TestHelper {
 
     @Test def unscopedObjectNames() {
         var cset = ConditionalSet[String]()
-        cset = cset + ("GLOBAL$x", True)
-        cset = cset + ("foo$x", True)
-        cset = cset + ("bar$y", True)
+        cset = cset +("GLOBAL$x", True)
+        cset = cset +("bar$y", True)
 
         val eq = new EquivalenceClass(cset, ConditionalSet())
-        assert(eq.unscopedObjectNames() equals Set(), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set()))
+        assert(eq.unscopedObjectNames() equals Set("x", "y"), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set()))
     }
 
     @Test def test_init_equivalence_classes() {
         val c: CCallGraph = new CCallGraph()
-        c.extractedObjectNames = ConditionalSet("a", True)
+        c.objectNames = ConditionalSet("a", True)
         c.initEquivalanceClasses()
 
-        assert(c.equivalenceClasses.size equals c.extractedObjectNames.toPlainSet().size)
+        assert(c.equivalenceClasses.size equals c.objectNames.toPlainSet().size)
         c.equivalenceClasses.map(s => s.prefixes().toPlainSet().size equals 0)
     }
 
     @Test def test_create_initial_prefix_sets_1() {
         val c: CCallGraph = new CCallGraph()
-        c.extractedObjectNames = ConditionalSet("x", True)
+        c.objectNames = ConditionalSet("x", True)
 
         c.initEquivalanceClasses()
         //c.createInitialPrefixSets()
@@ -48,7 +47,7 @@ class CCallGraphTest extends TestHelper {
     @Test def test_create_initial_prefix_sets_2() {
         val c: CCallGraph = new CCallGraph()
         val map = Map("x" -> True, "&x" -> True)
-        c.extractedObjectNames = ConditionalSet(map)
+        c.objectNames = ConditionalSet(map)
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
@@ -64,7 +63,7 @@ class CCallGraphTest extends TestHelper {
     @Test def test_create_initial_prefix_sets_3() {
         val c: CCallGraph = new CCallGraph()
         val map = Map("x" -> True, "&x" -> True, "&(&x)" -> True)
-        c.extractedObjectNames = ConditionalSet(map)
+        c.objectNames = ConditionalSet(map)
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
@@ -79,7 +78,7 @@ class CCallGraphTest extends TestHelper {
     @Test def test_create_initial_prefix_sets_4() {
         val c: CCallGraph = new CCallGraph()
         val map = Map("a" -> True, "*a" -> True, "a->b" -> True, "*(a->b)" -> True, "(a->b)->c" -> True, "*((a->b)->c)" -> True, "((a->b)->c)->d" -> True)
-        c.extractedObjectNames = ConditionalSet(map)
+        c.objectNames = ConditionalSet(map)
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
@@ -98,7 +97,7 @@ class CCallGraphTest extends TestHelper {
     @Test def test_create_initial_prefix_sets_fig4() {
         val c: CCallGraph = new CCallGraph()
         val map = Map("x" -> True, "&x" -> True, "p" -> True, "*p" -> True, "t" -> True, "p->f" -> True, "z" -> True, "&z" -> True)
-        c.extractedObjectNames = ConditionalSet(map)
+        c.objectNames = ConditionalSet(map)
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
@@ -114,7 +113,7 @@ class CCallGraphTest extends TestHelper {
     @Test def test_merge_eq_classes_fig4() {
         val c: CCallGraph = new CCallGraph()
         val map = Map("x" -> True, "&x" -> True, "p" -> True, "*p" -> True, "t" -> True, "p->f" -> True, "z" -> True, "&z" -> True)
-        c.extractedObjectNames = ConditionalSet(map)
+        c.objectNames = ConditionalSet(map)
 
         c.initEquivalanceClasses()
         c.createInitialPrefixSets()
@@ -141,38 +140,39 @@ class CCallGraphTest extends TestHelper {
         val ast = loadAST("fig1_table_dispatch.c")
 
         val c: CCallGraph = new CCallGraph()
+
         c.calculatePointerEquivalenceRelation(ast)
+        c.showPointerEquivalenceClasses()
+        c.showFunctionCalls()
+
         c.extractCallGraph()
         c.showCallGraph()
-        c.showPointerEquivalenceClasses()
 
     }
 
+    @Test def test_paper_example_fig2() {
+        val ast = loadAST("fig2_extensible_func.c")
 
-    //
-    //    @Test def test_paper_example_fig2() {
-    //        val ast = loadAST("fig2_extensible_func.c")
-    //
-    //        val c: CCallGraph = new CCallGraph()
-    //        c.calculatePointerEquivalenceRelation(ast)
-    //
-    //        c.showCallGraph()
-    //
-    //    }
-    //
-        @Test def test_paper_example_fig3() {
-            val ast = loadAST("fig3_sample_prog.c")
+        val c: CCallGraph = new CCallGraph()
+        c.calculatePointerEquivalenceRelation(ast)
 
-            val c: CCallGraph = new CCallGraph()
+        c.showCallGraph()
 
-            c.calculatePointerEquivalenceRelation(ast)
-            c.showPointerEquivalenceClasses()
-            c.showFunctionCalls()
+    }
 
-            c.extractCallGraph()
-            c.showCallGraph()
+    @Test def test_paper_example_fig3() {
+        val ast = loadAST("fig3_sample_prog.c")
 
-        }
+        val c: CCallGraph = new CCallGraph()
+
+        c.calculatePointerEquivalenceRelation(ast)
+        c.showPointerEquivalenceClasses()
+        c.showFunctionCalls()
+
+        c.extractCallGraph()
+        c.showCallGraph()
+
+    }
 
     @Test def test_paper_example_fig4() {
         val ast = loadAST("fig4_simple_sets_statements.c")
@@ -182,11 +182,11 @@ class CCallGraphTest extends TestHelper {
 
         c.showPointerEquivalenceClasses()
 
-        //        assert(c.equivalenceClasses.size equals 4)
-        //        assert(c.find("p").get equals new EquivalenceClass(Set("p", "&x", "t"), Set(("*", "*p"))))
-        //        assert(c.find("*p").get equals new EquivalenceClass(Set("*p", "x"), Set(("f", "p->f"))))
-        //        assert(c.find("p->f").get equals new EquivalenceClass(Set("p->f", "&z"), Set(("*", "z"))))
-        //        assert(c.find("z").get equals new EquivalenceClass(Set("z"), Set()))
+        //                assert(c.equivalenceClasses.size equals 4)
+        //                assert(c.find("p").get equals new EquivalenceClass(Set("p", "&x", "t"), Set(("*", "*p"))))
+        //                assert(c.find("*p").get equals new EquivalenceClass(Set("*p", "x"), Set(("f", "p->f"))))
+        //                assert(c.find("p->f").get equals new EquivalenceClass(Set("p->f", "&z"), Set(("*", "z"))))
+        //                assert(c.find("z").get equals new EquivalenceClass(Set("z"), Set()))
 
     }
 
@@ -195,8 +195,11 @@ class CCallGraphTest extends TestHelper {
 
         val c: CCallGraph = new CCallGraph()
         c.calculatePointerEquivalenceRelation(ast)
+        c.extractCallGraph()
 
         c.showPointerEquivalenceClasses()
+        c.showCallGraph()
+        c.showFunctionCalls()
 
         //        assert(c.equivalenceClasses.size equals 4)
         //        assert(c.find("p").get equals new EquivalenceClass(Set("p", "&x", "t"), Set(("*", "*p"))))

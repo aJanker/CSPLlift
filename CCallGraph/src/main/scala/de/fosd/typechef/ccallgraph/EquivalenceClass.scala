@@ -19,7 +19,7 @@ class EquivalenceClass(initialObjNamesSet: ConditionalSet[String], initialPrefix
 
     def objectNames(): ConditionalSet[ObjectName] = objectNamesSet
     def plainObjectNames() : Set[ObjectName] = objectNamesSet.toPlainSetWithConditionals.map({ case (o, expr) => o })
-    def unscopedObjectNames() : Set[ObjectName] = objectNamesSet.toPlainSetWithConditionals.map({ case (o, expr) => unscope(o) })
+    def unscopedObjectNames() : Set[ObjectName] = plainObjectNames.map({ case o => unscope(o) })
     def prefixes(): ConditionalSet[PrefixSet] = prefixSet
 
     def addPrefix(t: PrefixSet, f : FeatureExpr) = {

@@ -25,6 +25,16 @@ class FunctionDeclarationsTest extends TestHelper {
         testFunctionReturns("int foo(int x) { return x+y; }", Map(("foo", ConditionalSet("foo$x", True))))
         testFunctionReturns("float* foo(float* x) { if (1) return x; }", Map(("foo", ConditionalSet("foo$x", True))))
 
+        // multiple return values
+        testFunctionReturns("float* foo(float* x) { if (1) return y; return x; }", Map(("foo", ConditionalSet(Map("foo$x" -> True, "GLOBAL$y" -> True)))))
+        testFunctionReturns("float* foo(float* x) { if (1) return y; else return z; return x; }", Map(("foo", ConditionalSet(Map("foo$x" -> True, "GLOBAL$y" -> True, "GLOBAL$z" -> True)))))
+        testFunctionReturns("float* foo(float* x) { if (1) return y+m; else return z+n; return x+w; }", Map(("foo", ConditionalSet(Map("foo$x" -> True, "GLOBAL$y" -> True, "GLOBAL$z" -> True)))))
+
+        // multiple functions
+        testFunctionReturns("int* foo(int* x) { return x; } int main() { int b; int* a = id(&b); return 0; }", Map(("foo", ConditionalSet(Map("foo$x" -> True))), ("main", ConditionalSet())))
+        testFunctionReturns("int* foo(int* x) { return x; } int main() { int b; int* a = id(&b); return a; }", Map(("foo", ConditionalSet(Map("foo$x" -> True))), ("main", ConditionalSet("main$a", True))))
+        testFunctionReturns("int* foo(int* x) { return x; } int main() { int b; int* a = id(&b); return x+a; }", Map(("foo", ConditionalSet(Map("foo$x" -> True))), ("main", ConditionalSet("GLOBAL$x", True))))
+
         // alternative return values
         testFunctionReturns(
             """int foo(int x) { return
@@ -55,27 +65,55 @@ class FunctionDeclarationsTest extends TestHelper {
               |#endif
               |; }""", Map(("foo", ConditionalSet(Map("foo$x" -> feature("A"), "GLOBAL$y" -> feature("A").not())))))
 
-        // multiple return values
-        //        testCondSet("float* foo(float* x) { if (1) return y; return x; }", Map(("foo", ConditionalSet("foo$x", "GLOBAL$y"))), testFunctionReturns)
-        //        testCondSet("float* foo(float* x) { if (1) return y; else return z; return x; }", Map(("foo", ConditionalSet("foo$x", "GLOBAL$y", "GLOBAL$z"))), testFunctionReturns)
-        //        testCondSet("float* foo(float* x) { if (1) return y+m; else return z+n; return x+w; }", Map(("foo", ConditionalSet("foo$x", "GLOBAL$y", "GLOBAL$z"))), testFunctionReturns)
-        ////
-        //        // multiple functions
-        //        testCondSet("int* foo(int* x) { return x; } int main() { int b; int* a = id(&b); return 0; }", Map(("foo", Set("foo$x")), ("main", Set())), testFunctionReturns)
-        //        testCondSet("int* foo(int* x) { return x; } int main() { int b; int* a = id(&b); return a; }", Map(("foo", Set("foo$x")), ("main", Set("main$a"))), testFunctionReturns)
-        //        testCondSet("int* foo(int* x) { return x; } int main() { int b; int* a = id(&b); return x+a; }", Map(("foo", Set("foo$x")), ("main", Set("GLOBAL$x"))), testFunctionReturns)
-        //
-        //        // typedefs followed by functions using the new types
-        //        test("typedef int* PBF; PBF* id(int x) { return x; }", Map(("id", Set("id$x"))), testFunctionReturns)
-
     }
 
     @Test def testFunctionDeclParameters() {
-        testFunctionParameters("void foo(int x) { }", Map(("foo", List(Opt(True, "foo$x")))))
         testFunctionParameters("void foo() { }", Map(("foo", List())))
+        testFunctionParameters("void foo(int x) { }", Map(("foo", List(Opt(True, "foo$x")))))
         testFunctionParameters("int foo(int x, float y) { }", Map(("foo", List(Opt(True, "foo$x"), Opt(True, "foo$y")))))
-        testFunctionParameters("int foo(int x, float y, char z) { }", Map(("foo", List(Opt(True, "foo$x"), Opt(True, "foo$y"), Opt(True, "foo$z")))))
-        testFunctionParameters("typedef int* PBF; int foo(int x, float y, char z, PBF* w) { }", Map(("foo", List(Opt(True, "foo$x"), Opt(True, "foo$y"), Opt(True, "foo$z"), Opt(True, "foo$w")))))
+        testFunctionParameters("int foo(int x, float y, char* z) { }", Map(("foo", List(Opt(True, "foo$x"), Opt(True, "foo$y"), Opt(True, "foo$z"), Opt(True, "foo$*z")))))
+        testFunctionParameters("typedef int* PBF; int foo(int x, float y, char z, PBF* w) { }", Map(("foo", List(Opt(True, "foo$x"), Opt(True, "foo$y"), Opt(True, "foo$z"), Opt(True, "foo$w"), Opt(True, "foo$*w")))))
+
+        // stat.c excerpt
+        testFunctionParameters("static void print_it(const char *masterformat, const char *filename,  void  (*print_func)(char*, char, const char*, const void* data)) { }",
+            Map(("print_it", List(Opt(True, "print_it$masterformat"), Opt(True, "print_it$*masterformat"), Opt(True, "print_it$filename"), Opt(True, "print_it$*filename"), Opt(True, "print_it$print_func"), Opt(True, "print_it$*print_func")))))
+
+        // optional parameters
+        testFunctionParameters(
+            """int foo(int x
+              | #ifdef A
+              | , float y
+              | #endif
+              | ) { }""".stripMargin, Map(("foo", List(Opt(True, "foo$x"), Opt(FeatureExprFactory.createDefinedExternal("A"), "foo$y")))))
+
+        // alternative parameters (pointer / not pointer)
+        testFunctionParameters(
+            """int foo(int x
+              | #ifdef A
+              | , float y
+              | #else
+              | , float *y
+              | # endif
+              | ) { }""".stripMargin, Map(
+                ("foo", List(
+                    Opt(True, "foo$x"),
+                    Opt(FeatureExprFactory.createDefinedExternal("A"), "foo$y"),
+                    Opt(FeatureExprFactory.createDefinedExternal("A").not(), "foo$y"), Opt(FeatureExprFactory.createDefinedExternal("A").not(), "foo$*y")))))
+
+        testFunctionParameters(
+            """ #ifdef A
+              |int foo(int x
+              | #if defined(B) || defined(C)
+              | , float y
+              | #else
+              | , float *y
+              | #endif
+              | #endif
+              | ) { }""".stripMargin, Map(
+                ("foo", List(
+                    Opt(FeatureExprFactory.createDefinedExternal("A"), "foo$x"),
+                    Opt(FeatureExprFactory.createDefinedExternal("A").and(FeatureExprFactory.createDefinedExternal("B").or(FeatureExprFactory.createDefinedExternal("C"))), "foo$y"),
+                    Opt(FeatureExprFactory.createDefinedExternal("A").andNot(FeatureExprFactory.createDefinedExternal("B").or(FeatureExprFactory.createDefinedExternal("C"))), "foo$y"), Opt(FeatureExprFactory.createDefinedExternal("A").andNot(FeatureExprFactory.createDefinedExternal("B").or(FeatureExprFactory.createDefinedExternal("C"))), "foo$*y")))))
 
     }
 
@@ -87,10 +125,9 @@ class FunctionDeclarationsTest extends TestHelper {
               | #endif """.stripMargin, Set(("f", FeatureExprFactory.createDefinedExternal("A"))))
 
         testFunctionDefs("void g(int a, int b) { } g();", Set(("g", True)))
-        // typedefs followed by list of parameters (DeclParameterDeclList) are interpretedas function definitions
-        //        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func sf1; sf1(); ", Set("stat_func"))
-        //        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); int foo(stat_func sf) { sf(); } ", Set("stat_func", "foo"))
-        //        testFunctionDefs("extern int stat (const char *__restrict __file,\n\t\t struct stat *__restrict __buf) __attribute__ ((__nothrow__)) __attribute__ ((__nonnull__ (1, 2)));", Set("stat"))
+        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func sf1; sf1(); ", Set())
+        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); int foo(stat_func sf) { sf(); } ", Set(("foo", True)))
+        testFunctionDefs("extern int stat (const char *__restrict __file,\n\t\t struct stat *__restrict __buf) __attribute__ ((__nothrow__)) __attribute__ ((__nonnull__ (1, 2)));", Set(("stat", True)))
 
     }
 
