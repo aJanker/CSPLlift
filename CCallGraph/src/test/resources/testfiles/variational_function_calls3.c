@@ -3,14 +3,15 @@ void bar() { }
 void baz() { }
 
 int main() {
-#ifdef B
+#if defined(B)
   void (*fp)();
   foo();
-  #ifdef A
-    fp = &bar;
+  #if defined(A)
+    fp= &bar;
+    (*fp)();
   #else
-    fp = &baz;
+    fp= &baz;
   #endif
-  (*fp)();
+  a;
 #endif
 }

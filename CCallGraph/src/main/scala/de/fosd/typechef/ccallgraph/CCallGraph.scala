@@ -19,10 +19,10 @@ class CCallGraph {
     // debug flag - prints AST details
     def DEBUG = false
 
-    private var callGraphNodes: ConditionalSet[String] = ConditionalSet()
-    private var callGraphEdges: ConditionalSet[(String, String, String)] = ConditionalSet()
-    private var callGraphPointerEdges: ConditionalSet[(String, String, String)] = ConditionalSet()
-    private var callGraphNonResolvedEdges : ConditionalSet[(String, String, String)] = ConditionalSet()
+    var callGraphNodes: ConditionalSet[String] = ConditionalSet()
+    var callGraphEdges: ConditionalSet[(String, String, String)] = ConditionalSet()
+    var callGraphPointerEdges: ConditionalSet[(String, String, String)] = ConditionalSet()
+    var callGraphNonResolvedEdges : ConditionalSet[(String, String, String)] = ConditionalSet()
 
     var objectNames: ConditionalSet[ObjectName] = ConditionalSet()
     var equivalenceClasses: Set[EquivalenceClass] = Set()
