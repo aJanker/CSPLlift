@@ -3,15 +3,15 @@ void bar() { }
 void baz() { }
 
 int main() {
-#if defined(B)
+#ifdef B
   void (*fp)();
   foo();
-  #if defined(A)
+  #ifdef A
     fp= &bar;
     (*fp)();
   #else
     fp= &baz;
   #endif
-  a;
+  a; // bug with parser ? nested ifdefs supported?
 #endif
 }

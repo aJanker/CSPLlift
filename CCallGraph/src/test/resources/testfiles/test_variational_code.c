@@ -1,28 +1,10 @@
-int *id(int *x
-#ifdef Y
-, int y
-#endif
-)
-{
-    #ifdef A
-    int *a = NULL
-    return a;
-    #else
-    return x;
-    #endif
-}
+void bar() {}
 
-int main() {
+void foo() {
+    #ifdef A
+        bar();
+    #endif
     #ifdef B
-    int i, j, k;
-    #ifdef Y
-    int w, c;
-    c = id(&w);
+        bar();
     #endif
-    int *a, *b;
-    a = id(&i);
-    #else
-    a = id (&k);
-    #endif
-    b = id(&j);
 }

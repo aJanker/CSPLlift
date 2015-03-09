@@ -10,8 +10,7 @@ int main() {
     fp = &bar;
   #else
     fp = &baz;
-    (*fp)();
   #endif
-   a; // bug with parser???
 #endif
+(*fp)();
 }

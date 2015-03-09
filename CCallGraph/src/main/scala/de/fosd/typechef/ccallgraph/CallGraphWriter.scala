@@ -11,9 +11,9 @@ import de.fosd.typechef.featureexpr.FeatureExpr
 
 trait GraphWriter {
 
-    def writeNode(value : String, fExpr : FeatureExpr)
+    def writeNode(name: String, kind: String, sourceCodeLine: Int, fExpr : FeatureExpr)
 
-    def writeEdge(source : String, target : String, eType: String, fExpr : FeatureExpr)
+    def writeEdge(source : String, target : String, edgeType: String, fExpr : FeatureExpr)
 
     def close()
 
@@ -62,13 +62,13 @@ class CallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
      * that matches nodes based on function/declaration names
      */
 
-    override def writeNode(value: String, fExpr: FeatureExpr): Unit = {
-        fwriter.write("N;" + value +  ";" + fExpr.toTextExpr + "\n")
-
+    override def writeNode(name : String, kind : String, sourceCodeLine : Int, fExpr: FeatureExpr): Unit = {
+        fwriter.write("N;%d;%s;%d;%s;%s\n".format(System.identityHashCode(name), kind, sourceCodeLine, name, fExpr))
     }
 
-    override def writeEdge(source: String, target: String, eType : String, fExpr: FeatureExpr): Unit = {
-        fwriter.write("E;" + eType + ";" + source + ";" + target + ";" + fExpr.toTextExpr + "\n")
+    override def writeEdge(source: String, target: String, edgeKind : String, fExpr: FeatureExpr): Unit = {
+        //fwriter.write("E;%d;%d;%s;%s\n".format(System.identityHashCode(source), System.identityHashCode(target), fExpr.toTextExpr, edgeKind))
+        fwriter.write("E;%s;%s;%s;%s\n".format(source, target, fExpr.toTextExpr, edgeKind))
     }
 
     override def close() = {
