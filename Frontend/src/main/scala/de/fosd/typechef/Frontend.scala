@@ -177,12 +177,16 @@ object Frontend extends EnforceTreeHelper {
                     println("#call graph")
                     stopWatch.start("dumpCG")
 
-                    // typeSystem to help extracting lcurly assignments
+                    // TODO: use typeSystem to assist extracting lcurly assignments
                     val typeSystemEnv = ts.typeCheckedEnv()
+
+                    // call graph writer
+                    val writer = new CallGraphWriter(new FileWriter(new File(opt.getCGFilename)))
 
                     val c = new CCallGraph()
                     c.calculatePointerEquivalenceRelation(ast)
                     c.extractCallGraph()
+                    c.writeCallGraph(opt.getFile, writer /*, fullFM */) /* if no feature model is provided, an empty one is used */
                     c.showCallGraphStatistics()
 
                     // DEBUG
@@ -190,9 +194,6 @@ object Frontend extends EnforceTreeHelper {
 //                    c.showFunctionDefs()
 //                    c.showFunctionCalls()
 //                    c.showAssignments()
-
-                    val writer = new CallGraphWriter(new FileWriter(new File(opt.getCGFilename)))
-                    c.writeCallGraph(opt.getFile, writer)
                 }
 
                 if (opt.dumpcfg) {

@@ -22,19 +22,17 @@ trait GraphWriter {
 class CallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
 
     /**
-     *
-     *
      * output format in CSV
      *
      * we distinguish nodes and edges, nodes start with "N" edges with "E"
      *
      * nodes have the following format:
      *
-     * N;id;kind;line;name[::container];featureexpr;container
+     * N;id;kind;line;name[::container];featureexpr
      *
      * * id is an identifier that only has a meaning within a file and that is not stable over multiple runs
      *
-     * * kind is one of "function|function-inline|function-static|declaration|statement|expression|unknown"
+     * * kind is one of "function|function-inline|function-static"
      *   functions are distinguished into functions with an inline or a static modifier (inline takes precedence)
      *
      * * line refers to the starting position in the .pi file
@@ -48,11 +46,11 @@ class CallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
      *
      * * featureexpr describes the condition when the node is included
      *
-     *
-     *
      * edges do not have a line and title:
      *
-     * E;sourceid;targetid;featureexpr
+     * E;sourceid;targetid;featureexpr;kind
+     *
+     * * kind is of of D|I|FNNF|ECNF => this used to measure how precise is our pointer analysis (how many pointers are not resolved)
      *
      * they connect nodes within a file
      * ids refer to node ids within the file
@@ -66,8 +64,8 @@ class CallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
         fwriter.write("N;%d;%s;%d;%s;%s\n".format(System.identityHashCode(name), kind, sourceCodeLine, name, fExpr))
     }
 
-    override def writeEdge(source: String, target: String, edgeKind : String, fExpr: FeatureExpr): Unit = {
-        fwriter.write("E;%d;%d;%s;%s\n".format(System.identityHashCode(source), System.identityHashCode(target), fExpr.toTextExpr, edgeKind))
+    override def writeEdge(source: String, target: String, kind : String, fExpr: FeatureExpr): Unit = {
+        fwriter.write("E;%d;%d;%s;%s\n".format(System.identityHashCode(source), System.identityHashCode(target), fExpr.toTextExpr, kind))
 
         // DEBUG
         // fwriter.write("E;%s;%s;%s;%s\n".format(source, target, fExpr.toTextExpr, edgeKind))

@@ -23,29 +23,29 @@ class ObjectNamesTest extends TestHelper {
     }
 
     @Test def testVariableDeclarations() {
-//        testObjectNames("#ifdef A\n int a; \n#endif", Set("GLOBAL$a"))
-//        testExprObjectNames("int a;", Set("GLOBAL$foo", "foo$a"))
-//        testObjectNames("int *b;", Set("GLOBAL$b", "GLOBAL$*b"))
-//        testExprObjectNames("int *b;", Set("GLOBAL$foo", "foo$b", "foo$*b"))
-//        testObjectNames("int **b;", Set("GLOBAL$b", "GLOBAL$*b"))
-//        testExprObjectNames("int **b;", Set("GLOBAL$foo", "foo$b", "foo$*b"))
-//        testObjectNames("int a, b;", Set("GLOBAL$a", "GLOBAL$b"))
-//        testExprObjectNames("int a, b;", Set("GLOBAL$foo", "foo$a", "foo$b"))
-//        testObjectNames("int *c, *d;", Set("GLOBAL$c", "GLOBAL$*c", "GLOBAL$d", "GLOBAL$*d"))
-//        testExprObjectNames("int *c, *d;", Set("GLOBAL$foo", "foo$c", "foo$*c", "foo$d", "foo$*d"))
-//        testObjectNames("int e, *f;", Set("GLOBAL$e", "GLOBAL$*f", "GLOBAL$f"))
-//        testExprObjectNames("int e, *f;", Set("GLOBAL$foo", "foo$e", "foo$*f", "foo$f"))
-//        testObjectNames("int a, b; a = b;", Set("GLOBAL$a", "GLOBAL$b"))
-//        testExprObjectNames("int a, b; a = b;", Set("GLOBAL$foo", "foo$a", "foo$b"))
-//        testObjectNames("int a, *b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$b", "GLOBAL$*b"))
-//        testExprObjectNames("int a, *b; b = &a;", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$b", "foo$*b"))
-//        testObjectNames("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
-//        testExprObjectNames("int *a, **b; b = &a;", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b"))
-//        testObjectNames("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
-//        testExprObjectNames("int *a, **b; b = *(&a);", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
-//        testObjectNames("typedef int* PBF; PBF *g, h;", Set("GLOBAL$g", "GLOBAL$*g", "GLOBAL$h"))
-//        testObjectNames("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func f;", Set("GLOBAL$f"))
-//        testObjectNames("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func *f;", Set("GLOBAL$f", "GLOBAL$*f"))
+        testObjectNames("#ifdef A\n int a; \n#endif", Set("GLOBAL$a"))
+        testExprObjectNames("int a;", Set("GLOBAL$foo", "foo$a"))
+        testObjectNames("int *b;", Set("GLOBAL$b", "GLOBAL$*b"))
+        testExprObjectNames("int *b;", Set("GLOBAL$foo", "foo$b", "foo$*b"))
+        testObjectNames("int **b;", Set("GLOBAL$b", "GLOBAL$*b"))
+        testExprObjectNames("int **b;", Set("GLOBAL$foo", "foo$b", "foo$*b"))
+        testObjectNames("int a, b;", Set("GLOBAL$a", "GLOBAL$b"))
+        testExprObjectNames("int a, b;", Set("GLOBAL$foo", "foo$a", "foo$b"))
+        testObjectNames("int *c, *d;", Set("GLOBAL$c", "GLOBAL$*c", "GLOBAL$d", "GLOBAL$*d"))
+        testExprObjectNames("int *c, *d;", Set("GLOBAL$foo", "foo$c", "foo$*c", "foo$d", "foo$*d"))
+        testObjectNames("int e, *f;", Set("GLOBAL$e", "GLOBAL$*f", "GLOBAL$f"))
+        testExprObjectNames("int e, *f;", Set("GLOBAL$foo", "foo$e", "foo$*f", "foo$f"))
+        testObjectNames("int a, b; a = b;", Set("GLOBAL$a", "GLOBAL$b"))
+        testExprObjectNames("int a, b; a = b;", Set("GLOBAL$foo", "foo$a", "foo$b"))
+        testObjectNames("int a, *b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$b", "GLOBAL$*b"))
+        testExprObjectNames("int a, *b; b = &a;", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$b", "foo$*b"))
+        testObjectNames("int *a, **b; b = &a;", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b"))
+        testExprObjectNames("int *a, **b; b = &a;", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b"))
+        testObjectNames("int *a, **b; b = *(&a);", Set("GLOBAL$a", "GLOBAL$&a", "GLOBAL$*a", "GLOBAL$b", "GLOBAL$*b", "GLOBAL$*(&a)"))
+        testExprObjectNames("int *a, **b; b = *(&a);", Set("GLOBAL$foo", "foo$a", "foo$&a", "foo$*a", "foo$b", "foo$*b", "foo$*(&a)"))
+        testObjectNames("typedef int* PBF; PBF *g, h;", Set("GLOBAL$g", "GLOBAL$*g", "GLOBAL$h"))
+        testObjectNames("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func f;", Set("GLOBAL$f"))
+        testObjectNames("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func *f;", Set("GLOBAL$f", "GLOBAL$*f"))
         testObjectNames("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func *f = dostat;", Set("GLOBAL$f", "GLOBAL$*f", "GLOBAL$dostat"))
 
     }
@@ -134,7 +134,7 @@ class ObjectNamesTest extends TestHelper {
         testFile("scope.c", Set("GLOBAL$foo", "GLOBAL$main", "GLOBAL$ptr", "GLOBAL$*ptr", "GLOBAL$ptr->a", "foo$ptr", "foo$*ptr", "foo$c", "foo$ptr->b", "main$a"))
     }
 
-    @Test def busyboxExcerpts() {
+    @Test def testBusyboxExcerpts() {
         testObjectNames(
             """
               | typedef _Bool (*statfunc_ptr)(const char *);
