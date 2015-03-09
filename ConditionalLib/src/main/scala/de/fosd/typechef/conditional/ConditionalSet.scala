@@ -21,7 +21,8 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
     }
 
     def union = ++ _
-    def +(key: A, f: FeatureExpr) = new ConditionalSet[A](this.entries.+(key -> (f or this.entries.getOrElse(key, False))))
+    def +(key: A, f: FeatureExpr) = new ConditionalSet[A](this.entries.+(key -> (f or this.get(key))))
+    def -(key: A) = new ConditionalSet[A](this.entries.-(key))
     def keys = entries.keys
 
     def get(key : A) : FeatureExpr = {
@@ -35,6 +36,7 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
      * restricts the feature expression of all entries
      */
     def and(f: FeatureExpr): ConditionalSet[A] = new ConditionalSet(entries.mapValues(_ and f))
+    def and(key : A, f: FeatureExpr) : ConditionalSet[A] = new ConditionalSet(entries.filterNot({case (k, _) => k.equals(key)}).+((key, f)))
 
     override def equals(that: Any) = that match {
         case c: ConditionalSet[_] => entries equals c.entries;

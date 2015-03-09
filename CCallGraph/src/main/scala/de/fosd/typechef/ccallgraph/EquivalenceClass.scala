@@ -9,41 +9,36 @@ import de.fosd.typechef.featureexpr.FeatureExpr
 
 
 // Equivalence class of object names
-class EquivalenceClass(initialObjNamesSet: ConditionalSet[String], initialPrefixSet: ConditionalSet[(String, String)]) {
+class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: ConditionalSet[(String, String)]) {
 
     type ObjectName = String
     type PrefixSet = (String, String)
 
-    private var objectNamesSet: ConditionalSet[ObjectName] = initialObjNamesSet
-    private var prefixSet: ConditionalSet[PrefixSet] = initialPrefixSet
-
-    def objectNames(): ConditionalSet[ObjectName] = objectNamesSet
-    def plainObjectNames() : Set[ObjectName] = objectNamesSet.toPlainSetWithConditionals.map({ case (o, expr) => o })
+    def plainObjectNames() : Set[ObjectName] = objectNames.toPlainSetWithConditionals.map({ case (o, expr) => o })
     def unscopedObjectNames() : Set[ObjectName] = plainObjectNames.map({ case o => unscope(o) })
     def prefixes(): ConditionalSet[PrefixSet] = prefixSet
 
     def addPrefix(t: PrefixSet, f : FeatureExpr) = {
-        prefixSet = prefixSet. + (t, f)
+        prefixSet = prefixSet.+ (t, f)
     }
 
     def addObjectName(objectName: ObjectName, featExpr : FeatureExpr) = {
-        objectNamesSet = objectNamesSet.+(objectName, featExpr)
+        objectNames = objectNames.+(objectName, featExpr)
     }
 
     def unscope(scopedObjectName: String): String = {
-        val rawObjectName = scopedObjectName.replaceFirst("[A-Za-z1-9]+?\\$", "")
-        rawObjectName
+        scopedObjectName.replaceFirst("[a-zA-Z0-9_]+?\\$", "")
     }
 
     def union(other: EquivalenceClass): EquivalenceClass = {
-        new EquivalenceClass(this.objectNames().union(other.objectNames()), ConditionalSet())
+        new EquivalenceClass(this.objectNames.union(other.objectNames), ConditionalSet())
     }
 
     def equals(other: EquivalenceClass): Boolean = {
-        this.objectNames().toPlainSet().equals(other.objectNames().toPlainSet()) && this.prefixes().toPlainSet().equals(other.prefixes().toPlainSet())
+        this.objectNames.toPlainSet().equals(other.objectNames.toPlainSet()) && this.prefixes().toPlainSet().equals(other.prefixes().toPlainSet())
     }
 
-    override def toString: String = "\n%s ---> (%d) %s".format(objectNamesSet.toPlainSetWithConditionals().mkString("{", ", ", "}"), prefixes().toPlainSet().size, prefixes().toPlainSetWithConditionals().mkString("{", ", ", "}"))
+    override def toString: String = "%s ---> (%d) %s".format(objectNames.toPlainSetWithConditionals().mkString("{", ", ", "}"), prefixes().toPlainSet().size, prefixes().toPlainSetWithConditionals().mkString("{", ", ", "}"))
 }
 
 object EquivalenceClass {

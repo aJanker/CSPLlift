@@ -5,7 +5,7 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphWriter}
 import de.fosd.typechef.crewrite._
-import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
+import de.fosd.typechef.options.{FeatureModelOptions, FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{CTypeContext, TranslationUnit, _}
 import de.fosd.typechef.typesystem._
@@ -177,12 +177,13 @@ object Frontend extends EnforceTreeHelper {
                     println("#call graph")
                     stopWatch.start("dumpCG")
 
+                    // typeSystem to help extracting lcurly assignments
                     val typeSystemEnv = ts.typeCheckedEnv()
 
                     val c = new CCallGraph()
                     c.calculatePointerEquivalenceRelation(ast)
                     c.extractCallGraph()
-                    c.showCallGraph()
+                    c.showCallGraphStatistics()
 
                     // DEBUG
 //                    c.showPointerEquivalenceClasses()
