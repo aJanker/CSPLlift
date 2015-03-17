@@ -61,11 +61,11 @@ class CallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
      */
 
     override def writeNode(name : String, kind : String, sourceCodeLine : Int, fExpr: FeatureExpr): Unit = {
-        fwriter.write("N;%d;%s;%d;%s;%s\n".format(System.identityHashCode(name), kind, sourceCodeLine, name, fExpr))
+        fwriter.write("N;%d;%s;%d;%s;%s\n".format(name.hashCode(), kind, sourceCodeLine, name, fExpr))
     }
 
     override def writeEdge(source: String, target: String, kind : String, fExpr: FeatureExpr): Unit = {
-        fwriter.write("E;%d;%d;%s;%s\n".format(System.identityHashCode(source), System.identityHashCode(target), fExpr.toTextExpr, kind))
+        fwriter.write("E;%d;%d;%s;%s\n".format(source.hashCode(), target.hashCode(), fExpr.toTextExpr, kind))
 
         // DEBUG
         // fwriter.write("E;%s;%s;%s;%s\n".format(source, target, fExpr.toTextExpr, edgeKind))

@@ -118,16 +118,21 @@ class FunctionDeclarationsTest extends TestHelper {
     }
 
     @Test def testFunctionDefinitions(): Unit = {
-//        testFunctionDefs("void f() { } f();", Set(("f", True)))
+//        testFunctionDefs("int foo();", Set((("foo", "declaration", 1), True)))
+//        testFunctionDefs("void f();", Set((("f", "declaration", 1), True)))
+//        testFunctionDefs("void f() { }", Set((("f", "function", 1), True)))
+//        testFunctionDefs("void f(); void f() { }", Set((("f", "function", 1), True)))
 //        testFunctionDefs(
 //            """#ifdef A
 //              | void f() { }
-//              | #endif """.stripMargin, Set(("f", FeatureExprFactory.createDefinedExternal("A"))))
-//
-//        testFunctionDefs("void g(int a, int b) { } g();", Set(("g", True)))
-//        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func sf1; sf1(); ", Set())
-//        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); int foo(stat_func sf) { sf(); } ", Set(("foo", True)))
-        testFunctionDefs("extern static int stat (const char *__restrict __file,\n\t\t struct stat *__restrict __buf) __attribute__ ((__nothrow__)) __attribute__ ((__nonnull__ (1, 2)));", Set((("stat", "function", 1), True)))
+//              | #endif """.stripMargin, Set((("f", "function", 2), FeatureExprFactory.createDefinedExternal("A"))))
+
+        testFunctionDefs("void g(int a, int b);", Set((("g", "declaration", 1), True)))
+        testFunctionDefs("void g(int a, int b) {} ", Set((("g", "declaration", 1), True)))
+        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); stat_func sf1; ", Set())
+        testFunctionDefs("typedef int (*stat_func)(const char *fn, struct stat *ps); int foo(stat_func sf) { sf(); } ", Set((("foo", "function", 1), True)))
+        testFunctionDefs("extern static int stat (const char *__restrict __file,\n\t\t struct stat *__restrict __buf) __attribute__ ((__nothrow__)) __attribute__ ((__nonnull__ (1, 2)));", Set((("stat", "declaration", 1), True)))
+
 
     }
 

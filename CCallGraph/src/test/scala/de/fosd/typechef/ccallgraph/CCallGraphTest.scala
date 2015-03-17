@@ -25,6 +25,66 @@ class CCallGraphTest extends TestHelper {
         assert(eq.unscopedObjectNames() equals Set("x", "y", "statfunc", "b|c"), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set("x", "y", "statfunc", "b|c")))
     }
 
+    @Test def testCallGraphNodes(): Unit = {
+        val ast = loadAST("callGraph1.c")
+
+        val c: CCallGraph = new CCallGraph()
+        c.calculatePointerEquivalenceRelation(ast)
+        c.extractCallGraph()
+
+        c.callGraphNodes.toPlainSetWithConditionals().map(println)
+        assert(c.callGraphNodes.keys.size equals 4, "expected %s, but found %s".format(4, c.callGraphNodes.keys.size))
+        assert(c.callGraphNodes.keys.toList.contains(Node("foo", "declaration", 1)), "expected %s, but not found".format(Node("foo", "declaration", 1)))
+        assert(c.callGraphNodes.keys.toList.contains(Node("bar", "function-inline", 2)), "expected %s, but not found".format(Node("bar", "function-inline", 2)))
+        assert(c.callGraphNodes.keys.toList.contains(Node("baz", "function-static", 3)), "expected %s, but not found".format(Node("baz", "function-static", 3)))
+        assert(c.callGraphNodes.keys.toList.contains(Node("main", "function", 5)), "expected %s, but not found".format(Node("main", "function", 5)))
+    }
+
+    @Test def testCallGraphNodesFuncDecl(): Unit = {
+        val ast = loadAST("callGraphFuncDeclarations.c")
+
+        val c: CCallGraph = new CCallGraph()
+        c.calculatePointerEquivalenceRelation(ast)
+        c.extractCallGraph()
+
+        c.callGraphNodes.toPlainSetWithConditionals().map(println)
+        assert(c.callGraphNodes.keys.size equals 1, "expected %s, but found %s".format(1, c.callGraphNodes.keys.size))
+        assert(c.callGraphNodes.keys.toList.contains(Node("xstrtoull_range_sfx", "function-inline", 2)), "expected %s, but not found".format(Node("xstrtoull_range_sfx", "function-inline", 2)))
+    }
+
+    @Test def testCallGraphNodesFuncDeclAndDef(): Unit = {
+        val ast = loadAST("callGraph2.c")
+
+        val c: CCallGraph = new CCallGraph()
+
+        c.calculatePointerEquivalenceRelation(ast)
+        c.extractCallGraph()
+
+        c.callGraphNodes.toPlainSetWithConditionals.map(println)
+        assert(c.callGraphNodes.keys.size equals 2, "expected %s, but found %s".format(2, c.callGraphNodes.keys.size))
+        assert(c.callGraphNodes.keys.toList.contains(Node("foo", "function", 4)), "expected %s, but not found".format(Node("foo", "function", 4)))
+        assert(c.callGraphNodes.keys.toList.contains(Node("bar", "declaration", 2)), "expected %s, but not found".format(Node("bar", "declaration", 2)))
+    }
+
+    @Test def testCallGraphNodesFuncDeclAndConditionalDef(): Unit = {
+        val ast = loadAST("callGraph2Conditional.c")
+
+        val c: CCallGraph = new CCallGraph()
+
+        c.calculatePointerEquivalenceRelation(ast)
+        c.extractCallGraph()
+
+        c.callGraphNodes.toPlainSetWithConditionals().map(println)
+        assert(c.callGraphNodes.toPlainSetWithConditionals.size equals 4, "expected %s, but found %s".format(4, c.callGraphNodes.toPlainSetWithConditionals.size))
+        assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("foo", "declaration", 1), True), "expected %s, but not found".format(Node("foo", "declaration", 1)))
+        assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("bar", "declaration", 2), True), "expected %s, but not found".format(Node("bar", "declaration", 2)))
+        assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("baz", "function-inline", 3), True), "expected %s, but not found".format(Node("baz", "declaration", 3)))
+        assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("foo", "function", 6), FeatureExprFactory.createDefinedExternal("A")), "expected %s, but not found".format(Node("foo", "function", 6)))
+
+    }
+
+
+
     @Test def test_paper_example_fig1() {
         val ast = loadAST("fig1_table_dispatch.c")
 
@@ -93,13 +153,11 @@ class CCallGraphTest extends TestHelper {
         val c: CCallGraph = new CCallGraph()
         c.calculatePointerEquivalenceRelation(ast)
         c.extractCallGraph()
-        c.showCallGraphStatistics()
-        c.showFunctionDefs()
-        c.showFunctionCalls()
+        c.callGraphNodes.toPlainSetWithConditionals.map(println)
 
-        val expectedNodes = ConditionalSet(Map(Node("foo", "function", 1) -> True, Node("bar", "function", 2) -> True, Node("baz", "function", 3) -> True, Node("main", "function",
+        val expectedNodes = ConditionalSet(Map(Node("foo", "declaration", 1) -> True, Node("bar", "declaration", 2) -> True, Node("baz", "declaration", 3) -> True, Node("main", "function",
             5) -> True))
-        assert(c.callGraphNodes equals expectedNodes, "expected %s, but found %s".format(c.callGraphNodes, expectedNodes))
+        assert(c.callGraphNodes equals expectedNodes, "expected %s, but found %s".format(expectedNodes, c.callGraphNodes))
 
         val expectedEdges = ConditionalSet(Map(Edge("main", "foo", "D") -> FeatureExprFactory.createDefinedExternal("B"),
             Edge("main", "bar", "I") -> FeatureExprFactory.createDefinedExternal("B").and(FeatureExprFactory.createDefinedExternal("A")),
@@ -116,11 +174,9 @@ class CCallGraphTest extends TestHelper {
 
         c.calculatePointerEquivalenceRelation(ast)
         c.extractCallGraph()
-        c.showCallGraphStatistics()
-        c.showPointerEquivalenceClasses()
-        c.showFunctionCalls()
+        c.callGraphNodes.toPlainSetWithConditionals.map(println)
 
-        val expectedNodes = ConditionalSet(Map(Node("foo", "function", 1) -> True, Node("bar", "function", 2) -> True, Node("baz", "function", 3) -> True, Node("main", "function", 5) -> True))
+        val expectedNodes = ConditionalSet(Map(Node("foo", "declaration", 1) -> True, Node("bar", "declaration", 2) -> True, Node("baz", "declaration", 3) -> True, Node("main", "function", 5) -> True))
         assert(c.callGraphNodes equals expectedNodes, "expected %s, but found %s".format(c.callGraphNodes, expectedNodes))
 
         val expectedEdges = ConditionalSet(Map(Edge("main", "foo", "D") -> FeatureExprFactory.createDefinedExternal("B"),
@@ -138,11 +194,9 @@ class CCallGraphTest extends TestHelper {
 
         c.calculatePointerEquivalenceRelation(ast)
         c.extractCallGraph()
-        c.showCallGraphStatistics()
-        c.showPointerEquivalenceClasses()
-        c.showFunctionCalls()
+        c.callGraphNodes.toPlainSetWithConditionals.map(println)
 
-        val expectedNodes = ConditionalSet(Map(Node("foo", "function", 1) -> True, Node("bar", "function", 2) -> True, Node("baz", "function", 3) -> True, Node("main", "function",
+        val expectedNodes = ConditionalSet(Map(Node("foo", "declaration", 1) -> True, Node("bar", "declaration", 2) -> True, Node("baz", "declaration", 3) -> True, Node("main", "function",
             5) -> True))
         assert(c.callGraphNodes equals expectedNodes, "expected %s, but found %s".format(c.callGraphNodes, expectedNodes))
 

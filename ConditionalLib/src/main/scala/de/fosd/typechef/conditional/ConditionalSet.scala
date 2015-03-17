@@ -20,11 +20,17 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
         (new ConditionalSet(this.entries.filter({ e => p(e._1) })), new ConditionalSet(this.entries.filterNot({ e => p(e._1) })))
     }
 
-    def filter(p: (A) => Boolean) : ConditionalSet[A] = {
-        new ConditionalSet(this.entries.filter({ case (e,_) => p(e) }))
+    def filter(p: (A) => Boolean, featureExpr: FeatureExpr = True) : ConditionalSet[A] = {
+        new ConditionalSet(this.entries.filter({ case (e, f) => p(e) && f.equivalentTo(featureExpr) }))
+    }
+
+    def filterNot(p: (A) => Boolean, featureExpr: FeatureExpr = True) : ConditionalSet[A] = {
+        new ConditionalSet(this.entries.filterNot({ case (e, f) => p(e) && f.equivalentTo(featureExpr) }))
     }
 
     def union = ++ _
+
+
     def +(key: A, f: FeatureExpr) = new ConditionalSet[A](this.entries.+(key -> (f or this.get(key))))
     def -(key: A) = new ConditionalSet[A](this.entries.-(key))
     def keys = entries.keys

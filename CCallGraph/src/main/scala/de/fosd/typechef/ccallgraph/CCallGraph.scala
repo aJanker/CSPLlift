@@ -4,6 +4,7 @@ import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExprFactory, FeatureExpr}
 import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.linker.SystemLinker
 
 /**
  * Created by gferreir on 9/20/14.
@@ -22,7 +23,6 @@ class CCallGraph {
 
     // name, kind, source code line
     type FunctionDef = (String, String, Int)
-
 
     // debug flag - prints AST details
     def DEBUG = false
@@ -65,7 +65,22 @@ class CCallGraph {
         extractEdges() // function calls
     }
 
-    def extractNodes() = functionDefs.toPlainSetWithConditionals().map({ case ((name, kind, sourceCodeLine), featExpr) => callGraphNodes +=(Node(name, kind, sourceCodeLine), featExpr)})
+    def removeLibFunctions() = {
+        // remove all built-in functions
+        val remainingDeclarations : Set[String] = functionDefs.toPlainSet.filter({ case (name, kind, _) => kind.equals("declaration") }).map({ case (name, kind, _) => name })
+
+        val stdLibFunctions = SystemLinker.stdLibFunctions.filter(remainingDeclarations contains _).toSet
+        val libcFunctions = SystemLinker.libcSymbols.filter(remainingDeclarations contains _).toSet
+        val seLinuxFunctions = SystemLinker.selinuxLibFunctions.filter(remainingDeclarations contains _).toSet
+        val remainingFunctions = remainingDeclarations -- stdLibFunctions -- libcFunctions -- seLinuxFunctions
+
+        functionDefs = functionDefs.filterNot({ case (name, _, _) => remainingFunctions contains name  })
+
+    }
+
+    def extractNodes() = {
+        functionDefs.toPlainSetWithConditionals().map({ case ((name, kind, sourceCodeLine), featExpr) => callGraphNodes +=(Node(name, kind, sourceCodeLine), featExpr)})
+    }
 
     def extractEdges() = {
         var found: Boolean = false
@@ -358,8 +373,7 @@ class CCallGraph {
     }
 
     def showCallGraphStatistics() = {
-        println("\nCall graph statistics: \n\tNodes: %d\n\tEdges: %d\n\tIndirect edges: %d\n\tNon-resolved edges: %d\n".format(callGraphNodes.toPlainSet().size, callGraphEdges.toPlainSet().size, callGraphEdges.filter({ case e => e.kind.equals(EdgeKind.Indirect.toString)}).toPlainSet().size,
-            callGraphEdges.filter({ case e => e.kind.equals(EdgeKind.FunctionNameNotFound.toString) || e.kind.equals(EdgeKind.EquivalenceClassNotFound.toString)}).toPlainSet().size))
+        println("\nCall graph statistics: \n\tNodes: %d\n\tEdges: %d\n\tIndirect edges: %d\n\tNon-resolved edges: %d\n".format(callGraphNodes.toPlainSet().size, callGraphEdges.toPlainSet().size, callGraphEdges.toPlainSetWithConditionals.filter({ case (e, _) => e.kind.equals(EdgeKind.Indirect.toString)}).size, callGraphEdges.toPlainSetWithConditionals.filter({ case (e, _) => e.kind.equals(EdgeKind.FunctionNameNotFound.toString) || e.kind.equals(EdgeKind.EquivalenceClassNotFound.toString)}).size))
     }
 
 
@@ -648,8 +662,22 @@ class CCallGraph {
                 currentFunctionKind = functionKind(specifiers)
                 currentDeclaratorLine = declarator.getPositionFrom.getLine
 
-                if (parameters.size == 0)
+                // if function has inner statements (is a definition)
+                if (stmt.innerStatements.isEmpty) {
+                    // if function does not have old parameters declaration
+                    if (!parameters.isEmpty) {
+                        functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
+                    }
+                    // if function has not old parameters declaration, replace old function declarations for definitions
+                    else {
+                        functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
+                    }
+                }
+                // if there are not old function declarations, include new definition (inline and static functions included)
+                val funcDecl = functionDefs.filter({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
+                if (funcDecl.isEmpty) {
                     functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
+                }
 
                 // extract function parameters and body statements
                 for (Opt(featExpr, p) <- parameters) extractObjectNames(p, ctx and featExpr)
@@ -764,6 +792,10 @@ class CCallGraph {
                     case Opt(featExpr, t: TypedefSpecifier) => isNotTypedefSpecifier = isNotTypedefSpecifier andNot featExpr;
                     case _ =>
                 }
+
+                // select potential function kind for declaration
+                currentFunctionKind = functionKind(declSpecs)
+
                 for (Opt(featExpr, e) <- init) extractObjectNames(e, ctx and featExpr)
                 isDeclarationStatement = False;
                 None
@@ -821,8 +853,14 @@ class CCallGraph {
                 currentFunctionKind = functionKind(specifiers)
                 currentDeclaratorLine = declarator.getPositionFrom.getLine
 
-                if (parameters.size == 0)
+                // if function has inner statements (is a definition)
+                if (stmt.innerStatements.isEmpty) {
+                    functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
+                } else {
+                    // if function has not old parameters declaration, replace old function declarations for definitions
+                    functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
                     functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
+                }
 
                 // extract function parameters and body statements
                 for (Opt(featExpr, p) <- parameters) extractObjectNames(p, ctx and featExpr)
@@ -838,6 +876,12 @@ class CCallGraph {
             }
 
             case DeclIdentifierList(idList: List[Opt[Id]]) => {
+                // add declarator name for current function
+                currentFunction = currentDeclarator
+
+                // if it is a function declaration
+                functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
+
                 for (Opt(fExpr, e) <- idList) extractObjectNames(e, fExpr);
                 None
             }
@@ -848,9 +892,10 @@ class CCallGraph {
                 isDeclarationStatement = True;
 
                 // add declarator name for current function
-
-                functionDefs +=((currentDeclarator, currentFunctionKind, currentDeclaratorLine), ctx)
                 currentFunction = currentDeclarator
+
+                // if it is a function declaration
+               functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
 
                 // add function as object name
                 val scopedFunctionName = applyScope(currentDeclarator, "GLOBAL")
@@ -926,7 +971,7 @@ class CCallGraph {
                 val declStr = extractObjectNames(decl, ctx)
                 if (isDeclarationStatement.isSatisfiable() && declStr.isDefined) {
                     objectNamesScope = objectNamesScope.updated(declStr.get, currentFunction)
-                    functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List[Opt[ObjectName]]()) :+ Opt(ctx, applyScope(declStr.get, currentFunction)))
+                    //functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List[Opt[ObjectName]]()) :+ Opt(ctx, applyScope(declStr.get, currentFunction)))
                 }
                 declStr
             }
@@ -986,7 +1031,9 @@ class CCallGraph {
 }
 
 abstract class Graph
+
 case class Node(label: String, kind: String, sourceCodeLine: Int) extends Graph
+
 case class Edge(source: String, destination: String, kind: String) extends Graph
 
 object ObjectNameOperator extends Enumeration {
