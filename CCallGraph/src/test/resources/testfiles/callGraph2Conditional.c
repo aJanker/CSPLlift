@@ -1,5 +1,5 @@
 void foo();
-inline static int bar() { }
+inline static int bar();
 inline static int baz() { bar(); }
 
 #ifdef A

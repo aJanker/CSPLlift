@@ -1,6 +1,6 @@
-void foo() { }
-void bar() { }
-void baz() { }
+void foo();
+void bar();
+void baz();
 
 int main() {
 #ifdef B

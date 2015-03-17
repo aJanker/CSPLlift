@@ -4,7 +4,7 @@ import java.io.{FileNotFoundException, InputStream}
 
 import de.fosd.typechef.conditional.ConditionalSet
 import de.fosd.typechef.featureexpr.FeatureExprFactory
-import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
+import de.fosd.typechef.featureexpr.FeatureExprFactory.True
 import de.fosd.typechef.parser.c._
 import org.junit.Test
 
@@ -61,9 +61,10 @@ class CCallGraphTest extends TestHelper {
         c.extractCallGraph()
 
         c.callGraphNodes.toPlainSetWithConditionals.map(println)
-        assert(c.callGraphNodes.keys.size equals 2, "expected %s, but found %s".format(2, c.callGraphNodes.keys.size))
-        assert(c.callGraphNodes.keys.toList.contains(Node("foo", "function", 4)), "expected %s, but not found".format(Node("foo", "function", 4)))
-        assert(c.callGraphNodes.keys.toList.contains(Node("bar", "declaration", 2)), "expected %s, but not found".format(Node("bar", "declaration", 2)))
+        assert(c.callGraphNodes.keys.size equals 3, "expected %s, but found %s".format(3, c.callGraphNodes.keys.size))
+        assert(c.callGraphNodes.keys.toList.contains(Node("bar", "function", 2)), "expected %s, but not found".format(Node("bar", "function", 2)))
+        assert(c.callGraphNodes.keys.toList.contains(Node("baz", "declaration", 3)), "expected %s, but not found".format(Node("baz", "declaration", 3)))
+        assert(c.callGraphNodes.keys.toList.contains(Node("foo", "function", 5)), "expected %s, but not found".format(Node("foo", "function", 5)))
     }
 
     @Test def testCallGraphNodesFuncDeclAndConditionalDef(): Unit = {
@@ -82,7 +83,6 @@ class CCallGraphTest extends TestHelper {
         assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("foo", "function", 6), FeatureExprFactory.createDefinedExternal("A")), "expected %s, but not found".format(Node("foo", "function", 6)))
 
     }
-
 
 
     @Test def test_paper_example_fig1() {
@@ -155,8 +155,11 @@ class CCallGraphTest extends TestHelper {
         c.extractCallGraph()
         c.callGraphNodes.toPlainSetWithConditionals.map(println)
 
-        val expectedNodes = ConditionalSet(Map(Node("foo", "declaration", 1) -> True, Node("bar", "declaration", 2) -> True, Node("baz", "declaration", 3) -> True, Node("main", "function",
-            5) -> True))
+        val expectedNodes = ConditionalSet(Map(
+            Node("foo", "declaration", 1) -> True,
+            Node("bar", "declaration", 2) -> True,
+            Node("baz", "declaration", 3) -> True,
+            Node("main", "function", 5) -> True))
         assert(c.callGraphNodes equals expectedNodes, "expected %s, but found %s".format(expectedNodes, c.callGraphNodes))
 
         val expectedEdges = ConditionalSet(Map(Edge("main", "foo", "D") -> FeatureExprFactory.createDefinedExternal("B"),
@@ -176,7 +179,11 @@ class CCallGraphTest extends TestHelper {
         c.extractCallGraph()
         c.callGraphNodes.toPlainSetWithConditionals.map(println)
 
-        val expectedNodes = ConditionalSet(Map(Node("foo", "declaration", 1) -> True, Node("bar", "declaration", 2) -> True, Node("baz", "declaration", 3) -> True, Node("main", "function", 5) -> True))
+        val expectedNodes = ConditionalSet(Map(
+            Node("foo", "function", 1) -> True,
+            Node("bar", "function", 2) -> True,
+            Node("baz", "function", 3) -> True,
+            Node("main", "function", 5) -> True))
         assert(c.callGraphNodes equals expectedNodes, "expected %s, but found %s".format(c.callGraphNodes, expectedNodes))
 
         val expectedEdges = ConditionalSet(Map(Edge("main", "foo", "D") -> FeatureExprFactory.createDefinedExternal("B"),
@@ -196,8 +203,11 @@ class CCallGraphTest extends TestHelper {
         c.extractCallGraph()
         c.callGraphNodes.toPlainSetWithConditionals.map(println)
 
-        val expectedNodes = ConditionalSet(Map(Node("foo", "declaration", 1) -> True, Node("bar", "declaration", 2) -> True, Node("baz", "declaration", 3) -> True, Node("main", "function",
-            5) -> True))
+        val expectedNodes = ConditionalSet(Map(
+            Node("foo", "function", 1) -> True,
+            Node("bar", "function", 2) -> True,
+            Node("baz", "function", 3) -> True,
+            Node("main", "function", 5) -> True))
         assert(c.callGraphNodes equals expectedNodes, "expected %s, but found %s".format(c.callGraphNodes, expectedNodes))
 
         val expectedEdges = ConditionalSet(Map(Edge("main", "foo", "D") -> FeatureExprFactory.createDefinedExternal("B"),

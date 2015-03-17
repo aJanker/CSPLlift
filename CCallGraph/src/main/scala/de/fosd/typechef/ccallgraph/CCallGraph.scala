@@ -25,7 +25,7 @@ class CCallGraph {
     type FunctionDef = (String, String, Int)
 
     // debug flag - prints AST details
-    def DEBUG = false
+    def DEBUG = true
 
     var callGraphNodes: ConditionalSet[Node] = ConditionalSet()
     var callGraphEdges: ConditionalSet[Edge] = ConditionalSet()
@@ -63,19 +63,6 @@ class CCallGraph {
     def extractCallGraph() = {
         extractNodes() // function defs
         extractEdges() // function calls
-    }
-
-    def removeLibFunctions() = {
-        // remove all built-in functions
-        val remainingDeclarations : Set[String] = functionDefs.toPlainSet.filter({ case (name, kind, _) => kind.equals("declaration") }).map({ case (name, kind, _) => name })
-
-        val stdLibFunctions = SystemLinker.stdLibFunctions.filter(remainingDeclarations contains _).toSet
-        val libcFunctions = SystemLinker.libcSymbols.filter(remainingDeclarations contains _).toSet
-        val seLinuxFunctions = SystemLinker.selinuxLibFunctions.filter(remainingDeclarations contains _).toSet
-        val remainingFunctions = remainingDeclarations -- stdLibFunctions -- libcFunctions -- seLinuxFunctions
-
-        functionDefs = functionDefs.filterNot({ case (name, _, _) => remainingFunctions contains name  })
-
     }
 
     def extractNodes() = {
@@ -662,22 +649,9 @@ class CCallGraph {
                 currentFunctionKind = functionKind(specifiers)
                 currentDeclaratorLine = declarator.getPositionFrom.getLine
 
-                // if function has inner statements (is a definition)
-                if (stmt.innerStatements.isEmpty) {
-                    // if function does not have old parameters declaration
-                    if (!parameters.isEmpty) {
-                        functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
-                    }
-                    // if function has not old parameters declaration, replace old function declarations for definitions
-                    else {
-                        functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
-                    }
-                }
-                // if there are not old function declarations, include new definition (inline and static functions included)
-                val funcDecl = functionDefs.filter({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
-                if (funcDecl.isEmpty) {
-                    functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
-                }
+                // replace old function declarations for complete definitions
+                functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
+                functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
 
                 // extract function parameters and body statements
                 for (Opt(featExpr, p) <- parameters) extractObjectNames(p, ctx and featExpr)
@@ -853,14 +827,9 @@ class CCallGraph {
                 currentFunctionKind = functionKind(specifiers)
                 currentDeclaratorLine = declarator.getPositionFrom.getLine
 
-                // if function has inner statements (is a definition)
-                if (stmt.innerStatements.isEmpty) {
-                    functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
-                } else {
-                    // if function has not old parameters declaration, replace old function declarations for definitions
-                    functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
-                    functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
-                }
+                // replace old function declarations for complete definitions
+                functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("declaration")}, ctx)
+                functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
 
                 // extract function parameters and body statements
                 for (Opt(featExpr, p) <- parameters) extractObjectNames(p, ctx and featExpr)
@@ -895,7 +864,7 @@ class CCallGraph {
                 currentFunction = currentDeclarator
 
                 // if it is a function declaration
-               functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
+                functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
 
                 // add function as object name
                 val scopedFunctionName = applyScope(currentDeclarator, "GLOBAL")

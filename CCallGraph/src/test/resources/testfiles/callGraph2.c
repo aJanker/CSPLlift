@@ -1,5 +1,6 @@
 void foo();
-static int bar() { }
+int bar() { }
+char* baz();
 
 int foo() {
    bar();
