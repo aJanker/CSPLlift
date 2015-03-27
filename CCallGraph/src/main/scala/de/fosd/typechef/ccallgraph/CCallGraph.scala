@@ -25,7 +25,7 @@ class CCallGraph {
     type FunctionDef = (String, String, Int)
 
     // debug flag - prints AST details
-    def DEBUG = true
+    def DEBUG = false
 
     var callGraphNodes: ConditionalSet[Node] = ConditionalSet()
     var callGraphEdges: ConditionalSet[Edge] = ConditionalSet()
@@ -527,6 +527,15 @@ class CCallGraph {
             };
             case CompoundStatementExpr(compoundStatement: CompoundStatement) => extractStmt(compoundStatement, ctx)
             case GnuAsmExpr(isVolatile: Boolean, isGoto: Boolean, expr: StringLit, stuff: Any) => None
+            case BuiltinOffsetof(typeName: TypeName, offsetofMemberDesignator: List[Opt[OffsetofMemberDesignator]]) => None
+            case BuiltinTypesCompatible(typeName1: TypeName, typeName2: TypeName) => None
+            case BuiltinVaArgs(expr: Expr, typeName: TypeName) => None
+            case LcurlyInitializer(inits: List[Opt[Initializer]]) => ; None
+            case AlignOfExprT(typeName: TypeName) => extractObjectNames(typeName, ctx);
+            case AlignOfExprU(expr: Expr) => extractExpr(expr, ctx);
+            case GnuAsmExpr(isVolatile: Boolean, isGoto: Boolean, expr: StringLit, stuff: Any) => extractExpr(expr, ctx);
+            case RangeExpr(from: Expr, to: Expr) => extractExpr(from, ctx); extractExpr(to, ctx); None
+
         }
 
     }
