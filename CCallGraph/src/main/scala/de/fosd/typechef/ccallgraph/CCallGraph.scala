@@ -296,11 +296,12 @@ class CCallGraph {
                 // if equivalence classes share the same prefix (i.e., if they have edges to the same object name)
                 sharedPrefix.map({ case ((_, o1)) =>
 
-                    val eqClassO = find(o).get
-                    val eqClassO1 = find(o1).get
+                    val eqClassO = find(o)
+                    val eqClassO1 = find(o1)
 
                     // if any two eq classes have the same prefix relation, merge them recursevely
-                    if (!eqClassO.equals(eqClassO1)) merge(eqClassO, eqClassO1);
+                    if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.equals(eqClassO1)) merge(eqClassO.get, eqClassO1.get);
+                        // TODO: check why equivalent classes did not merge
                 })
             } else newPrefixSet +=((a, o), e2.prefixes().get((a, o)))
         }
