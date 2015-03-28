@@ -1,3 +1,4 @@
+.DS_Store
 .manager
 .settings
 bin
@@ -38,6 +39,7 @@ sparse
 systems
 .history
 *.iml
+.idea/*
 .idea_modules
 KiamaExp
 TypeChef.iml
