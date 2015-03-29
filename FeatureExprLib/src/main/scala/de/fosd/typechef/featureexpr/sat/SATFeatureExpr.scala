@@ -77,16 +77,19 @@ sealed abstract class SATFeatureExpr extends FeatureExpr {
     def notS(): SATFeatureExpr = FExprBuilder.not(this)
     def not(): SATFeatureExpr = notS()
 
+    // we dont have a good implementation in SAT, and a satisfies the contract
+    def simplify(b:FeatureExpr): SATFeatureExpr = this
+
     override def unique(feature: SingleFeatureExpr): FeatureExpr = substitute(feature, False) xor substitute(feature, True)
 
     def substitute(feature: SingleFeatureExpr, replacement: SATFeatureExpr): SATFeatureExpr
 
-    def getSatisfiableAssignment(featureModel: FeatureModel, interestingFeatures : Set[SingleFeatureExpr],preferDisabledFeatures:Boolean): Option[Pair[List[SingleFeatureExpr],List[SingleFeatureExpr]]] = {
+    def getSatisfiableAssignment(featureModel: FeatureModel, interestingFeatures : Set[SingleFeatureExpr],preferDisabledFeatures:Boolean): Option[(List[SingleFeatureExpr], List[SingleFeatureExpr])] = {
     val fm = asSATFeatureModel(featureModel)
     // optimization: if the interestingFeatures-Set is empty and this FeatureExpression is TRUE, we will always return empty sets
     // here we assume that the featureModel is satisfiable (which is checked at FM-instantiation)
     if (this.equals(FeatureExprFactory.True) && interestingFeatures.isEmpty) {
-        return Some(Pair(List(),List())) // is satisfiable, but no interesting features in solution
+        return Some((List(),List())) // is satisfiable, but no interesting features in solution
     }
 
     // get one satisfying assignment (a list of features set to true, and a list of features set to false)
@@ -94,7 +97,7 @@ sealed abstract class SATFeatureExpr extends FeatureExpr {
     // we will subtract from this set until all interesting features are handled
     var remainingInterestingFeatures = interestingFeatures
     assignment match {
-      case Some(Pair(trueFeatures, falseFeatures)) => {
+      case Some((trueFeatures, falseFeatures)) => {
         if (preferDisabledFeatures) {
             var enabledFeatures: Set[SingleFeatureExpr] = Set()
             for (f <- trueFeatures) {
@@ -108,7 +111,7 @@ sealed abstract class SATFeatureExpr extends FeatureExpr {
                 case None => {}
               }
             }
-            return Some(Pair(enabledFeatures.toList, remainingInterestingFeatures.toList))
+            return Some((enabledFeatures.toList, remainingInterestingFeatures.toList))
         } else {
             var disabledFeatures : Set[SingleFeatureExpr] = Set()
             for (f <- falseFeatures) {
@@ -122,7 +125,7 @@ sealed abstract class SATFeatureExpr extends FeatureExpr {
                     case None => {}
                 }
             }
-            return Some(Pair(remainingInterestingFeatures.++(this.collectDistinctFeatureObjects).toList, disabledFeatures.toList))
+            return Some((remainingInterestingFeatures.++(this.collectDistinctFeatureObjects).toList, disabledFeatures.toList))
         }
 
       }

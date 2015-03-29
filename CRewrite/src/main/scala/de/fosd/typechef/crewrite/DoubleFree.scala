@@ -38,7 +38,7 @@ import de.fosd.typechef.featureexpr.FeatureModel
 // i  = ∅             // is empty because we are only interested in free/realloc and assignments
 // E  = {FunctionDef} // see MonotoneFW
 // F  = flow
-class DoubleFree(env: ASTEnv, dum: DeclUseMap, udm: UseDeclMap, fm: FeatureModel, f: FunctionDef, casestudy: String) extends MonotoneFWIdLab(env, dum, udm, fm, f) with IntraCFG with CFGHelper with ASTNavigation {
+class DoubleFree(env: ASTEnv, dum: DeclUseMap, udm: UseDeclMap, fm: FeatureModel, casestudy: String) extends MonotoneFWIdLab(env, dum, udm, fm) with IntraCFG with CFGHelper with ASTNavigation {
 
     val freecalls = {
         if (casestudy == "linux") List("free", "kfree")
@@ -48,7 +48,7 @@ class DoubleFree(env: ASTEnv, dum: DeclUseMap, udm: UseDeclMap, fm: FeatureModel
 
     def kill(a: AST): L = {
         var res = l
-        val assignments = manytd(query {
+        val assignments = manytd(query[AST] {
             case AssignExpr(target: Id, "=", _) => res ++= fromCache(target, true)
         })
 
@@ -89,7 +89,7 @@ class DoubleFree(env: ASTEnv, dum: DeclUseMap, udm: UseDeclMap, fm: FeatureModel
         }
 
 
-        val freedpointers = manytd(query {
+        val freedpointers = manytd(query[AST] {
             // realloc(*ptr, size) is used for reallocation of memory
             case PostfixExpr(Id("realloc"), FunctionCall(l)) => {
                 // realloc has two arguments but more than two elements may be passed to
@@ -99,7 +99,7 @@ class DoubleFree(env: ASTEnv, dum: DeclUseMap, udm: UseDeclMap, fm: FeatureModel
                 // form alternative groups. if so we look for Ids in each
                 // of the alternative elements. if not we stop, because then we encounter
                 // a size element.
-                var actx = List(l.exprs.head.feature)
+                var actx = List(l.exprs.head.condition)
                 var finished = false
 
                 for (ni <- filterAllASTElems[Id](l.exprs.head.entry)) res ++= fromCache(ni)
@@ -108,9 +108,9 @@ class DoubleFree(env: ASTEnv, dum: DeclUseMap, udm: UseDeclMap, fm: FeatureModel
                     if (actx.reduce(_ or _) isTautology fm)
                         finished = true
 
-                    if (!finished && actx.forall(_ and ce.feature isContradiction fm)) {
+                    if (!finished && actx.forall(_ and ce.condition isContradiction fm)) {
                         for (ni <- filterAllASTElems[Id](ce.entry)) res ++= fromCache(ni)
-                        actx ::= ce.feature
+                        actx ::= ce.condition
                     } else {
                         finished = true
                     }
@@ -140,7 +140,6 @@ class DoubleFree(env: ASTEnv, dum: DeclUseMap, udm: UseDeclMap, fm: FeatureModel
     protected def b = l
     protected def combinationOperator(l1: L, l2: L) = union(l1, l2)
 
-    protected def isForward = true
-
-    solve()
+    protected def infunction(a: AST): L = combinator(a)
+    protected def outfunction(a: AST): L = f_l(a)
 }

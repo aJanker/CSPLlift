@@ -2,47 +2,54 @@
 
 import java.text.SimpleDateFormat
 import java.util.Date
+
+import sbt.Keys._
 import sbt._
-import Keys._
 
 object BuildSettings {
 
     import Dependencies._
 
     val buildOrganization = "de.fosd.typechef"
-    val buildVersion = "0.3.6"
-    val buildScalaVersion = "2.10.4"
+    val buildVersion = "0.4.0"
+    val buildScalaVersion = "2.11.4"
 
-    val testEnvironment = Seq(junit, junitInterface, scalatest, scalacheck, graphCore)
-
-    val buildSettings = Defaults.defaultSettings ++ Seq(
+    val buildSettings = Defaults.coreDefaultSettings ++ Seq(
         organization := buildOrganization,
         version := buildVersion,
         scalaVersion := buildScalaVersion,
         shellPrompt := ShellPrompt.buildShellPrompt,
 
-        testListeners <<= target.map(t => Seq(new eu.henkelmann.sbt.JUnitXmlTestsListener(t.getAbsolutePath))),
-
-        javacOptions ++= Seq("-Xlint:unchecked"),
-        scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise"),
+        javacOptions ++= Seq("-Xlint:unchecked", "-target", "1.7", "-source", "1.7"),
+        scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise", "-target:jvm-1.7"),
+        testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v"),
 
         // suppress feature warnings in Scala 2.10.x
         // (we do not actually change the code to allow cross builds with prior scala versions)
         scalacOptions <++= scalaVersion map {
             sv =>
-                if (sv startsWith "2.10") List(
-                    "-Yinline-warnings",
+                if (sv startsWith "2.1") List(
+                    //"-Yinline-warnings",
                     "-feature",
                     "-language:postfixOps",
-                    "-language:higherkinds",
-                    "-language:implicitConversions"
+                    "-language:implicitConversions",
+                    "-Xfatal-warnings" // make sure we take warnings seriously
                 )
                 else Nil
         },
 
-        crossScalaVersions := Seq("2.9.1", "2.9.2", "2.10.4"),
+        crossScalaVersions := Seq("2.10.4", "2.11.4"),
 
-        libraryDependencies ++= testEnvironment,
+        conflictWarning := ConflictWarning.disable,
+
+        libraryDependencies :=  {
+            CrossVersion.partialVersion(scalaVersion.value) match {
+                // if scala 2.11+ is used, add dependency on scala-xml module
+                case Some((2, scalaMajor)) if scalaMajor >= 11 =>
+                    libraryDependencies.value ++ testEnvironment ++ scala211Libraries
+                case _ => libraryDependencies.value ++ testEnvironment
+            }
+        },
 
         parallelExecution := false, //run into memory problems on hudson otherwise
 
@@ -63,7 +70,7 @@ object BuildSettings {
         pomIncludeRepository := {
             _ => false
         }
-    )
+		)
 }
 
 object ShellPrompt {
@@ -76,7 +83,7 @@ object ShellPrompt {
 
     val current = """\*\s+(\w+)""".r
 
-    def gitBranches = ("git branch --no-color" lines_! devnull mkString)
+    def gitBranches = (("git branch --no-color" lines_! devnull).mkString)
 
     val buildShellPrompt = {
         (state: State) => {
@@ -93,10 +100,14 @@ object ShellPrompt {
 
 object Dependencies {
     val junit = "junit" % "junit" % "4.11" % "test"
-    val junitInterface = "com.novocode" % "junit-interface" % "0.10" % "test"
-    val scalacheck = "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
-    val scalatest = "org.scalatest" %% "scalatest" % "1.9.1" % "test" 
-    val graphCore = "com.assembla.scala-incubator" %% "graph-core" % "1.9.0" % "compile"
+    val junitInterface = "com.novocode" % "junit-interface" % "0.11" % "test"
+    val scalacheck = "org.scalacheck" %% "scalacheck" % "1.12.0" % "test"
+    val scalatest = "org.scalatest" %% "scalatest" % "2.2.1" % "test"
+    val scalaparsercombinators = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.2"
+    val scalaxml = "org.scala-lang.modules" %% "scala-xml" % "1.0.2"
+
+    val testEnvironment = Seq(junit, junitInterface, scalatest, scalacheck)
+    val scala211Libraries = Seq(scalaparsercombinators, scalaxml)
 }
 
 object VersionGen {
@@ -107,7 +118,7 @@ object VersionGen {
         val versionGenClass = SettingKey[String]("version-gen-class")
     }
 
-    import VersionGenKeys._
+    import VersionGen.VersionGenKeys._
 
     lazy val settings = Seq(
         versionGenPackage <<= Keys.organization {
@@ -146,6 +157,7 @@ object TypeChef extends Build {
         parserexp,
         jcpp,
         cparser,
+        errorlib,
         ctypechecker,
 				ccallgraph,
         javaparser,
@@ -226,18 +238,11 @@ object TypeChef extends Build {
             Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
     ) dependsOn(cparser % "test->test;compile->compile", ctypechecker, conditionallib, errorlib)
 
-    lazy val sampling = Project(
-        "Sampling",
-        file("Sampling"),
-        settings = buildSettings ++
-            Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
-    ) dependsOn(cparser % "test->test;compile->compile", ctypechecker, crewrite, conditionallib, frontend, errorlib)
-
 
     def kiamaDependency(scalaVersion: String, testOnly: Boolean = false) = {
         val x = scalaVersion match {
             case "2.9.1" => "com.googlecode.kiama" %% "kiama" % "1.2.0"
-            case _ => "com.googlecode.kiama" %% "kiama" % "1.4.0"
+            case _ => "com.googlecode.kiama" %% "kiama" % "1.8.0"
         }
         if (testOnly) x % "test" else x
     }

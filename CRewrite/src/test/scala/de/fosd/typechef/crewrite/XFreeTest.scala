@@ -1,19 +1,18 @@
 package de.fosd.typechef.crewrite
 
-import org.junit.Test
-import org.scalatest.matchers.ShouldMatchers
 import de.fosd.typechef.featureexpr.FeatureExprFactory
-import de.fosd.typechef.parser.c._
-import scala.Predef._
-import de.fosd.typechef.parser.c.TranslationUnit
-import de.fosd.typechef.parser.c.Id
+import de.fosd.typechef.parser.c.{Id, TranslationUnit, _}
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
+import org.junit.Test
+import org.scalatest.Matchers
 
-class XFreeTest extends TestHelper with ShouldMatchers with CFGHelper with EnforceTreeHelper {
+import scala.Predef._
+
+class XFreeTest extends TestHelper with Matchers with CFGHelper with EnforceTreeHelper {
 
     private def getUninitializedVariables(code: String) = {
         val a = parseFunctionDef(code)
-        val xf = new XFree(CASTEnv.createASTEnv(a), null, null, null, a, "")
+        val xf = new XFree(CASTEnv.createASTEnv(a), null, null, null, "")
         xf.gen(a).map {case ((x, _), f) => (x, f)}
     }
 

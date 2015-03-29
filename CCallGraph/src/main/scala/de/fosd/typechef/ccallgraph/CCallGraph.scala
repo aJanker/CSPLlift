@@ -243,7 +243,7 @@ class CCallGraph {
             val listParamsFuncDef: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(functionDefParameters.getOrElse(function, List()))
             val listParamsFuncCal: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(listParams)
 
-            val assignments = ConditionalLib.zip(listParamsFuncCal, listParamsFuncDef).toList
+            val assignments = ConditionalLib.explode(listParamsFuncCal, listParamsFuncDef).toList
 
             assignments.foreach({ t =>
                 val expr = t._1
@@ -390,7 +390,6 @@ class CCallGraph {
             // constants are not important
             case Constant(value: String) => None
             case StringLit(name: List[Opt[String]]) => None
-            case l: LcurlyInitializer => None
             case UnaryExpr(kind: String, e: Expr) => extractExpr(e, ctx)
             case SizeOfExprT(typeName: TypeName) => None
             case SizeOfExprU(expr: Expr) => extractExpr(expr, ctx)
@@ -527,7 +526,6 @@ class CCallGraph {
                 exprStr1.flatMap(e1 => exprStr2.map(e2 => parenthesize(e1) + e2))
             };
             case CompoundStatementExpr(compoundStatement: CompoundStatement) => extractStmt(compoundStatement, ctx)
-            case GnuAsmExpr(isVolatile: Boolean, isGoto: Boolean, expr: StringLit, stuff: Any) => None
             case BuiltinOffsetof(typeName: TypeName, offsetofMemberDesignator: List[Opt[OffsetofMemberDesignator]]) => None
             case BuiltinTypesCompatible(typeName1: TypeName, typeName2: TypeName) => None
             case BuiltinVaArgs(expr: Expr, typeName: TypeName) => None
@@ -556,7 +554,7 @@ class CCallGraph {
                     val scope = findScopeForObjectName(exprStr.get, currentFunction)
                     addObjectName(applyScope(exprStr.get, scope), ctx)
                 }
-                s.mapf(ctx, (c, stmt) => extractStmt(stmt, c))
+                s.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
                 None
             }
             case DoStatement(expr: Expr, s: Conditional[Statement]) => {
@@ -565,7 +563,7 @@ class CCallGraph {
                     val scope = findScopeForObjectName(exprStr.get, currentFunction)
                     addObjectName(applyScope(exprStr.get, scope), ctx)
                 }
-                s.mapf(ctx, (c, stmt) => extractStmt(stmt, c))
+                s.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
                 None
             }
             case ForStatement(expr1: Option[Expr], expr2: Option[Expr], expr3: Option[Expr], s: Conditional[Statement]) => {
@@ -586,7 +584,7 @@ class CCallGraph {
                     addObjectName(applyScope(expr3Str.get, scope), ctx)
                 }
 
-                s.mapf(ctx, (c, stmt) => extractStmt(stmt, c))
+                s.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
                 None
             }
             case GotoStatement(target: Expr) => extractExpr(target, ctx);
@@ -617,15 +615,15 @@ class CCallGraph {
                         addObjectName(applyScope(exprStr.get, scope), ctx and fExpr)
                     }
                 }
-                thenBranch.mapf(ctx, (c, stmt) => extractStmt(stmt, c))
+                thenBranch.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
                 for (Opt(fExpr, s) <- elifs) extractObjectNames(s, ctx and fExpr)
-                if (elseBranch.isDefined) elseBranch.get.mapf(ctx, (c, stmt) => extractStmt(stmt, c))
+                if (elseBranch.isDefined) elseBranch.get.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
                 None
             }
 
             case SwitchStatement(expr: Expr, s: Conditional[Statement]) => {
                 extractExpr(expr, ctx)
-                s.mapf(ctx, (c, stmt) => extractStmt(stmt, c))
+                s.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
                 None
             }
             case DeclarationStatement(decl: Declaration) => {
