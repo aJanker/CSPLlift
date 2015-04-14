@@ -50,7 +50,7 @@ class CallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
      *
      * E;sourceid;targetid;featureexpr;kind
      *
-     * * kind is of of D|I|FNNF|ECNF => this used to measure how precise is our pointer analysis (how many pointers are not resolved)
+     * * kind is of of D|I|FNNF|ECNF => this is used to measure how precise is our pointer analysis (how many pointers are not resolved)
      *
      * they connect nodes within a file
      * ids refer to node ids within the file
