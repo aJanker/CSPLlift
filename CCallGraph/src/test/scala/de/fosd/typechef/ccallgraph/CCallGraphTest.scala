@@ -29,7 +29,7 @@ class CCallGraphTest extends TestHelper {
   }
 
   @Test def testCallGraphEdges(): Unit = {
-    val ast = loadAST("callGraph3.c")
+    val ast = loadAST("ternary_operator.c")
 
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
@@ -43,6 +43,24 @@ class CCallGraphTest extends TestHelper {
     val expectedEdges = ConditionalSet(Map(
       Edge("main", "foo", "D") -> True,
       Edge("main", "bar", "D") -> True
+    ))
+    assert(c.callGraphEdges equals expectedEdges, "expected %s, but found %s".format(c.callGraphEdges, expectedEdges))
+
+  }
+
+  @Test def testCallGraphNAryExpr(): Unit = {
+    val ast = loadAST("nary_expression.c")
+
+    val c: CCallGraph = new CCallGraph()
+    c.calculatePointerEquivalenceRelation(ast)
+    c.extractCallGraph()
+
+    assert(c.callGraphNodes.keys.size equals 2, "expected %s, but found %s".format(3, c.callGraphNodes.keys.size))
+    assert(c.callGraphNodes.keys.toList.contains(Node("foo", "declaration", 1)), "expected %s, but not found".format(Node("foo", "declaration", 1)))
+    assert(c.callGraphNodes.keys.toList.contains(Node("main", "function", 3)), "expected %s, but not found".format(Node("main", "function", 3)))
+
+    val expectedEdges = ConditionalSet(Map(
+      Edge("main", "foo", "D") -> True
     ))
     assert(c.callGraphEdges equals expectedEdges, "expected %s, but found %s".format(c.callGraphEdges, expectedEdges))
 
