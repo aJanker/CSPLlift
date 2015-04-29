@@ -834,10 +834,12 @@ class CCallGraph {
       case specif: Specifier => None
       case ArrayAccess(expr: Expr) => Some(ObjectNameOperator.ArrayAccess.toString)
 
-      // ignore any kind of subexpression (with exception of assingments)
+      // ignore any kind of subexpression (with exception of assignments)
       case NArySubExpr(op: String, e: Expr) => {
         e match {
           case a: AssignExpr => extractExpr(a, ctx);
+          case fc : PostfixExpr => extractExpr(fc, ctx);
+          case ne : NAryExpr => extractExpr(ne, ctx)
           case _ => ;
         }
         None
