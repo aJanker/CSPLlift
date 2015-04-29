@@ -2,6 +2,8 @@ package de.fosd.typechef.ccallgraph
 
 import java.io.{FileNotFoundException, InputStream}
 
+import de.fosd.typechef.conditional.ConditionalSet
+import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.featureexpr.sat.True
 import de.fosd.typechef.parser.c._
@@ -155,6 +157,17 @@ class ObjectNamesTest extends TestHelper {
         //testFile("fig2_extensible_func.c", Set("*h", "*f", "&h", "f", "h", "xmalloc", "xfree", "h->freefun", "h->chunkfun", "&xfree", "&xmalloc"))
         //testFile("fig3_sample_prog.c", Set("h->freefun", "*h", "xmalloc", "h->chunkfun", "xfree", "&h", "h", "&xfree", "&xmalloc"))
         //testFile("fig4_simple_sets_statements.c", Set("x", "&x", "t", "*p", "p->f", "p", "&z", "z"))
+    }
+
+    @Test def unscopedObjectNames() {
+        var cset = ConditionalSet[String]()
+        cset +=("GLOBAL$x", True)
+        cset +=("bar$y", True)
+        cset +=("stat_main$statfunc", True)
+        cset +=("a$b|c", True)
+
+        val eq = new EquivalenceClass(cset, ConditionalSet())
+        assert(eq.unscopedObjectNames() equals Set("x", "y", "statfunc", "b|c"), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set("x", "y", "statfunc", "b|c")))
     }
 
     val parser = new CParser()

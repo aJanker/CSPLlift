@@ -184,7 +184,8 @@ object Frontend extends EnforceTreeHelper {
                     val typeSystemEnv = ts.typeCheckedEnv()
 
                     // call graph writer
-                    val writer = new CallGraphWriter(new FileWriter(new File(opt.getCGFilename)))
+                    val writer = new CallGraphWriter(new FileWriter(new File(opt.getValidCGFilename)))
+                    val dbgWriter = new CallGraphWriter(new FileWriter(new File(opt.getDebugCGFilename)))
 
                     val c = new CCallGraph()
                     c.calculatePointerEquivalenceRelation(ast)
@@ -193,10 +194,11 @@ object Frontend extends EnforceTreeHelper {
                     c.showCallGraphStatistics()
 
                     // DEBUG
-//                    c.showPointerEquivalenceClasses()
-//                    c.showFunctionDefs()
-//                    c.showFunctionCalls()
-//                    c.showAssignments()
+                     c.writeDbgCallGraph(opt.getFile, dbgWriter /*, fullFM */) /* if no feature model is provided, an empty one is used */
+                    // c.showPointerEquivalenceClasses()
+                    // c.showFunctionDefs()
+                    // c.showFunctionCalls()
+                    // c.showAssignments()
                 }
 
                 if (opt.dumpcfg) {

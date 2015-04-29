@@ -249,8 +249,12 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
         return outputStem + ".ast";
     }
 
-    public String getCGFilename() {
+    public String getValidCGFilename() {
         return outputStem + ".cg";
+    }
+
+    public String getDebugCGFilename() {
+        return outputStem + ".cg.dbg";
     }
 
     public String getCCFGFilename() {

@@ -14,17 +14,6 @@ import org.junit.Test
  */
 class CCallGraphTest extends TestHelper {
 
-  @Test def unscopedObjectNames() {
-    var cset = ConditionalSet[String]()
-    cset +=("GLOBAL$x", True)
-    cset +=("bar$y", True)
-    cset +=("stat_main$statfunc", True)
-    cset +=("a$b|c", True)
-
-    val eq = new EquivalenceClass(cset, ConditionalSet())
-    assert(eq.unscopedObjectNames() equals Set("x", "y", "statfunc", "b|c"), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set("x", "y", "statfunc", "b|c")))
-  }
-
   @Test def testCallGraphNodes(): Unit = {
     val ast = loadAST("callGraph1.c")
 
@@ -37,6 +26,26 @@ class CCallGraphTest extends TestHelper {
     assert(c.callGraphNodes.keys.toList.contains(Node("bar", "function-inline", 2)), "expected %s, but not found".format(Node("bar", "function-inline", 2)))
     assert(c.callGraphNodes.keys.toList.contains(Node("baz", "function-static", 3)), "expected %s, but not found".format(Node("baz", "function-static", 3)))
     assert(c.callGraphNodes.keys.toList.contains(Node("main", "function", 5)), "expected %s, but not found".format(Node("main", "function", 5)))
+  }
+
+  @Test def testCallGraphEdges(): Unit = {
+    val ast = loadAST("callGraph3.c")
+
+    val c: CCallGraph = new CCallGraph()
+    c.calculatePointerEquivalenceRelation(ast)
+    c.extractCallGraph()
+
+    assert(c.callGraphNodes.keys.size equals 3, "expected %s, but found %s".format(3, c.callGraphNodes.keys.size))
+    assert(c.callGraphNodes.keys.toList.contains(Node("foo", "declaration", 1)), "expected %s, but not found".format(Node("foo", "declaration", 1)))
+    assert(c.callGraphNodes.keys.toList.contains(Node("bar", "declaration", 2)), "expected %s, but not found".format(Node("bar", "declaration", 2)))
+    assert(c.callGraphNodes.keys.toList.contains(Node("main", "function", 4)), "expected %s, but not found".format(Node("main", "function", 4)))
+
+    val expectedEdges = ConditionalSet(Map(
+      Edge("main", "foo", "D") -> True,
+      Edge("main", "bar", "D") -> True
+    ))
+    assert(c.callGraphEdges equals expectedEdges, "expected %s, but found %s".format(c.callGraphEdges, expectedEdges))
+
   }
 
   @Test def testCallGraphNodesFuncDecl(): Unit = {
