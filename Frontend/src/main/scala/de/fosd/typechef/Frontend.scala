@@ -198,7 +198,7 @@ object Frontend extends EnforceTreeHelper {
                     c.writeDotCallGraph(opt.getFile, dotWriter /*, fullFM */) /* if no feature model is provided, an empty one is used */
 
                     // DEBUG
-                     c.writeDbgCallGraph(opt.getFile, dbgWriter /*, fullFM */) /* if no feature model is provided, an empty one is used */
+                     c.writeDbgCallGraph(opt.getFile, dbgWriter, fullFM) /* if no feature model is provided, an empty one is used */
                     // c.showPointerEquivalenceClasses()
                     // c.showFunctionDefs()
                     // c.showFunctionCalls()
