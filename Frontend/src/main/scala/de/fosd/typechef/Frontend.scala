@@ -3,7 +3,7 @@ package de.fosd.typechef
 import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
-import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphWriter}
+import de.fosd.typechef.ccallgraph.{CallGraphDebugWriter, CCallGraph, CallGraphWriter}
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FeatureModelOptions, FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
@@ -185,7 +185,7 @@ object Frontend extends EnforceTreeHelper {
 
                     // call graph writer
                     val writer = new CallGraphWriter(new FileWriter(new File(opt.getValidCGFilename)))
-                    val dbgWriter = new CallGraphWriter(new FileWriter(new File(opt.getDebugCGFilename)))
+                    val dbgWriter = new CallGraphDebugWriter(new FileWriter(new File(opt.getDebugCGFilename)))
 
                     val c = new CCallGraph()
                     c.calculatePointerEquivalenceRelation(ast)

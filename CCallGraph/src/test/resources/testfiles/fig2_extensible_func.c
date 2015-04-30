@@ -14,15 +14,16 @@ struct obstack{
 
 void chunck_fun(struct obstack *h, void *f) {
     h->chunkfun = (struct _chunck *(*)()) f;
+    (*h->chunkfun)();
 }
 
 void free_fun(struct obstack *h, void *f) {
     h->freefun = (void (*)()) f;
+    (*h->freefun)();
 }
 
 int main() {
     struct obstack h;
     chunck_fun(&h, &xmalloc);
     free_fun(&h, &xfree);
-
 }

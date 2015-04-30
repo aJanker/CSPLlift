@@ -111,11 +111,7 @@ class CCallGraphTest extends TestHelper {
     val ast = loadAST("fig1_table_dispatch.c")
 
     val c: CCallGraph = new CCallGraph()
-
     c.calculatePointerEquivalenceRelation(ast)
-    c.showPointerEquivalenceClasses()
-    c.showFunctionCalls()
-
     c.extractCallGraph()
     c.showCallGraphStatistics()
 
@@ -126,8 +122,9 @@ class CCallGraphTest extends TestHelper {
 
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
-
+    c.extractCallGraph()
     c.showCallGraphStatistics()
+    c.showCallGraph()
 
   }
 
@@ -137,9 +134,6 @@ class CCallGraphTest extends TestHelper {
     val c: CCallGraph = new CCallGraph()
 
     c.calculatePointerEquivalenceRelation(ast)
-    c.showPointerEquivalenceClasses()
-    c.showFunctionCalls()
-
     c.extractCallGraph()
     c.showCallGraphStatistics()
 
@@ -150,7 +144,6 @@ class CCallGraphTest extends TestHelper {
 
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
-
     c.showPointerEquivalenceClasses()
 
   }
@@ -161,11 +154,9 @@ class CCallGraphTest extends TestHelper {
     val c: CCallGraph = new CCallGraph()
 
     c.calculatePointerEquivalenceRelation(ast)
-    c.showPointerEquivalenceClasses()
-    c.showFunctionCalls()
-
     c.extractCallGraph()
     c.showCallGraphStatistics()
+
 
   }
 

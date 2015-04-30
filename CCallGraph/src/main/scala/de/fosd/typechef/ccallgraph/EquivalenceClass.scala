@@ -9,7 +9,7 @@ import de.fosd.typechef.featureexpr.FeatureExpr
 
 
 // Equivalence class of object names
-class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: ConditionalSet[(String, String)]) {
+class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: ConditionalSet[(String, String)], var beingMerged : Boolean = false) {
 
     type ObjectName = String
     type PrefixSet = (String, String)

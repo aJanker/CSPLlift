@@ -192,7 +192,6 @@ class CCallGraph {
           // add * edge from o1 to o
           eqClassObjectO1.addPrefix((ObjectNameOperator.PointerDereference.toString, o), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
 
-
           // struct dot access operator
         } else if ((uo.startsWith(apply(ObjectNameOperator.StructAccess.toString, uo1)) || uo.startsWith(apply(ObjectNameOperator.StructAccess.toString, parenthesize(uo1))) && (eqClassObjectOFeatExpr.and(eqClassObjectO1FeatExpr).isSatisfiable()))) {
           val objectNameFields = (uo.take(uo.lastIndexOf(ObjectNameOperator.StructAccess.toString)), uo.drop(uo.lastIndexOf(ObjectNameOperator.StructAccess.toString) + ObjectNameOperator.StructAccess.toString.length))
@@ -278,11 +277,15 @@ class CCallGraph {
   }
 
   def mergeEquivalenceClasses(assignee: ObjectName, assignor: ObjectName) {
-    val eqClassAssignor = find(assignor)
     val eqClassAssignee = find(assignee)
+    val eqClassAssignor = find(assignor)
 
     if (eqClassAssignee.isDefined && eqClassAssignor.isDefined && !eqClassAssignee.equals(eqClassAssignor)) {
+      eqClassAssignee.get.beingMerged = true
+      eqClassAssignor.get.beingMerged = true
       merge(eqClassAssignee.get, eqClassAssignor.get)
+      eqClassAssignee.get.beingMerged = false
+      eqClassAssignor.get.beingMerged = false
     }
   }
 
@@ -292,24 +295,26 @@ class CCallGraph {
 
     // loop both prefix sets
     for ((a, o) <- e2.prefixes().toPlainSet()) {
+      // filter prefixes shared by the two eq classes
       val sharedPrefix = newPrefixSet.toPlainSet().filter({ case (a1, o1) => a.equals(a1) })
 
+      // if equivalence classes share the same prefix (i.e., if they have edges to the same object name)
       if (sharedPrefix.nonEmpty) {
-        // if equivalence classes share the same prefix (i.e., if they have edges to the same object name)
         sharedPrefix.map({ case ((_, o1)) =>
-
           val eqClassO = find(o)
           val eqClassO1 = find(o1)
 
           // if any two eq classes have the same prefix relation, merge them recursively
-          if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.equals(eqClassO1)) merge(eqClassO.get, eqClassO1.get);
+          if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged && !eqClassO.equals(eqClassO1))  {
+            merge(eqClassO.get, eqClassO1.get);
+          }
           // TODO: check why equivalent classes did not merge
         })
       } else newPrefixSet +=((a, o), e2.prefixes().get((a, o)))
     }
     // add new equivalence class and delete merged ones
-    equivalenceClasses += new EquivalenceClass(newObjectNamesSet.objectNames, newPrefixSet)
     equivalenceClasses -=(e1, e2)
+    equivalenceClasses += new EquivalenceClass(newObjectNamesSet.objectNames, newPrefixSet)
 
   }
 
@@ -366,6 +371,11 @@ class CCallGraph {
     println("\nCall graph statistics: \n\tNodes: %d\n\tEdges: %d\n\tIndirect edges: %d\n\tNon-resolved edges: %d\n".format(callGraphNodes.toPlainSet().size, callGraphEdges.toPlainSet().size, callGraphEdges.toPlainSetWithConditionals.filter({ case (e, _) => e.kind.equals(EdgeKind.Indirect.toString) }).size, callGraphEdges.toPlainSetWithConditionals.filter({ case (e, _) => e.kind.equals(EdgeKind.FunctionNameNotFound.toString) || e.kind.equals(EdgeKind.EquivalenceClassNotFound.toString) }).size))
   }
 
+  def showCallGraph() = {
+    println("\nCall graph: \n\tNodes: %s\n\tEdges: %s\n\tIndirect edges: %s\n\tNon-resolved edges: %s\n".format(callGraphNodes.toPlainSet(), callGraphEdges.toPlainSet(), callGraphEdges.toPlainSetWithConditionals.filter({ case (e, _) => e.kind.equals(EdgeKind.Indirect.toString) }), callGraphEdges.toPlainSetWithConditionals.filter({ case (e, _) => e.kind.equals(EdgeKind.FunctionNameNotFound.toString) || e.kind.equals(EdgeKind.EquivalenceClassNotFound.toString) })))
+  }
+
+  // foe debugging purposes, invalid edges (FNNF and ECNF) are kept in the final graph
   def writeDbgCallGraph(fileName: String, writer: GraphWriter, fm: FeatureModel = FeatureExprFactory.empty) = {
     callGraphNodes.toPlainSetWithConditionals().map({ case (Node(name, kind, line), expr) =>
       if (expr.isSatisfiable(fm)) writer.writeNode(name, kind, line, expr)
@@ -376,6 +386,7 @@ class CCallGraph {
     writer.close()
   }
 
+  // invalid edges (FNNF and ECNF) are removed from final call graph
   def writeCallGraph(fileName: String, writer: GraphWriter, fm: FeatureModel = FeatureExprFactory.empty) = {
     callGraphNodes.toPlainSetWithConditionals().map({ case (Node(name, kind, line), expr) =>
       if (expr.isSatisfiable(fm)) writer.writeNode(name, kind, line, expr)
@@ -534,7 +545,7 @@ class CCallGraph {
             functionCallParameters +:=(exprStr1.get, functionCallParamList)
             functionCalls = functionCalls.+((currentFunction, exprStr1.get), ctx)
 
-            addObjectName(applyScope(parenthesize(exprStr1.get) + ObjectNameOperator.FunctionCall.toString, currentFunction), ctx)
+            addObjectName(applyScope(exprStr1.get + ObjectNameOperator.FunctionCall.toString, currentFunction), ctx)
           }
         }
         exprStr1.flatMap(e1 => exprStr2.map(e2 => parenthesize(e1) + e2))

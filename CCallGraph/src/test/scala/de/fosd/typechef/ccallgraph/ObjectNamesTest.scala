@@ -85,7 +85,7 @@ class ObjectNamesTest extends TestHelper {
         testExprObjectNames("while(a = p->x) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->x"))
         testExprObjectNames("while(a = &(p->x)) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->x", "GLOBAL$&(p->x)"))
 
-        // n-ary-subexpressions are ignored (unless they contain assignments)
+        // n-ary-subexpressions are ignored (unless when they contain assignments, postfixExpr (to extract function calls) or n-ary subexpressions)
         testExprObjectNames("while (a == 1) { }", Set("GLOBAL$foo", "GLOBAL$a"))
         testExprObjectNames("while (a == b) { }", Set("GLOBAL$foo", "GLOBAL$a"))
         testExprObjectNames("while (a >= b) { }", Set("GLOBAL$foo", "GLOBAL$a"))
@@ -95,13 +95,13 @@ class ObjectNamesTest extends TestHelper {
         testExprObjectNames("while (a < b) { }", Set("GLOBAL$foo", "GLOBAL$a"))
         testExprObjectNames("while (a || b) { }", Set("GLOBAL$foo", "GLOBAL$a"))
         testExprObjectNames("while (a == &b) { }", Set("GLOBAL$foo", "GLOBAL$a"))
-        testExprObjectNames("while (a != p->x) { }", Set("GLOBAL$foo", "GLOBAL$a"))
-        testExprObjectNames("while (a != p->x) { }", Set("GLOBAL$foo", "GLOBAL$a"))
+        testExprObjectNames("while (a != p->x) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->x"))
+        testExprObjectNames("while (a != p->x) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->x"))
 
-        testExprObjectNames("for (a=1; b == p->x; p = p->y) { }", Set("GLOBAL$foo", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->y"))
-        testExprObjectNames("for (a=1; b == p->x; p = p+c) { }", Set("GLOBAL$foo", "GLOBAL$b", "GLOBAL$p"))
-        testExprObjectNames("for (a=d; b != p->x; p = p->y) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$d", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->y"))
-        testExprObjectNames("for (a=d; b < p->x; p = p->y) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$d", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->y"))
+        testExprObjectNames("for (a=1; b == p->x; p = p->y) { }", Set("GLOBAL$foo", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->y", "GLOBAL$p->x"))
+        testExprObjectNames("for (a=1; b == p->x; p = p+c) { }", Set("GLOBAL$foo", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->x"))
+        testExprObjectNames("for (a=d; b != p->x; p = p->y) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$d", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->y", "GLOBAL$p->x"))
+        testExprObjectNames("for (a=d; b < p->x; p = p->y) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$d", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->y", "GLOBAL$p->x"))
         testExprObjectNames("for (a=d, c=1; b = p->x; p = p+a) { }", Set("GLOBAL$foo", "GLOBAL$a", "GLOBAL$d", "GLOBAL$b", "GLOBAL$p", "GLOBAL$*p", "GLOBAL$p->x"))
 
         testExprObjectNames("if (a) { }", Set("GLOBAL$foo", "GLOBAL$a"))
@@ -122,11 +122,21 @@ class ObjectNamesTest extends TestHelper {
     }
 
     @Test def testRemoveScope() {
+        // object names
         val c = new CCallGraph
         assert(c.unscope("foo$x") == "x")
         assert(c.unscope("foo$*p") == "*p")
         assert(c.unscope("GLOBAL$p->x") == "p->x")
         assert(c.unscope("GLOBAL$&(p->x)") == "&(p->x)")
+
+        // equivalence classes
+        var cset = ConditionalSet[String]()
+        cset +=("GLOBAL$x", True)
+        cset +=("bar$y", True)
+        cset +=("stat_main$statfunc", True)
+        cset +=("a$b|c", True)
+        val eq = new EquivalenceClass(cset, ConditionalSet())
+        assert(eq.unscopedObjectNames() equals Set("x", "y", "statfunc", "b|c"), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set("x", "y", "statfunc", "b|c")))
     }
 
     @Test def testVariablesScope() {
@@ -157,17 +167,6 @@ class ObjectNamesTest extends TestHelper {
         //testFile("fig2_extensible_func.c", Set("*h", "*f", "&h", "f", "h", "xmalloc", "xfree", "h->freefun", "h->chunkfun", "&xfree", "&xmalloc"))
         //testFile("fig3_sample_prog.c", Set("h->freefun", "*h", "xmalloc", "h->chunkfun", "xfree", "&h", "h", "&xfree", "&xmalloc"))
         //testFile("fig4_simple_sets_statements.c", Set("x", "&x", "t", "*p", "p->f", "p", "&z", "z"))
-    }
-
-    @Test def unscopedObjectNames() {
-        var cset = ConditionalSet[String]()
-        cset +=("GLOBAL$x", True)
-        cset +=("bar$y", True)
-        cset +=("stat_main$statfunc", True)
-        cset +=("a$b|c", True)
-
-        val eq = new EquivalenceClass(cset, ConditionalSet())
-        assert(eq.unscopedObjectNames() equals Set("x", "y", "statfunc", "b|c"), "expected %s, but found %s".format(eq.unscopedObjectNames(), Set("x", "y", "statfunc", "b|c")))
     }
 
     val parser = new CParser()
