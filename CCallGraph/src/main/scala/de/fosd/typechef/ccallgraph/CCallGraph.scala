@@ -139,7 +139,7 @@ class CCallGraph {
 
     // for each pointer related assignment, merge prefixes if  different
     for ((assignee, assignor) <- objectNameAssignments.toPlainSet()) {
-        mergeEquivalenceClasses(assignee, assignor)
+      mergeEquivalenceClasses(assignee, assignor)
     }
     equivalenceClasses
   }
@@ -305,7 +305,7 @@ class CCallGraph {
           val eqClassO1 = find(o1)
 
           // if any two eq classes have the same prefix relation, merge them recursively
-          if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged && !eqClassO.equals(eqClassO1))  {
+          if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged && !eqClassO.equals(eqClassO1)) {
             merge(eqClassO.get, eqClassO1.get);
           }
           // TODO: check why equivalent classes did not merge
@@ -391,11 +391,24 @@ class CCallGraph {
     callGraphNodes.toPlainSetWithConditionals().map({ case (Node(name, kind, line), expr) =>
       if (expr.isSatisfiable(fm)) writer.writeNode(name, kind, line, expr)
     })
-    callGraphEdges.filterNot({ e : Edge => e.kind.equals("FNNF") || e.kind.equals("ECNF")}).toPlainSetWithConditionals().foreach({ case (Edge(src, dst, kind), expr) =>
+    callGraphEdges.filterNot({ e: Edge => e.kind.equals("FNNF") || e.kind.equals("ECNF") }).toPlainSetWithConditionals().foreach({ case (Edge(src, dst, kind), expr) =>
       if (expr.isSatisfiable(fm)) writer.writeEdge(src, dst, kind, expr)
     })
     writer.close()
   }
+
+  def writeDotCallGraph(fileName: String, writer: GraphWriter, fm: FeatureModel = FeatureExprFactory.empty) = {
+    writer.writeHeader(fileName)
+    callGraphNodes.toPlainSetWithConditionals().map({ case (Node(name, kind, line), expr) =>
+      if (expr.isSatisfiable(fm)) writer.writeNode(name, kind, line, expr)
+    })
+    callGraphEdges.filterNot({ e: Edge => e.kind.equals("FNNF") || e.kind.equals("ECNF") }).toPlainSetWithConditionals().foreach({ case (Edge(src, dst, kind), expr) =>
+      if (expr.isSatisfiable(fm)) writer.writeEdge(src, dst, kind, expr)
+    })
+    writer.writeFooter()
+    writer.close()
+  }
+
 
   def parenthesize(objName: String) = {
     if (ObjectNameOperator.values.toList.map({ op => op.toString }).exists(objName.contains)) {
@@ -849,8 +862,8 @@ class CCallGraph {
       case NArySubExpr(op: String, e: Expr) => {
         e match {
           case a: AssignExpr => extractExpr(a, ctx);
-          case fc : PostfixExpr => extractExpr(fc, ctx);
-          case ne : NAryExpr => extractExpr(ne, ctx)
+          case fc: PostfixExpr => extractExpr(fc, ctx);
+          case ne: NAryExpr => extractExpr(ne, ctx)
           case _ => ;
         }
         None

@@ -4,6 +4,7 @@ import java.io.Writer
 
 import de.fosd.typechef.crewrite.IOUtilities
 import de.fosd.typechef.featureexpr.FeatureExpr
+import de.fosd.typechef.parser.c._
 
 /**
  * Created by gferreir on 1/30/15.
@@ -14,6 +15,10 @@ trait GraphWriter {
     def writeNode(name: String, kind: String, sourceCodeLine: Int, fExpr : FeatureExpr)
 
     def writeEdge(source : String, target : String, edgeType: String, fExpr : FeatureExpr)
+
+    def writeFooter()
+
+    def writeHeader(filename: String)
 
     def close()
 
@@ -74,6 +79,10 @@ class CallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
     override def close() = {
         fwriter.close()
     }
+
+    override def writeFooter(): Unit = { }
+
+    override def writeHeader(filename: String): Unit = { }
 }
 
 class CallGraphDebugWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
@@ -130,6 +139,61 @@ class CallGraphDebugWriter(fwriter: Writer) extends IOUtilities with GraphWriter
 
     override def close() = {
         fwriter.close()
+    }
+
+    override def writeFooter(): Unit = { }
+
+    override def writeHeader(filename: String): Unit = { }
+}
+
+class DotCallGraphWriter(fwriter: Writer) extends IOUtilities with GraphWriter {
+
+    protected val normalNodeFontName = "Calibri"
+    protected val normalNodeFontColor = "black"
+    protected val normalNodeFillColor = "white"
+
+    private val externalDefNodeFontColor = "blue"
+
+    private val featureNodeFillColor = "#CD5200"
+
+    protected val normalConnectionEdgeColor = "black"
+    // https://mailman.research.att.com/pipermail/graphviz-interest/2001q2/000042.html
+    protected val normalConnectionEdgeThickness = "setlinewidth(1)"
+
+    private val featureConnectionEdgeColor = "red"
+
+    def writeFooter() {
+        fwriter.write("}\n")
+    }
+
+    def writeHeader(title: String) {
+        fwriter.write("digraph \"" + title + "\" {" + "\n")
+        fwriter.write("node [shape=record];\n")
+    }
+
+    def close() {
+        fwriter.close()
+    }
+
+    override def writeNode(name: String, kind: String, sourceCodeLine: Int, fExpr: FeatureExpr): Unit = {
+        fwriter.write("\"" + name.hashCode() + "\"")
+        fwriter.write("[")
+        fwriter.write("label=\"{{" + name + "}|" + fExpr.toString + "}\", ")
+        fwriter.write("color=\"" + (if (kind.equals("declaration")) externalDefNodeFontColor else normalNodeFontColor) + "\", ")
+        fwriter.write("fontname=\"" + normalNodeFontName + "\", ")
+        fwriter.write("style=\"filled\"" + ", ")
+        fwriter.write("fillcolor=\"" + (if (fExpr.isTautology()) normalNodeFillColor else featureNodeFillColor) + "\"")
+
+        fwriter.write("];\n")
+    }
+
+    override def writeEdge(source: String, target: String, edgeType: String, fExpr: FeatureExpr): Unit = {
+        fwriter.write("\"" + System.identityHashCode(source) + "\" -> \"" + System.identityHashCode(target) + "\"")
+        fwriter.write("[")
+        fwriter.write("label=\"" + fExpr.toTextExpr + "\", ")
+        fwriter.write("color=\"" + (if (fExpr.isTautology()) normalConnectionEdgeColor else featureConnectionEdgeColor) + "\", ")
+        fwriter.write("style=\"" + normalConnectionEdgeThickness + "\"")
+        fwriter.write("];\n")
     }
 }
 
