@@ -685,6 +685,7 @@ class CCallGraph {
         functionDefParameters += (declarator.getName -> List[Opt[ObjectName]]())
 
         val oldObjectNamesScope = objectNamesScope
+        val oldCurrentFunction = currentFunction
         isDeclarationStatement = True;
 
         // extract function definition information
@@ -716,7 +717,7 @@ class CCallGraph {
         // end of function - restore global state
         isDeclarationStatement = False;
         isFunctionDef = False
-        currentFunction = "GLOBAL"
+        currentFunction = oldCurrentFunction
         objectNamesScope = oldObjectNamesScope
 
         None

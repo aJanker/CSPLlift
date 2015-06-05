@@ -186,7 +186,7 @@ object Frontend extends EnforceTreeHelper {
                     // call graph writer
                     val writer = new CallGraphWriter(new FileWriter(new File(opt.getValidCGFilename)))
                     val dotWriter = new DotCallGraphWriter(new FileWriter(new File(opt.getValidCGFilename + ".dot")))
-                    val dbgWriter = new CallGraphDebugWriter(new FileWriter(new File(opt.getValidCGFilename)))
+                    val dbgWriter = new CallGraphDebugWriter(new FileWriter(new File(opt.getDebugCGFilename)))
 
                     val c = new CCallGraph()
                     c.calculatePointerEquivalenceRelation(ast)
@@ -203,7 +203,7 @@ object Frontend extends EnforceTreeHelper {
                     // c.showFunctionDefs()
                     // c.showFunctionCalls()
                     // c.showAssignments()
-                }
+                   }
 
                 if (opt.dumpcfg) {
                     println("#control flow graph")
