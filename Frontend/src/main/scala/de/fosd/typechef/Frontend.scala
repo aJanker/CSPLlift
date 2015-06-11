@@ -191,14 +191,14 @@ object Frontend extends EnforceTreeHelper {
                     val c = new CCallGraph()
                     c.calculatePointerEquivalenceRelation(ast)
                     c.extractCallGraph()
-                    c.writeCallGraph(opt.getFile, writer /*, fullFM */) /* if no feature model is provided, an empty one is used */
+                    c.writeCallGraph(opt.getFile, writer, fullFM) /* if no feature model is provided, an empty one is used */
                     c.showCallGraphStatistics()
 
                     // Dot Call Graph
-                    c.writeDotCallGraph(opt.getFile, dotWriter /*, fullFM */) /* if no feature model is provided, an empty one is used */
+                    c.writeDotCallGraph(opt.getFile, dotWriter, fullFM) /* if no feature model is provided, an empty one is used */
 
                     // DEBUG
-                     c.writeDbgCallGraph(opt.getFile, dbgWriter /*, fullFM */) /* if no feature model is provided, an empty one is used */
+                     c.writeDbgCallGraph(opt.getFile, dbgWriter, fullFM) /* if no feature model is provided, an empty one is used */
                     // c.showPointerEquivalenceClasses()
                     // c.showFunctionDefs()
                     // c.showFunctionCalls()
