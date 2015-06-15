@@ -836,6 +836,10 @@ class CCallGraph {
         None
       }
 
+      case AsmExpr(isVolatile: Boolean, expr: Expr) => {
+        extractExpr(expr, ctx)
+      }
+
       case TypelessDeclaration(declList: List[Opt[InitDeclarator]]) => {
         for (Opt(featExpr, decl) <- declList) extractObjectNames(decl, ctx and featExpr)
         None
