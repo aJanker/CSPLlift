@@ -146,6 +146,15 @@ class ObjectNamesTest extends TestHelper {
         testFile("scope.c", Set("GLOBAL$foo", "GLOBAL$main", "GLOBAL$ptr", "GLOBAL$*ptr", "GLOBAL$ptr->a", "foo$ptr", "foo$*ptr", "foo$c", "foo$ptr->b", "main$a"))
     }
 
+    @Test def testParenthesizingObjectNames(): Unit = {
+        val c = new CCallGraph
+        assert(c.parenthesize("lock->dep_map") == "(lock->dep_map)")
+        assert(c.parenthesize("lock") == "lock")
+        assert(c.parenthesize("lock.dep_map") == "(lock.dep_map)")
+        assert("&"+ c.parenthesize("lock") == "&lock")
+        assert(c.parenthesize("*lock") == "(*lock)")
+    }
+
     @Test def testBusyboxExcerpts() {
         testObjectNames(
             """

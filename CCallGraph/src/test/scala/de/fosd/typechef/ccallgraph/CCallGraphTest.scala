@@ -112,7 +112,9 @@ class CCallGraphTest extends TestHelper {
 
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
+    c.showPointerEquivalenceClasses()
     c.extractCallGraph()
+    c.showCallGraph()
     c.showCallGraphStatistics()
 
   }

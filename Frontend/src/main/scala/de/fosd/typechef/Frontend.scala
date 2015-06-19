@@ -185,7 +185,7 @@ object Frontend extends EnforceTreeHelper {
 
                     // call graph writer
                     val writer = new CallGraphWriter(new FileWriter(new File(opt.getValidCGFilename)))
-                    val dotWriter = new DotCallGraphWriter(new FileWriter(new File(opt.getValidCGFilename + ".dot")))
+                    //val dotWriter = new DotCallGraphWriter(new FileWriter(new File(opt.getValidCGFilename + ".dot")))
                     val dbgWriter = new CallGraphDebugWriter(new FileWriter(new File(opt.getDebugCGFilename)))
 
                     val c = new CCallGraph()
@@ -195,7 +195,7 @@ object Frontend extends EnforceTreeHelper {
                     c.showCallGraphStatistics()
 
                     // Dot Call Graph
-                    c.writeDotCallGraph(opt.getFile, dotWriter, fullFM) /* if no feature model is provided, an empty one is used */
+                    //c.writeDotCallGraph(opt.getFile, dotWriter, fullFM) /* if no feature model is provided, an empty one is used */
 
                     // DEBUG
                      c.writeDbgCallGraph(opt.getFile, dbgWriter, fullFM) /* if no feature model is provided, an empty one is used */

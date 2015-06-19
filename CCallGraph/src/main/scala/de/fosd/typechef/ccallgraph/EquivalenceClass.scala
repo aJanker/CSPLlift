@@ -14,8 +14,7 @@ class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: C
     type ObjectName = String
     type PrefixSet = (String, String)
 
-    def plainObjectNames() : Set[ObjectName] = objectNames.toPlainSetWithConditionals.map({ case (o, expr) => o })
-    def unscopedObjectNames() : Set[ObjectName] = plainObjectNames.map({ case o => unscope(o) })
+    def unscopedObjectNames() : Set[ObjectName] = objectNames.toPlainSet().map({ case o => unscope(o) })
     def prefixes(): ConditionalSet[PrefixSet] = prefixSet
 
     def addPrefix(t: PrefixSet, f : FeatureExpr) = {
@@ -27,7 +26,13 @@ class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: C
     }
 
     def unscope(scopedObjectName: String): String = {
-        scopedObjectName.replaceFirst("[a-zA-Z0-9_]+?\\$", "")
+        val unescopedObjectName = scopedObjectName.replaceFirst("[a-zA-Z0-9_]+?\\$", "")
+        assert(!unescopedObjectName.contains("$"))
+        unescopedObjectName
+    }
+
+    def find(scopedObjectName: ObjectName): Boolean = {
+        objectNames.toPlainSet().contains(scopedObjectName)
     }
 
     def union(other: EquivalenceClass): EquivalenceClass = {
