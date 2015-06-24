@@ -200,7 +200,7 @@ class ObjectNamesTest extends TestHelper {
     private def testObjectNamesSet(ast: TranslationUnit, expected: Set[String]) {
         val c = new CCallGraph
         c.extractObjectNames(ast, True)
-        c.initEquivalanceClasses()
+        c.initEquivalenceClasses()
         assert(c.objectNames.toPlainSet() equals expected, "expected %s, but found %s".format(expected.mkString("[", ", ", "]"), c.objectNames.toPlainSet().mkString("[", ", ", "]")))
     }
 

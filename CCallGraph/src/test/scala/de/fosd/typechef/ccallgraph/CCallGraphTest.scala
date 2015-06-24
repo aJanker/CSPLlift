@@ -98,25 +98,33 @@ class CCallGraphTest extends TestHelper {
 
     c.calculatePointerEquivalenceRelation(ast)
     c.extractCallGraph()
-    c.callGraphNodes.toPlainSetWithConditionals().map(println)
     assert(c.callGraphNodes.toPlainSetWithConditionals.size equals 3, "expected %s, but found %s".format(3, c.callGraphNodes.toPlainSetWithConditionals.size))
     assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("bar", "declaration", 2), True), "expected %s, but not found".format(Node("bar", "declaration", 2)))
     assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("baz", "function-inline", 3), True), "expected %s, but not found".format(Node("baz", "function-inline", 3)))
     assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("foo", "function", 6), FeatureExprFactory.createDefinedExternal("A")), "expected %s, but not found".format(Node("foo", "function", 6)))
-
   }
-
 
   @Test def test_paper_example_fig1() {
     val ast = loadAST("fig1_table_dispatch.c")
 
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
-    c.showPointerEquivalenceClasses()
     c.extractCallGraph()
     c.showCallGraph()
-    c.showCallGraphStatistics()
 
+    assert(c.callGraphNodes.toPlainSetWithConditionals.size equals 6)
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("strcmp", "function", 8), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("func1", "function", 10), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("func2", "function", 14), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("init", "function", 20), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("find_p_func", "function", 27), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("main", "function", 38), True))
+
+    assert(c.callGraphEdges.toPlainSet.size equals 4)
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("main", "func1", "I") -> True))
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("main", "func2", "I") -> True))
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("main", "find_p_func", "D") -> True))
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("find_p_func", "strcmp", "D") -> True))
   }
 
   @Test def test_paper_example_fig2() {
@@ -125,9 +133,20 @@ class CCallGraphTest extends TestHelper {
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
     c.extractCallGraph()
-    c.showCallGraphStatistics()
     c.showCallGraph()
 
+    assert(c.callGraphNodes.toPlainSetWithConditionals.size equals 5)
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("xfree", "declaration", 6), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("xmalloc", "declaration", 7), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("chunck_fun", "function", 15), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("free_fun", "function", 20), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("main", "function", 25), True))
+
+    assert(c.callGraphEdges.toPlainSet.size equals 4)
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("chunck_fun", "xmalloc", "I") -> True))
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("free_fun", "xfree", "I") -> True))
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("main", "chunck_fun", "D") -> True))
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("main", "free_fun", "D") -> True))
   }
 
   @Test def test_paper_example_fig3() {
@@ -136,9 +155,15 @@ class CCallGraphTest extends TestHelper {
     val c: CCallGraph = new CCallGraph()
 
     c.calculatePointerEquivalenceRelation(ast)
+    c.showPointerEquivalenceClasses()
     c.extractCallGraph()
-    c.showCallGraphStatistics()
 
+    assert(c.callGraphNodes.toPlainSetWithConditionals.size equals 2)
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("id", "function", 1), True))
+    assert(c.callGraphNodes.toPlainSetWithConditionals.contains(Node("main", "function", 5), True))
+
+    assert(c.callGraphEdges.toPlainSet.size equals 1)
+    assert(c.callGraphEdges.toPlainSetWithConditionals.contains(Edge("main", "id", "D") -> True))
   }
 
   @Test def test_paper_example_fig4() {
