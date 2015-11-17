@@ -4,6 +4,7 @@ import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{DotCallGraphWriter, CallGraphDebugWriter, CCallGraph, CallGraphWriter}
+import de.fosd.typechef.cpointeranalysis.CPointerAnalysisFrontend
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FeatureModelOptions, FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
@@ -148,10 +149,7 @@ object Frontend extends EnforceTreeHelper {
             if (ast != null) {
 
                 // some dataflow analyses require typing information
-                val ts = if (opt.typechecksa)
-                            new CTypeSystemFrontend(ast, fullFM, opt) with CTypeCache with CDeclUse
-                         else
-                            new CTypeSystemFrontend(ast, fullFM, opt)
+                val ts = new CTypeSystemFrontend(ast, fullFM, opt) with CTypeCache with CDeclUse
 
 
                 /** I did some experiments with the TypeChef FeatureModel of Linux, in case I need the routines again, they are saved here. */
@@ -176,6 +174,14 @@ object Frontend extends EnforceTreeHelper {
                     if (opt.writeDebugInterface)
                         ts.debugInterface(interface, new File(opt.getDebugInterfaceFilename))
                 }
+
+                if (opt.pointerAnalysis) {
+                    println("#pointer analysis")
+                    stopWatch.start("pointerAnalysis")
+                    // TODO OptionsHandling
+                    val pa = new CPointerAnalysisFrontend(ast, ts, fullFM)
+                }
+
                 if (opt.dumpcg) {
                     println("#call graph")
                     stopWatch.start("dumpCG")
@@ -189,6 +195,7 @@ object Frontend extends EnforceTreeHelper {
                     val dbgWriter = new CallGraphDebugWriter(new FileWriter(new File(opt.getDebugCGFilename)))
 
                     val c = new CCallGraph()
+
                     c.calculatePointerEquivalenceRelation(ast)
                     c.extractCallGraph()
                     c.writeCallGraph(opt.getFile, writer, fullFM) /* if no feature model is provided, an empty one is used */

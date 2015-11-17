@@ -6,7 +6,10 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureMod
 import de.fosd.typechef.parser.c._
 
 /**
- * Created by gferreir on 9/20/14.
+ * // TODO:
+ * - extract all declarations of pointer
+ * - struct field pointer
+ * - file pointer (load interface)
  *
  */
 
@@ -147,10 +150,16 @@ class CCallGraph {
   }
 
   def initEquivalenceClasses(): Unit = {
-    objectNames.keys.foreach({ k =>
-      var e = new EquivalenceClass(ConditionalSet(k, objectNames.get(k)), ConditionalSet())
-      equivalenceClassesMap += ((k -> e))
-      equivalenceClasses += e
+    val ec = initEquivalenceClasses(equivalenceClassesMap, equivalenceClasses)
+    equivalenceClassesMap = ec._1
+    equivalenceClasses = ec._2
+
+  }
+
+  private def initEquivalenceClasses(equivalenceClassesMap : Map[ObjectName, EquivalenceClass], equivalenceClasses : Set[EquivalenceClass]) = {
+    objectNames.keys.foldLeft((equivalenceClassesMap, equivalenceClasses))( (e, k) => {
+      val ec = new EquivalenceClass(ConditionalSet(k, objectNames.get(k)), ConditionalSet())
+      (e._1 + (k -> ec), e._2 + ec)
     })
   }
 
@@ -781,7 +790,7 @@ class CCallGraph {
 
           // consider pointers only on non-function declarators and function parameters
           if (isPointer.isSatisfiable() && isFunctionDeclarator.isContradiction()) {
-            addObjectName(applyScope(ObjectNameOperator.PointerDereference.toString + parenthesize(id.name), currentFunction), ctx)
+            val scopeObjectName = addObjectName(applyScope(ObjectNameOperator.PointerDereference.toString + parenthesize(id.name), currentFunction), ctx)
           }
         }
         for (Opt(featExpr, e) <- extensions) extractObjectNames(e, ctx and featExpr);

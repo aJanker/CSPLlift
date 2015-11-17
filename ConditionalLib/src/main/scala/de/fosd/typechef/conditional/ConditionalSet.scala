@@ -56,7 +56,6 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
     override def toString = entries.toString
 
     def toPlainSet(): Set[A] = {
-        //System.err.print(">>> remove me!")
         entries.keys.toSet
     }
 

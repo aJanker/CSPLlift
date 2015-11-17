@@ -16,11 +16,10 @@ import java.util.List;
 public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     public boolean parse = true,
             typecheck = false,
-            ifdeftoif = false,
-            decluse = false,
             writeInterface = false,
             dumpcfg = false,
             dumpcg = false,
+            pointerAnalysis = false,
             serializeAST = false,
             reuseAST = false,
             writeDebugInterface = false,
@@ -35,6 +34,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     private final File _autoErrorXMLFile = new File(".");
     String outputStem = "";
     private String filePresenceConditionFile = "";
+    private String pAnalFilelist = null;
 
 
     private final static char F_PARSE = Options.genOptionId();
@@ -43,6 +43,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     private final static char F_DEBUGINTERFACE = Options.genOptionId();
     private final static char F_DUMPCFG = Options.genOptionId();
     private final static char F_DUMPCG = Options.genOptionId();
+    private final static char F_POINTERANALYSIS = Options.genOptionId();
     private final static char F_SERIALIZEAST = Options.genOptionId();
     private final static char F_REUSEAST = Options.genOptionId();
     private final static char F_RECORDTIMING = Options.genOptionId();
@@ -77,6 +78,9 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
 
                 new Option("dumpcfg", LongOpt.NO_ARGUMENT, F_DUMPCFG, null,
                         "Lex, parse, and dump control flow graph"),
+
+                new Option("pointerAnalysis", LongOpt.OPTIONAL_ARGUMENT, F_POINTERANALYSIS, null,
+                        "Lex, parse, and calculate pointer relationships"),
 
                 new Option("output", LongOpt.REQUIRED_ARGUMENT, 'o', "file",
                         "Path to output files (no extension, creates .pi, .macrodbg etc files)."),
@@ -177,6 +181,12 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
         } else if (c == TY_HELP) {//--help
             //printUsage();
             printVersion = true;
+        } else if(c == F_POINTERANALYSIS){
+            pointerAnalysis = true;
+            if (g.getOptarg() != null) {
+                checkFileExists(g.getOptarg());
+                pAnalFilelist = g.getOptarg();
+            }
         } else
             return super.interpretOption(c, g);
 
@@ -243,6 +253,10 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             else localFM = FeatureExprFactory$.MODULE$.dflt().True();
         }
         return localFM;
+    }
+
+    public String getPointerAnalysisFilelist() {
+        return pAnalFilelist;
     }
 
     public String getSerializedASTFilename() {
