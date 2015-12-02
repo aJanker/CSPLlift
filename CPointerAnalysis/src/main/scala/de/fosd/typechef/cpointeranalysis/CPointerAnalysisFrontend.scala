@@ -1,44 +1,153 @@
 package de.fosd.typechef.cpointeranalysis
 
-import com.typesafe.scalalogging.LazyLogging
+import java.io._
+import java.util.zip.{GZIPInputStream, GZIPOutputStream}
+
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeSystemFrontend}
 
-import scala.collection.parallel.immutable.ParSet
+import scala.collection.immutable.Map
+
 
 /**
   * Pointer Analysis for TypeChef. This is implementation is adapted by the CCallGraph Impl by
   * By Andreas Janker on 27/10/15.
   */
-
-class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystemFrontend with CDeclUse,
+class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
                                featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty,
-                               options: CPointerAnalysisOptions = DefaultOpenSSLOptions,
-                               DEBUG: Boolean = false) extends PointerContext {
+                               DEBUG: Boolean = false) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
-  var cContext = calculatePointerEquivalenceRelation(startTUnit)
+  var initialContext: Option[CPointerAnalysisContext] = None
 
-  private def calculatePointerEquivalenceRelation(program: TranslationUnit) = {
+  var linkedFilesTotal: List[String] = List()
 
-    // extract objectNames and their assignments from the AST
-    var context = extractObjectName(program, True)
+  def calculateInitialPointerEquivalenceRelation(tUnit: TranslationUnit, file : String) = {
+    val context = extractObjectNames(tUnit, file, True)
 
-    // extract program assignments (function call parameters and return values)
-    context = addAssignmentsFromFunctionCallParameters(context)
-    context = addAssignmentsFromFunctionCallReturnValues(context)
+    extractAssignments(context)
+    context.solve()
 
-    // create initial equivalence class for each object name
-    context.initEquivalenceClasses(context)
+    refineFieldValues(context)
 
-    // create edges between initial equivalence classes
-    context.createInitialPrefixSets()
-    context.calculateLocalEquivalenceClasses(context)
+    findMain(tUnit, file)
 
+    initialContext = Some(context)
+
+    initialContext
+  }
+
+  def calculateLinkingRefinements(startFile : String) = {
+     def extractFilename(ast: String): String = {
+      val default = "NOFILENAME"
+      val regex = """^(([^/]+/)*)(([^/.]+)\..+)""".r
+      ast match {
+        case regex(m1, m2, m3, m4) => m4
+        case _ => default
+      }
+    }
+
+
+    val linking = new CLinking(options.linkingInterface)
+
+    //println(startFile)
+
+    linkedFilesTotal = startFile :: linkedFilesTotal
+
+    val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(startFile))).toList
+    val head = importFuncs.head
+
+    val files = importFuncs.flatMap(impsig => {
+      linking.interface.exports.par.filter(sig => sig.name.equalsIgnoreCase(impsig.name)).toList
+    }).flatMap(e => e.pos.toList.map(p => p.getFile)).distinct.filter(_.startsWith("file"))
+
+
+    println(files.size)
+    for (elem <- files) {
+      findRecursiveLinking(elem, linking, List(startFile))
+    }
+
+    println(linkedFilesTotal.size)
+    println(linkedFilesTotal.par.map(_.trim).distinct)
+  }
+
+  def findRecursiveLinking(file : String, linking : CLinking, visitedFiles : List[String], depth : Int = 1) : Unit = {
+    if (visitedFiles.contains(file)) Nil
+    else {
+      var prefix=""
+    for (i <- 1 to depth) {
+      prefix += "\t"
+  }
+
+    //println(prefix + file)
+      linkedFilesTotal =  (prefix + file) :: linkedFilesTotal
+
+    val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(file))).toList
+    val files = importFuncs.flatMap(impsig => {
+      linking.interface.exports.par.filter(sig => sig.name.equalsIgnoreCase(impsig.name)).toList
+    }).flatMap(e => e.pos.toList.map(p => p.getFile)).distinct.filter(_.startsWith("file"))
+
+      // println(prefix + files.size)
+    for (elem <- files) {
+      findRecursiveLinking(elem, linking, file :: visitedFiles , depth + 1)
+    }
+    }
+
+  }
+
+  def get = initialContext
+
+  def saveContext() : Unit = {
+    if (initialContext.isEmpty) throw new UnsupportedOperationException("Pointer calculation must be performed first")
+
+    val path = initialContext.get.getFileName() + options.eqClassFileEnding
+    saveContext(initialContext.get, path)
+  }
+
+  // Check first if we found a main function as a future entry point
+  private def findMain(tUnit: TranslationUnit, file : String) =
+    if (filterAllASTElems[FunctionDef](tUnit).exists(_.getName.equalsIgnoreCase("main"))) updateMainList(options.mainListPath, file)
+
+  private def updateMainList(fileWithMain : String, fileToAdd: String) = {
+    val update = {
+      if (scala.tools.nsc.io.File(fileWithMain).exists) {
+        val source = scala.io.Source.fromFile(fileWithMain)
+        val mains = try source.getLines.toList finally source.close()
+        mains.par.exists(_.equalsIgnoreCase(fileToAdd))
+      } else true
+    }
+
+    if (update) scala.tools.nsc.io.File(fileWithMain).appendAll(fileToAdd + "\n")
+  }
+
+  private def saveContext(context: CPointerAnalysisContext, filename: String) : Unit = {
+    val fw = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(filename)))
+    fw.writeObject(context)
+    fw.close()
+  }
+
+  private def loadContext(file: String): Option[CPointerAnalysisContext] = {
+    try {
+      val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(file))) {
+        override protected def resolveClass(desc: ObjectStreamClass) = {
+          super.resolveClass(desc)
+        }
+      }
+      val context = fr.readObject().asInstanceOf[CPointerAnalysisContext]
+      fr.close()
+      Some(context)
+    } catch {
+      case e: ObjectStreamException => System.err.println("failed loading serialized AST: " + e.getMessage); None
+    }
+  }
+
+
+  private def refineFieldValues(context: CPointerAnalysisContext) = {
     val paramWithFields = context.functionDefParameters.values.flatMap(_.flatMap(findObjectNameFieldReferences(_, context)))
 
+    // TODO Clean matching.
     paramWithFields.foreach(param => {
       context.find(param._1) match {
         case None =>
@@ -46,33 +155,18 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           val eqFields = findObjectNameFieldReferences(eqParam, context)
           if (eqFields.isDefined) param._2.foreach(paramField => eqFields.get._2.foreach(eqField =>
             if (ObjectNameOperator.getField(eqField).equalsIgnoreCase(ObjectNameOperator.getField(paramField)))
-              context.addObjectNameAssignment((eqField, paramField), True)))
+              context.addObjectNameAssignment((eqField, paramField), context.getObjectNames.get(eqField).and(context.getObjectNames.get(paramField)))
+          ))
         })
       }
     })
-
-
-    // Recalculate
-    // create initial equivalence class for each object name
-    context.initEquivalenceClasses(context)
-
-    // create edges between initial equivalence classes
-    context.createInitialPrefixSets()
-    context.calculateLocalEquivalenceClasses(context)
-    context.showPointerEquivalenceClasses()
-
-    println(context.find("foo$p3.fp"))
-
-    // Check for external references
-
-
-
+    context.solve()
     context
   }
 
   private def findObjectNameFieldReferences(value: String, context: ObjectNameContext): Option[(ObjectName, List[ObjectName])] = {
     val references = context.getObjectNames.toPlainSet().par.filter(name =>
-      removeFields(name) match {
+      ObjectNameOperator.removeFields(name) match {
         case Some(s) => !value.equalsIgnoreCase(name) && value.equalsIgnoreCase(s)
         case _ => false
       })
@@ -121,10 +215,11 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
     context
   }
 
-  private def extractObjectName(ast: AST, ctx: FeatureExpr): CPointerAnalysisContext = {
+  private def extractObjectNames(ast: AST, file : String, ctx: FeatureExpr): CPointerAnalysisContext = {
 
     // context variables
-    var analyisContext: CPointerAnalysisContext = new CPointerAnalysisContext
+    var analyisContext: CPointerAnalysisContext = new CPointerAnalysisContext(file)
+    var currentFile: String = file
     var currentFunction: Scope = "GLOBAL"
     var currentFunctionKind: String = "function"
     var currentDeclarator: ObjectName = ""
@@ -136,7 +231,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
     var isFunctionDeclarator: FeatureExpr = False
 
     // map of function defs and [return values, parameters]
-    var functionDefs: ConditionalSet[FunctionDef] = ConditionalSet()
+    var functionDefs: ConditionalSet[FunctionDefinition] = ConditionalSet()
     var functionDefReturns: Map[FunctionName, ConditionalSet[ObjectName]] = Map()
     var functionDefParameters: Map[FunctionName, List[Opt[ObjectName]]] = Map()
 
@@ -149,6 +244,8 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
     // Recursive Extraction Functions
     def extractAST(ast: AST, ctx: FeatureExpr): Option[String] = {
       if (DEBUG) println(ast)
+
+      currentFile = extractFilename(ast)
 
       ast match {
         case EmptyExternalDef() => None
@@ -292,7 +389,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           }
 
           // add function as object name
-          val scopedFunctionName = analyisContext.applyScope(currentDeclarator, "GLOBAL")
+          val scopedFunctionName = analyisContext.applyScope(currentDeclarator, "GLOBAL", currentFile)
           analyisContext.addObjectName(scopedFunctionName, ctx)
 
           isFunctionDeclarator = False
@@ -337,7 +434,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           if (isDeclarationStatement.isSatisfiable() && declStr.isDefined) {
 
             analyisContext.updateScope(declStr.get, currentFunction)
-            functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List[Opt[ObjectName]]()) :+ Opt(ctx, analyisContext.applyScope(declStr.get, currentFunction)))
+            functionDefParameters = functionDefParameters.updated(currentFunction, functionDefParameters.getOrElse(currentFunction, List[Opt[ObjectName]]()) :+ Opt(ctx, analyisContext.applyScope(declStr.get, currentFunction, currentFile)))
 
             if (isPointer.isSatisfiable()) {
               val pointerObjectName = ObjectNameOperator.PointerDereference.toString + ObjectNameOperator.parenthesize(declStr.get)
@@ -402,7 +499,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           }
           if (exprStr.isDefined) {
             val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope, currentFile), ctx)
           }
           thenBranch.map(stmt => extractStmt(stmt, ctx))
           exprStr
@@ -441,7 +538,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
             val exprStr = extractAST(e, ctx and fExpr);
             if (exprStr.isDefined) {
               val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-              functionCallParamList = functionCallParamList :+ Opt(ctx and fExpr, analyisContext.applyScope(exprStr.get, scope))
+              functionCallParamList = functionCallParamList :+ Opt(ctx and fExpr, analyisContext.applyScope(exprStr.get, scope, currentFile))
             }
           }
           None
@@ -453,8 +550,8 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
 
             val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
 
-            val objectName1 = analyisContext.applyScope(exprStr.get, scope)
-            val objectName2 = analyisContext.applyScope((ObjectNameOperator.PointerDereference.toString + ObjectNameOperator.parenthesize(exprStr.get)), scope)
+            val objectName1 = analyisContext.applyScope(exprStr.get, scope, currentFile)
+            val objectName2 = analyisContext.applyScope((ObjectNameOperator.PointerDereference.toString + ObjectNameOperator.parenthesize(exprStr.get)), scope, currentFile)
 
             analyisContext.addObjectName(objectName1, ctx)
             analyisContext.addObjectName(objectName2, ctx)
@@ -467,8 +564,8 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           if (exprStr.isDefined) {
             val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
 
-            val objectName1 = analyisContext.applyScope(exprStr.get, scope)
-            val objectName2 = analyisContext.applyScope((ObjectNameOperator.PointerCreation.toString + ObjectNameOperator.parenthesize(exprStr.get)), scope)
+            val objectName1 = analyisContext.applyScope(exprStr.get, scope, currentFile)
+            val objectName2 = analyisContext.applyScope((ObjectNameOperator.PointerCreation.toString + ObjectNameOperator.parenthesize(exprStr.get)), scope, currentFile)
 
             analyisContext.addObjectName(objectName1, ctx)
             analyisContext.addObjectName(objectName2, ctx)
@@ -486,7 +583,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           val exprStr = extractExpr(expr, ctx)
           if (exprStr.isDefined) {
             val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope, currentFile), ctx)
           }
           for (Opt(fExpr, subExpr) <- others) extractAST(subExpr, ctx and fExpr)
           exprStr
@@ -510,8 +607,8 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
             val scopeObj1 = analyisContext.findScopeForObjectName(exprStr1.get, currentFunction)
             val scopeObj2 = analyisContext.findScopeForObjectName(exprStr2.get, currentFunction)
 
-            val objName1 = analyisContext.addObjectName(analyisContext.applyScope(exprStr1.get, scopeObj1), ctx)
-            val objName2 = analyisContext.addObjectName(analyisContext.applyScope(exprStr2.get, scopeObj2), ctx)
+            val objName1 = analyisContext.addObjectName(analyisContext.applyScope(exprStr1.get, scopeObj1, currentFile), ctx)
+            val objName2 = analyisContext.addObjectName(analyisContext.applyScope(exprStr2.get, scopeObj2, currentFile), ctx)
 
             // object names and context (disjunction of both subexpressions)
             analyisContext.addObjectNameAssignment((objName1, objName2), ctx)
@@ -528,9 +625,9 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
 
             // -> (sctruct pointer access operator)
             if (exprStr2.get startsWith ObjectNameOperator.StructPointerAccess.toString) {
-              val objectName1 = analyisContext.applyScope(exprStr1.get, scope)
-              val objectName2 = analyisContext.applyScope(ObjectNameOperator.PointerDereference.toString + ObjectNameOperator.parenthesize(exprStr1.get), scope)
-              val objectName3 = analyisContext.applyScope(ObjectNameOperator.parenthesize(exprStr1.get) + exprStr2.get, scope)
+              val objectName1 = analyisContext.applyScope(exprStr1.get, scope, currentFile)
+              val objectName2 = analyisContext.applyScope(ObjectNameOperator.PointerDereference.toString + ObjectNameOperator.parenthesize(exprStr1.get), scope, currentFile)
+              val objectName3 = analyisContext.applyScope(ObjectNameOperator.parenthesize(exprStr1.get) + exprStr2.get, scope, currentFile)
 
               analyisContext.addObjectName(objectName1, ctx)
               analyisContext.addObjectName(objectName2, ctx)
@@ -541,8 +638,8 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
 
               // . (struct access operator)
             } else if (exprStr2.get startsWith ObjectNameOperator.StructAccess.toString) {
-              val objectName1 = analyisContext.applyScope(exprStr1.get, scope)
-              val objectName2 = analyisContext.applyScope(ObjectNameOperator.parenthesize(exprStr1.get) + exprStr2.get, scope)
+              val objectName1 = analyisContext.applyScope(exprStr1.get, scope, currentFile)
+              val objectName2 = analyisContext.applyScope(ObjectNameOperator.parenthesize(exprStr1.get) + exprStr2.get, scope, currentFile)
 
               analyisContext.addObjectName(objectName1, ctx)
               analyisContext.addObjectName(objectName2, ctx)
@@ -552,7 +649,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
 
             // array access
             else if (exprStr2.get equals ObjectNameOperator.ArrayAccess.toString) {
-              analyisContext.addObjectName(analyisContext.applyScope(ObjectNameOperator.parenthesize(exprStr1.get) + exprStr2.get, scope), ctx)
+              analyisContext.addObjectName(analyisContext.applyScope(ObjectNameOperator.parenthesize(exprStr1.get) + exprStr2.get, scope, currentFile), ctx)
             }
 
             // is a function call?
@@ -560,7 +657,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
               functionCallParameters +:=(exprStr1.get, functionCallParamList)
               functionCalls = functionCalls.+((currentFunction, exprStr1.get), ctx)
 
-              analyisContext.addObjectName(analyisContext.applyScope(exprStr1.get + ObjectNameOperator.FunctionCall.toString, currentFunction), ctx)
+              analyisContext.addObjectName(analyisContext.applyScope(exprStr1.get + ObjectNameOperator.FunctionCall.toString, currentFunction, currentFile), ctx)
             }
           }
           exprStr1.flatMap(e1 => exprStr2.map(e2 => ObjectNameOperator.parenthesize(e1) + e2))
@@ -593,7 +690,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           val exprStr = extractExpr(expr, ctx)
           if (exprStr.isDefined) {
             val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope, currentFile), ctx)
           }
           s.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
           None
@@ -602,7 +699,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           val exprStr = extractExpr(expr, ctx)
           if (exprStr.isDefined) {
             val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope, currentFile), ctx)
           }
           s.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
           None
@@ -614,15 +711,15 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
 
           if (expr1Str.isDefined) {
             val scope = analyisContext.findScopeForObjectName(expr1Str.get, currentFunction)
-            analyisContext.addObjectName(analyisContext.applyScope(expr1Str.get, scope), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(expr1Str.get, scope, currentFile), ctx)
           }
           if (expr2Str.isDefined) {
             val scope = analyisContext.findScopeForObjectName(expr2Str.get, currentFunction)
-            analyisContext.addObjectName(analyisContext.applyScope(expr2Str.get, scope), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(expr2Str.get, scope, currentFile), ctx)
           }
           if (expr3Str.isDefined) {
             val scope = analyisContext.findScopeForObjectName(expr3Str.get, currentFunction)
-            analyisContext.addObjectName(analyisContext.applyScope(expr3Str.get, scope), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(expr3Str.get, scope, currentFile), ctx)
           }
 
           s.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
@@ -637,7 +734,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
             val exprStr = extractExpr(expr.get, ctx)
             if (exprStr.isDefined) {
               val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-              functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, ConditionalSet()) +(analyisContext.applyScope(exprStr.get, scope), ctx))
+              functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, ConditionalSet()) +(analyisContext.applyScope(exprStr.get, scope, currentFile), ctx))
             }
           }
           None
@@ -653,7 +750,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
 
             if (exprStr.isDefined) {
               val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-              analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope), ctx and fExpr)
+              analyisContext.addObjectName(analyisContext.applyScope(exprStr.get, scope, currentFile), ctx and fExpr)
             }
           }
           thenBranch.vmap(ctx, (c, stmt) => extractStmt(stmt, c))
@@ -719,7 +816,7 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           isDeclarationStatement = False;
           isFunctionDef = False
           currentFunction = oldCurrentFunction
-          analyisContext = oldObjectNamesScope
+          analyisContext = oldObjectNamesScope // TODO CLONE!
 
           None
         }
@@ -740,11 +837,11 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
 
           if (declStr.isDefined) {
             if (isNotTypedefSpecifier.isSatisfiable()) {
-              val objName1 = analyisContext.addObjectName(analyisContext.applyScope(declStr.get, currentFunction), ctx)
+              val objName1 = analyisContext.addObjectName(analyisContext.applyScope(declStr.get, currentFunction, currentFile), ctx)
 
               if (initNames.isDefined) {
                 val scope = analyisContext.findScopeForObjectName(initNames.get, currentFunction)
-                val objName2 = analyisContext.addObjectName(analyisContext.applyScope(initNames.get, scope), ctx)
+                val objName2 = analyisContext.addObjectName(analyisContext.applyScope(initNames.get, scope, currentFile), ctx)
 
                 // assignment (no need to get a new presence condition, objet names already in the same context)
                 analyisContext.addObjectNameAssignment((objName1, objName2), ctx)
@@ -763,11 +860,11 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
           for (Opt(featExpr, e) <- pointers) extractAST(e, ctx and featExpr);
 
           if (isDeclarationStatement.isSatisfiable() && isNotTypedefSpecifier.isSatisfiable()) {
-            analyisContext.addObjectName(analyisContext.applyScope(currentDeclarator, currentFunction), ctx)
+            analyisContext.addObjectName(analyisContext.applyScope(currentDeclarator, currentFunction, currentFile), ctx)
 
             // consider pointers only on non-function declarators and function parameters
             if (isPointer.isSatisfiable() && isFunctionDeclarator.isContradiction()) {
-              val scopeObjectName = analyisContext.addObjectName(analyisContext.applyScope(ObjectNameOperator.PointerDereference.toString + ObjectNameOperator.parenthesize(id.name), currentFunction), ctx)
+              val scopeObjectName = analyisContext.addObjectName(analyisContext.applyScope(ObjectNameOperator.PointerDereference.toString + ObjectNameOperator.parenthesize(id.name), currentFunction, currentFile), ctx)
             }
           }
           for (Opt(featExpr, e) <- extensions) extractAST(e, ctx and featExpr);
@@ -808,7 +905,6 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
     }
 
     extractAST(ast, ctx)
-    println(functionCallParameters)
     analyisContext.addFuncMappings(functionDefs, functionDefParameters, functionDefReturns, functionCalls, functionCallParameters)
     analyisContext
   }
@@ -819,6 +915,11 @@ class CPointerAnalysisFrontend(startTUnit: TranslationUnit, startTS: CTypeSystem
     else "function"
   }
 
-  private def removeFields(scopedObjectName: String) = "^[a-zA-Z0-9_$]+".r.findPrefixOf(scopedObjectName)
+  // extract program assignments (function call parameters and return values)
+  private def extractAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
+    val fCallContext = addAssignmentsFromFunctionCallParameters(context)
+    val rValueContext = addAssignmentsFromFunctionCallReturnValues(fCallContext)
+    rValueContext
+  }
 }
 

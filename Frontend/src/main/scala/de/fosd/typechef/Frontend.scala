@@ -4,7 +4,7 @@ import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{DotCallGraphWriter, CallGraphDebugWriter, CCallGraph, CallGraphWriter}
-import de.fosd.typechef.cpointeranalysis.CPointerAnalysisFrontend
+import de.fosd.typechef.cpointeranalysis.{DefaultOpenSSLPointerAnalysisOptions, CLinkingGraph, CPointerAnalysisFrontend}
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FeatureModelOptions, FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
@@ -179,7 +179,24 @@ object Frontend extends EnforceTreeHelper {
                     println("#pointer analysis")
                     stopWatch.start("pointerAnalysis")
                     // TODO OptionsHandling
-                    val pa = new CPointerAnalysisFrontend(ast, ts, fullFM)
+
+                    val pa = new CPointerAnalysisFrontend(DefaultOpenSSLPointerAnalysisOptions, fullFM)
+
+                    if (!opt.pointerRefinement) {
+                        pa.calculateInitialPointerEquivalenceRelation(ast, opt.getFile)
+                        pa.saveContext()
+                        pa.calculateLinkingRefinements("file /scratch/janker/FOSD/extract/cRefactor-OpenSSLEvaluation1/openssl/apps/s_server.c")
+                    } else {
+                        // pa.refine()
+                    }
+
+                }
+
+                if (opt.linkingGraph) {
+                    println("#calculating linking graph")
+                    stopWatch.start("linking graph")
+                    //val lg = new CLinkingGraph(opt.getLinkingDB)
+                    // lg.printGraph
                 }
 
                 if (opt.dumpcg) {

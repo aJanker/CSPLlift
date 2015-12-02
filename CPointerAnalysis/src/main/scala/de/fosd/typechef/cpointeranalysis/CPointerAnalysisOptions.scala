@@ -10,8 +10,13 @@ package de.fosd.typechef.cpointeranalysis
 trait CPointerAnalysisOptions {
   val linkingInterface : String
 
+  val eqClassFileEnding : String = ".eqc"
+  val mainListPath : String
+
+
 }
 
-object DefaultOpenSSLOptions extends CPointerAnalysisOptions {
-  override val linkingInterface: String = "not yet specified"
+object DefaultOpenSSLPointerAnalysisOptions extends CPointerAnalysisOptions {
+  override val linkingInterface: String = "/Users/andi/Desktop/CLinking.interface"
+  override val mainListPath : String = "../mainFunctions"
 }

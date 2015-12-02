@@ -7,7 +7,7 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
  * maintains a map
  * a name may be mapped to alternative entries with different feature expressions
  */
-class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
+class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) extends Serializable {
     def this() = this(Map())
 
     def ++(that: ConditionalSet[A]) = {
@@ -29,7 +29,6 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) {
     }
 
     def union = ++ _
-
 
     def +(key: A, f: FeatureExpr) = new ConditionalSet[A](this.entries.+(key -> (f or this.get(key))))
     def -(key: A) = new ConditionalSet[A](this.entries.-(key))
@@ -68,5 +67,6 @@ object ConditionalSet {
     def apply[A]() = new ConditionalSet[A]()
     def apply[A](map : Map[A, FeatureExpr]) = new ConditionalSet[A](map)
     def apply[A](key: A, f: FeatureExpr) = new ConditionalSet[A](Map((key -> f)))
+    def apply[A](set: Set[(A, FeatureExpr)]) = new ConditionalSet[A](set.toMap)
 }
 

@@ -3,16 +3,23 @@ package de.fosd.typechef.cpointeranalysis
 import de.fosd.typechef.conditional.ConditionalSet
 import de.fosd.typechef.featureexpr.FeatureExpr
 
+import scala.pickling.Defaults._
+import scala.pickling.json._
+
 /**
  * Created by gferreir on 11/25/14.
  */
 
 
 // Equivalence class of object names
-class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: ConditionalSet[(String, String)], var beingMerged : Boolean = false) {
+class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: ConditionalSet[(String, String)], var beingMerged : Boolean = false) extends Serializable {
 
     type ObjectName = String
     type PrefixSet = (String, String)
+
+    def getObjectNames = objectNames
+    def getPrefixSet = prefixSet
+    def getBeingMerged = beingMerged
 
     def unscopedObjectNames() : Set[ObjectName] = objectNames.toPlainSet().map({ case o => unscope(o) })
     def prefixes(): ConditionalSet[PrefixSet] = prefixSet

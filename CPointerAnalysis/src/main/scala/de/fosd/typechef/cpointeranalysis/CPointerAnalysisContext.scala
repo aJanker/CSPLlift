@@ -1,13 +1,20 @@
 package de.fosd.typechef.cpointeranalysis
 
-import de.fosd.typechef.conditional.{Opt, ConditionalSet}
+import de.fosd.typechef.conditional.{ConditionalLib, Conditional, Opt, ConditionalSet}
 import de.fosd.typechef.featureexpr.FeatureExpr
 
 import scala.collection.immutable.Map
 
-// TODO Clean up and functional
-class CPointerAnalysisContext() extends PointerContext with ObjectNameContext with EquivalenceContext with FunctionContext {
+class CPointerAnalysisContext(file : String) extends PointerContext with ObjectNameContext with EquivalenceContext with FunctionContext {
 
+  def getFileName() = file
+
+  def solve() = {
+    initEquivalenceClasses(this)
+    createInitialPrefixSets()
+
+    solveEquivalenceClasses(this)
+  }
 }
 
 trait EquivalenceContext extends PointerContext {
@@ -15,8 +22,17 @@ trait EquivalenceContext extends PointerContext {
   private var equivalenceClassesMap: Map[ObjectName, EquivalenceClass] = Map()
   private var equivalenceClasses: Set[EquivalenceClass] = Set()
 
-  def addPrefixSet(o1: ObjectName, o2: ObjectName) = {
-    equivalenceClassesPrefixSets += ((o1, o2))
+  def addPrefixSet(o1: ObjectName, o2: ObjectName) =  equivalenceClassesPrefixSets += ((o1, o2))
+
+  def find(objectName: ObjectName): Option[EquivalenceClass] = {
+    val eqClass1: Option[EquivalenceClass] = equivalenceClassesMap.get(objectName)
+    val eqClass2: Option[EquivalenceClass] = equivalenceClassesMap.get(parenthesize(objectName))
+
+    if (eqClass1.isDefined)
+      eqClass1
+    else if (eqClass2.isDefined)
+      eqClass2
+    else None
   }
 
   def getEquivalenceClassesPrefixSets: Set[(ObjectName, ObjectName)] = equivalenceClassesPrefixSets
@@ -25,14 +41,11 @@ trait EquivalenceContext extends PointerContext {
 
   def getEquivalenceClasses: Set[EquivalenceClass] = equivalenceClasses
 
+  def showPointerEquivalenceClasses() = equivalenceClasses.foreach(println)
 
-  def showPointerEquivalenceClasses() = {
-    equivalenceClasses.map(println)
-  }
-
-  def initEquivalenceClasses(objectNames: ObjectNameContext): Unit = {
-    val r = objectNames.getObjectNames.keys.foldLeft((getEquivalenceClassesMap, getEquivalenceClasses))( (e, k) => {
-      val ec = new EquivalenceClass(ConditionalSet(k, objectNames.getObjectNames.get(k)), ConditionalSet())
+  def initEquivalenceClasses(objectNameContext: ObjectNameContext): Unit = {
+    val r = objectNameContext.getObjectNames.keys.foldLeft((getEquivalenceClassesMap, getEquivalenceClasses))( (e, k) => {
+      val ec = new EquivalenceClass(ConditionalSet(k, objectNameContext.getObjectNames.get(k)), ConditionalSet())
       (e._1 + (k -> ec), e._2 + ec)
     })
 
@@ -56,21 +69,21 @@ trait EquivalenceContext extends PointerContext {
         val eqClassObjectOFeatExpr = eqClassObjectO.objectNames.get(o)
         val eqClassObjectO1FeatExpr = eqClassObjectO1.objectNames.get(o1)
 
-        val uo = ObjectNameOperator.unscope(o)
-        val uo1 = ObjectNameOperator.unscope(o1)
+        val uo = unscope(o)
+        val uo1 = unscope(o1)
 
         // pointer creation operator
-        if ((uo.equals(ObjectNameOperator.applyOperator(ObjectNameOperator.PointerCreation.toString, uo1))) || uo.equals(ObjectNameOperator.applyOperator(ObjectNameOperator.PointerCreation.toString, ObjectNameOperator.parenthesize(uo1)))) {
+        if ((uo.equals(applyOperator(ObjectNameOperator.PointerCreation.toString, uo1))) || uo.equals(applyOperator(ObjectNameOperator.PointerCreation.toString, parenthesize(uo1)))) {
           // add * edge from o to o1 (removing the pointer creation effect with a dereferencing operator)
           eqClassObjectO.addPrefix((ObjectNameOperator.PointerDereference.toString, o1), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
 
           // pointer dereference operator
-        } else if ((uo.equals(ObjectNameOperator.applyOperator(ObjectNameOperator.PointerDereference.toString, uo1)) || uo.equals(ObjectNameOperator.applyOperator(ObjectNameOperator.PointerDereference.toString, ObjectNameOperator.parenthesize(uo1))))) {
+        } else if ((uo.equals(applyOperator(ObjectNameOperator.PointerDereference.toString, uo1)) || uo.equals(applyOperator(ObjectNameOperator.PointerDereference.toString, parenthesize(uo1))))) {
           // add * edge from o1 to o
           eqClassObjectO1.addPrefix((ObjectNameOperator.PointerDereference.toString, o), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
 
           // struct dot access operator
-        } else if ((uo.startsWith(ObjectNameOperator.applyOperator(ObjectNameOperator.StructAccess.toString, uo1)) || uo.startsWith(ObjectNameOperator.applyOperator(ObjectNameOperator.StructAccess.toString, ObjectNameOperator.parenthesize(uo1))))) {
+        } else if ((uo.startsWith(applyOperator(ObjectNameOperator.StructAccess.toString, uo1)) || uo.startsWith(applyOperator(ObjectNameOperator.StructAccess.toString, parenthesize(uo1))))) {
           val objectNameFields = (uo.take(uo.lastIndexOf(ObjectNameOperator.StructAccess.toString)), uo.drop(uo.lastIndexOf(ObjectNameOperator.StructAccess.toString) + ObjectNameOperator.StructAccess.toString.length))
           val eqClassObjectOPartial = equivalenceClassesMap.get(objectNameFields._1)
 
@@ -80,9 +93,9 @@ trait EquivalenceContext extends PointerContext {
 
           }
           // struct pointer access operator  (dereference + dot)
-        } else if ((uo.startsWith(ObjectNameOperator.applyOperator(ObjectNameOperator.StructPointerAccess.toString, uo1)) || uo.startsWith(ObjectNameOperator.applyOperator(ObjectNameOperator.StructPointerAccess.toString, ObjectNameOperator.parenthesize(uo1))))) {
+        } else if ((uo.startsWith(applyOperator(ObjectNameOperator.StructPointerAccess.toString, uo1)) || uo.startsWith(applyOperator(ObjectNameOperator.StructPointerAccess.toString, parenthesize(uo1))))) {
           val objectNameFields = (uo.take(uo.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString)), uo.drop(uo.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString) + ObjectNameOperator.StructPointerAccess.toString.length))
-          val eqClassObjectOPartial = equivalenceClassesMap.get(ObjectNameOperator.applyOperator(ObjectNameOperator.PointerDereference.toString, objectNameFields._1))
+          val eqClassObjectOPartial = equivalenceClassesMap.get(applyOperator(ObjectNameOperator.PointerDereference.toString, objectNameFields._1))
 
           // add field edge from o to o1
           if (eqClassObjectOPartial.isDefined) {
@@ -102,11 +115,10 @@ trait EquivalenceContext extends PointerContext {
     }
   }
 
-  def calculateLocalEquivalenceClasses(objectNames: ObjectNameContext) = {
-    for ((assignee, assignor) <- objectNames.getObjectNamesAssignments.toPlainSet()) {
-      mergeEquivalenceClasses(assignee, assignor)
+  def solveEquivalenceClasses(context: ObjectNameContext) =
+    context.getObjectNamesAssignments.toPlainSet().foreach {
+      case (assignee, assignor) => mergeEquivalenceClasses(assignee, assignor)
     }
-  }
 
   private def mergeEquivalenceClasses(assignee: ObjectName, assignor: ObjectName) {
     val eqClassAssignee = find(assignee)
@@ -157,14 +169,6 @@ trait EquivalenceContext extends PointerContext {
     e2.objectNames.toPlainSet().foreach({ o => equivalenceClassesMap += ((o -> e)) })
   }
 
-  def find(objectName: ObjectName): Option[EquivalenceClass] = {
-    val eqClass1: Option[EquivalenceClass] = equivalenceClassesMap.get(objectName)
-    val eqClass2: Option[EquivalenceClass] = equivalenceClassesMap.get(ObjectNameOperator.parenthesize(objectName))
-
-    if (eqClass1.isDefined) eqClass1 else if (eqClass2.isDefined) eqClass2 else None
-  }
-
-
 }
 
 trait ObjectNameContext extends PointerContext {
@@ -187,9 +191,9 @@ trait ObjectNameContext extends PointerContext {
     objectNameAssignments += (assignment, ctx)
   }
 
-  def applyScope(objectName: ObjectName, currentScope: Scope): ObjectName = {
+  def applyScope(objectName: ObjectName, currentScope: Scope, currentFile: String): ObjectName = {
     // format object name with scope
-    val scopedObjectName = currentScope + "$" + objectName
+    val scopedObjectName = currentFile + "§" + currentScope + "$" + objectName
 
     // include object name with scope (according to the variable declarations)
     objectNamesScope = objectNamesScope.updated(objectName, currentScope)
@@ -221,7 +225,7 @@ trait ObjectNameContext extends PointerContext {
 
 trait FunctionContext extends PointerContext {
 
-  var functionDefs: ConditionalSet[FunctionDef] = ConditionalSet()
+  var functionDefs: ConditionalSet[FunctionDefinition] = ConditionalSet()
   var functionDefReturns: Map[FunctionName, ConditionalSet[ObjectName]] = Map()
   var functionDefParameters: Map[FunctionName, List[Opt[ObjectName]]] = Map()
   var functionCallParamList: List[Opt[ObjectName]] = List()
@@ -231,27 +235,19 @@ trait FunctionContext extends PointerContext {
   var functionCallParameters: List[(FunctionName, List[Opt[ObjectName]])] = List()
 
 
-  def addFuncMappings(fDefs: ConditionalSet[FunctionDef], fDefParameters: Map[FunctionName, List[Opt[ObjectName]]], fReturns : Map[FunctionName, ConditionalSet[ObjectName]],
+  def addFuncMappings(fDefs: ConditionalSet[FunctionDefinition], fDefParameters: Map[FunctionName, List[Opt[ObjectName]]], fReturns : Map[FunctionName, ConditionalSet[ObjectName]],
                       fCalls: ConditionalSet[FunctionCall], fCallParameters: List[(FunctionName, List[Opt[ObjectName]])]) = {
     functionDefs = fDefs
     functionDefParameters = fDefParameters
     functionCalls = fCalls
     functionCallParameters = fCallParameters
     functionDefReturns = fReturns
+    this
   }
 
-  def showFunctionDefReturns() = {
-    println(functionDefReturns)
-  }
+  def showFunctionDefReturns() = println(functionDefReturns)
 
-  def showFunctionDefs() = {
-    println("*** Function defs (%d): %s".format(functionDefs.toPlainSet().size, functionDefs.toPlainSetWithConditionals()))
-  }
+  def showFunctionDefs() = println("*** Function defs are (%d): %s".format(functionDefs.toPlainSet().size, functionDefs.toPlainSetWithConditionals()))
 
-  def showFunctionDefsParameters() = {
-    println(functionDefParameters)
-  }
-
-  //TODO copy
-
+  def showFunctionDefsParameters() = println(functionDefParameters)
 }
