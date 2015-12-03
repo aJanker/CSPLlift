@@ -21,10 +21,44 @@ class CLinking(linkPath: String) {
   val idLinkExpMap: util.HashMap[String, List[CSignature]] = new util.HashMap()
   val idLinkPosMap: util.HashMap[String, List[Position]] = new util.HashMap()
 
+  val fileImportsFrom: util.HashMap[String, List[String]] = new util.HashMap()
+  val fileExportsTo: util.HashMap[String, List[String]] = new util.HashMap()
+
   interface.exports.foreach(addToMaps)
   interface.imports.foreach(expr =>
       if (nameIsListed(expr.name)) addToMaps(expr)
       else blackList += expr.name)
+
+  interface.exports.foreach(addToFileExportsTo)
+  interface.imports.foreach(addToFileImportsFrom)
+
+  println(fileImportsFrom.size())
+  println(fileExportsTo.size())
+
+  println(fileExportsTo.get("file /scratch/janker/FOSD/extract/cRefactor-OpenSSLEvaluation1/openssl/crypto/pkcs7/pk7_doit.c"))
+  println(fileImportsFrom.get("file /scratch/janker/FOSD/extract/cRefactor-OpenSSLEvaluation1/openssl/crypto/pkcs7/pk7_doit.c"))
+
+  private def addToFileExportsTo(exp: CSignature) = {
+    // all references to files which import this method
+    val importsIt = interface.imports.par.filter(_.name.equalsIgnoreCase(exp.name)).flatMap(_.pos.toList).toList
+    exp.pos.toList.foreach(pos =>
+      importsIt.foreach(ref =>
+        addToFileLinkingMap(pos, ref, fileExportsTo)))
+  }
+
+  private def addToFileLinkingMap(pos: Position, ref: Position, map : util.HashMap[String, List[String]]): List[String] = {
+    if (map.containsKey(pos.getFile))
+      map.put(pos.getFile, (ref.getFile :: map.get(pos.getFile)).distinct)
+    else
+      map.put(pos.getFile, List(ref.getFile))
+  }
+
+  private def addToFileImportsFrom(exp: CSignature) = {
+    val exportsIt = interface.exports.par.filter(_.name.equalsIgnoreCase(exp.name)).flatMap(_.pos.toList).toList
+    exp.pos.toList.foreach(pos =>
+      exportsIt.foreach(ref =>
+        addToFileLinkingMap(pos, ref, fileImportsFrom)))
+  }
 
   private def addToMaps(exp: CSignature): List[Position] = {
     addToExpMap(exp.name, exp)

@@ -56,13 +56,10 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
 
     linkedFilesTotal = startFile :: linkedFilesTotal
 
-    val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(startFile))).toList
-    val head = importFuncs.head
+    //val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(startFile))).toList
+    //val head = importFuncs.head
 
-    val files = importFuncs.flatMap(impsig => {
-      linking.interface.exports.par.filter(sig => sig.name.equalsIgnoreCase(impsig.name)).toList
-    }).flatMap(e => e.pos.toList.map(p => p.getFile)).distinct.filter(_.startsWith("file"))
-
+    val files = linking.fileImportsFrom.get(startFile).filter(_.startsWith("file"))
 
     println(files.size)
     for (elem <- files) {
@@ -84,16 +81,16 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
     //println(prefix + file)
       linkedFilesTotal =  (prefix + file) :: linkedFilesTotal
 
-    val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(file))).toList
-    val files = importFuncs.flatMap(impsig => {
-      linking.interface.exports.par.filter(sig => sig.name.equalsIgnoreCase(impsig.name)).toList
-    }).flatMap(e => e.pos.toList.map(p => p.getFile)).distinct.filter(_.startsWith("file"))
+    //val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(file))).toLis
+      val from = linking.fileImportsFrom.get(file)
+      if (from != null) {
+    val files = from.filter(_.startsWith("file"))
 
       // println(prefix + files.size)
     for (elem <- files) {
       findRecursiveLinking(elem, linking, file :: visitedFiles , depth + 1)
     }
-    }
+    }}
 
   }
 
