@@ -20,8 +20,8 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             dumpcfg = false,
             dumpcg = false,
             pointerAnalysis = false,
-            pointerRefinement = false,
-            linkingGraph = false,
+            savePointerContext = false,
+            pointerLinking = false,
             serializeAST = false,
             reuseAST = false,
             writeDebugInterface = false,
@@ -36,8 +36,6 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     private final File _autoErrorXMLFile = new File(".");
     String outputStem = "";
     private String filePresenceConditionFile = "";
-    private String pAnalFilelist = null;
-    private String linkingDB = null;
 
 
     private final static char F_PARSE = Options.genOptionId();
@@ -47,8 +45,8 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     private final static char F_DUMPCFG = Options.genOptionId();
     private final static char F_DUMPCG = Options.genOptionId();
     private final static char F_POINTERANALYSIS = Options.genOptionId();
-    private final static char F_POINTERREFINEMENT = Options.genOptionId();
-    private final static char F_LINKINGGRAPH = Options.genOptionId();
+    private final static char F_SAVEPOINTERCONTEXT = Options.genOptionId();
+    private final static char F_POINTERLINKING = Options.genOptionId();
     private final static char F_SERIALIZEAST = Options.genOptionId();
     private final static char F_REUSEAST = Options.genOptionId();
     private final static char F_RECORDTIMING = Options.genOptionId();
@@ -84,14 +82,14 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
                 new Option("dumpcfg", LongOpt.NO_ARGUMENT, F_DUMPCFG, null,
                         "Lex, parse, and dump control flow graph"),
 
-                new Option("pointerAnalysis", LongOpt.OPTIONAL_ARGUMENT, F_POINTERANALYSIS, null,
+                new Option("pointerAnalysis", LongOpt.NO_ARGUMENT, F_POINTERANALYSIS, null,
                         "Lex, parse, and calculate pointer relationships"),
 
-                new Option("pointerAnalysis", LongOpt.REQUIRED_ARGUMENT, F_POINTERANALYSIS, null,
-                        "Refine pointer relationships"),
+                new Option("savePointerContext", LongOpt.NO_ARGUMENT, F_SAVEPOINTERCONTEXT, null,
+                        "Saves the calculated pointer context"),
 
-                new Option("linkingGraph", LongOpt.REQUIRED_ARGUMENT, F_LINKINGGRAPH, null,
-                        "Lex, parse, and calculate linking graph based on input linking file"),
+                new Option("pointerLinking", LongOpt.NO_ARGUMENT, F_POINTERLINKING, null,
+                        "Use linking informations for pointer analysis"),
 
                 new Option("output", LongOpt.REQUIRED_ARGUMENT, 'o', "file",
                         "Path to output files (no extension, creates .pi, .macrodbg etc files)."),
@@ -185,10 +183,8 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
                 checkFileWritable(g.getOptarg());
                 errorXMLFile = new File(g.getOptarg());
             }
-        } else if (c == F_LINKINGGRAPH) {
-            linkingGraph = true;
-            checkFileExists(g.getOptarg());
-            linkingDB = g.getOptarg();
+        } else if (c == F_POINTERLINKING) {
+            pointerLinking = true;
         } else if (c == TY_DEBUG_INCLUDES) { // --printInclude
             printInclude = true;
         } else if (c == TY_VERSION) { // --version
@@ -196,12 +192,10 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
         } else if (c == TY_HELP) {//--help
             //printUsage();
             printVersion = true;
-        } else if(c == F_POINTERANALYSIS){
+        } else if (c == F_POINTERANALYSIS) {
             pointerAnalysis = true;
-            if (g.getOptarg() != null) {
-                checkFileExists(g.getOptarg());
-                pAnalFilelist = g.getOptarg();
-            }
+        } else if (c == F_SAVEPOINTERCONTEXT) {
+            savePointerContext = true;
         } else
             return super.interpretOption(c, g);
 
@@ -270,9 +264,6 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
         return localFM;
     }
 
-    public String getPointerAnalysisFilelist() {
-        return pAnalFilelist;
-    }
 
     public String getSerializedASTFilename() {
         return outputStem + ".ast";
@@ -292,10 +283,6 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
 
     public String getCCFGDotFilename() {
         return outputStem + ".cfg.dot";
-    }
-
-    public String getLinkingDB() {
-        return linkingDB;
     }
 
     public boolean printParserStatistics() {

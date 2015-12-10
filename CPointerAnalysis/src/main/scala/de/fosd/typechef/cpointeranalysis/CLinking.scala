@@ -25,9 +25,7 @@ class CLinking(linkPath: String) {
   val fileExportsTo: util.HashMap[String, List[String]] = new util.HashMap()
 
   interface.exports.foreach(addToMaps)
-  interface.imports.foreach(expr =>
-      if (nameIsListed(expr.name)) addToMaps(expr)
-      else blackList += expr.name)
+  // interface.imports.foreach(addToMaps)
 
   interface.exports.foreach(addToFileExportsTo)
   interface.imports.foreach(addToFileImportsFrom)
@@ -85,7 +83,11 @@ class CLinking(linkPath: String) {
 
   def isBlackListed(id: String) = blackList.contains(id)
 
-  def getSignatures(id: String) = idLinkExpMap.get(id)
+  def getSignatures(id: String) =
+    idLinkExpMap.get(id) match {
+      case null => None
+      case res => Some(res)
+    }
 
   def getPositions(id: String) = {
     val result = idLinkPosMap.get(id)

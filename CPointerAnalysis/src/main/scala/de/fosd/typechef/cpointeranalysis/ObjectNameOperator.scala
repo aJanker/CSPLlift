@@ -34,10 +34,11 @@ trait PointerContext extends Serializable {
     else objName
   }
 
-  def extractFilename(ast: AST): String = {
-    val default = "NOFILENAME"
+  def extractFilename(ast: AST, default: String = "NOFILENAME"): String = extractFilenameS(ast.getFile.getOrElse(default))
+
+  def extractFilenameS(str: String, default: String = "NOFILENAME"): String = {
     val regex = """^(([^/]+/)*)(([^/.]+)\..+)""".r
-    ast.getFile.getOrElse(default) match {
+    str match {
       case regex(m1, m2, m3, m4) => m4
       case _ => default
     }

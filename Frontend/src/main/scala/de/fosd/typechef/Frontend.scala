@@ -3,10 +3,10 @@ package de.fosd.typechef
 import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
-import de.fosd.typechef.ccallgraph.{DotCallGraphWriter, CallGraphDebugWriter, CCallGraph, CallGraphWriter}
-import de.fosd.typechef.cpointeranalysis.{DefaultOpenSSLPointerAnalysisOptions, CLinkingGraph, CPointerAnalysisFrontend}
+import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter}
+import de.fosd.typechef.cpointeranalysis.{CPointerAnalysisFrontend, DefaultOpenSSLPointerAnalysisOptions, LinkedObjectNames}
 import de.fosd.typechef.crewrite._
-import de.fosd.typechef.options.{FeatureModelOptions, FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
+import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{CTypeContext, TranslationUnit, _}
 import de.fosd.typechef.typesystem._
@@ -178,26 +178,21 @@ object Frontend extends EnforceTreeHelper {
                 if (opt.pointerAnalysis) {
                     println("#pointer analysis")
                     stopWatch.start("pointerAnalysis")
-                    // TODO OptionsHandling
 
-                    val pa = new CPointerAnalysisFrontend(DefaultOpenSSLPointerAnalysisOptions, fullFM)
+                    // TODO Optionshandling
+                    val paOptions = DefaultOpenSSLPointerAnalysisOptions
 
-                    if (!opt.pointerRefinement) {
-                        pa.calculateInitialPointerEquivalenceRelation(ast, opt.getFile)
-                        pa.saveContext()
-                        pa.calculateLinkingRefinements("file /scratch/janker/FOSD/extract/cRefactor-OpenSSLEvaluation1/openssl/apps/s_server.c")
-                    } else {
-                        // pa.refine()
-                    }
+                    if (opt.pointerLinking) LinkedObjectNames.load(paOptions.linkedObjectNames)
+
+                    val pa = new CPointerAnalysisFrontend(paOptions, fullFM)
+                    val pointerContext = pa.calculateInitialPointerEquivalenceRelation(ast, opt.getFile)
+
+                    if (opt.savePointerContext) pointerContext.save()
+                    if (opt.pointerLinking) LinkedObjectNames.save(paOptions.linkedObjectNames)
+
 
                 }
 
-                if (opt.linkingGraph) {
-                    println("#calculating linking graph")
-                    stopWatch.start("linking graph")
-                    //val lg = new CLinkingGraph(opt.getLinkingDB)
-                    // lg.printGraph
-                }
 
                 if (opt.dumpcg) {
                     println("#call graph")

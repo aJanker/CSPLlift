@@ -1,15 +1,16 @@
 package de.fosd.typechef.cpointeranalysis
 
-import java.io._
-import java.util.zip.{GZIPInputStream, GZIPOutputStream}
+import java.nio.file.{Files, Paths}
 
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.typesystem.{CDeclUse, CTypeSystemFrontend}
+import de.fosd.typechef.typesystem.CFunction
+import de.fosd.typechef.typesystem.linker.CSignature
 
 import scala.collection.immutable.Map
+import scala.collection.mutable
 
 
 /**
@@ -20,126 +21,44 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
                                featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty,
                                DEBUG: Boolean = false) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
-  var initialContext: Option[CPointerAnalysisContext] = None
+  val localContextCache: mutable.HashMap[String, CPointerAnalysisContext] = new mutable.HashMap[String, CPointerAnalysisContext]()
 
-  var linkedFilesTotal: List[String] = List()
+  val linking =
+    if (Files.exists(Paths.get(options.linkingInterface))) Some(new CLinking(options.linkingInterface))
+    else None
 
-  def calculateInitialPointerEquivalenceRelation(tUnit: TranslationUnit, file : String) = {
-    val context = extractObjectNames(tUnit, file, True)
+  def calculateInitialPointerEquivalenceRelation(tUnit: TranslationUnit, currentFile: String) = {
+
+    val context = extractObjectNames(tUnit, currentFile)
 
     extractAssignments(context)
     context.solve()
 
-    refineFieldValues(context)
+    refineFieldValues(context) // TODO Validate
 
-    findMain(tUnit, file)
+    findMain(tUnit, currentFile)
 
-    initialContext = Some(context)
+    localContextCache.put(currentFile, context)
 
-    initialContext
-  }
-
-  def calculateLinkingRefinements(startFile : String) = {
-     def extractFilename(ast: String): String = {
-      val default = "NOFILENAME"
-      val regex = """^(([^/]+/)*)(([^/.]+)\..+)""".r
-      ast match {
-        case regex(m1, m2, m3, m4) => m4
-        case _ => default
-      }
-    }
-
-
-    val linking = new CLinking(options.linkingInterface)
-
-    //println(startFile)
-
-    linkedFilesTotal = startFile :: linkedFilesTotal
-
-    //val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(startFile))).toList
-    //val head = importFuncs.head
-
-    val files = linking.fileImportsFrom.get(startFile).filter(_.startsWith("file"))
-
-    println(files.size)
-    for (elem <- files) {
-      findRecursiveLinking(elem, linking, List(startFile))
-    }
-
-    println(linkedFilesTotal.size)
-    println(linkedFilesTotal.par.map(_.trim).distinct)
-  }
-
-  def findRecursiveLinking(file : String, linking : CLinking, visitedFiles : List[String], depth : Int = 1) : Unit = {
-    if (visitedFiles.contains(file)) Nil
-    else {
-      var prefix=""
-    for (i <- 1 to depth) {
-      prefix += "\t"
-  }
-
-    //println(prefix + file)
-      linkedFilesTotal =  (prefix + file) :: linkedFilesTotal
-
-    //val importFuncs = linking.interface.imports.par.filter(sig => sig.pos.toList.exists(p => p.getFile.equalsIgnoreCase(file))).toLis
-      val from = linking.fileImportsFrom.get(file)
-      if (from != null) {
-    val files = from.filter(_.startsWith("file"))
-
-      // println(prefix + files.size)
-    for (elem <- files) {
-      findRecursiveLinking(elem, linking, file :: visitedFiles , depth + 1)
-    }
-    }}
-
-  }
-
-  def get = initialContext
-
-  def saveContext() : Unit = {
-    if (initialContext.isEmpty) throw new UnsupportedOperationException("Pointer calculation must be performed first")
-
-    val path = initialContext.get.getFileName() + options.eqClassFileEnding
-    saveContext(initialContext.get, path)
+    context
   }
 
   // Check first if we found a main function as a future entry point
   private def findMain(tUnit: TranslationUnit, file : String) =
     if (filterAllASTElems[FunctionDef](tUnit).exists(_.getName.equalsIgnoreCase("main"))) updateMainList(options.mainListPath, file)
 
-  private def updateMainList(fileWithMain : String, fileToAdd: String) = {
+  private def updateMainList(filesWithMain: String, fileToAdd: String) = {
     val update = {
-      if (scala.tools.nsc.io.File(fileWithMain).exists) {
-        val source = scala.io.Source.fromFile(fileWithMain)
+      if (scala.tools.nsc.io.File(filesWithMain).exists) {
+        val source = scala.io.Source.fromFile(filesWithMain)
         val mains = try source.getLines.toList finally source.close()
-        mains.par.exists(_.equalsIgnoreCase(fileToAdd))
+
+        mains.par.exists(fileToAdd.equalsIgnoreCase)
       } else true
     }
 
-    if (update) scala.tools.nsc.io.File(fileWithMain).appendAll(fileToAdd + "\n")
+    if (update) scala.tools.nsc.io.File(filesWithMain).appendAll(fileToAdd + "\n")
   }
-
-  private def saveContext(context: CPointerAnalysisContext, filename: String) : Unit = {
-    val fw = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(filename)))
-    fw.writeObject(context)
-    fw.close()
-  }
-
-  private def loadContext(file: String): Option[CPointerAnalysisContext] = {
-    try {
-      val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(file))) {
-        override protected def resolveClass(desc: ObjectStreamClass) = {
-          super.resolveClass(desc)
-        }
-      }
-      val context = fr.readObject().asInstanceOf[CPointerAnalysisContext]
-      fr.close()
-      Some(context)
-    } catch {
-      case e: ObjectStreamException => System.err.println("failed loading serialized AST: " + e.getMessage); None
-    }
-  }
-
 
   private def refineFieldValues(context: CPointerAnalysisContext) = {
     val paramWithFields = context.functionDefParameters.values.flatMap(_.flatMap(findObjectNameFieldReferences(_, context)))
@@ -172,10 +91,43 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
 
   private def findObjectNameFieldReferences(value: Opt[ObjectName], context: ObjectNameContext): Option[(ObjectName, List[ObjectName])] = findObjectNameFieldReferences(value.entry, context)
 
+  private def getExternalParamsFuncDef(function: String, context: CPointerAnalysisContext): List[Opt[ObjectName]] = {
+    def findInInterface(interface: CLinking): List[Opt[context.ObjectName]] = {
+      interface.getSignatures(function) match {
+        case None => List[Opt[ObjectName]]()
+        case signatures => signatures.get.flatMap(findInSignature)
+      }
+    }
+
+    def findInSignature(signature: CSignature): List[Opt[ObjectName]] =
+      signature.ctype.atype match {
+        case CFunction(params, ret) => params.toList.zipWithIndex.map {
+          case (cType, value) => {
+            val filename = signature.pos.headOption match {
+              case Some(name) => extractFilenameS(name.getFile)
+              case None => "NOFILENAME"
+            }
+            val name = context.applyScope("ARGUMENT" + value, signature.name, filename) // TODO VAARGS
+            LinkedObjectNames.addName(name)
+            Opt(signature.fexpr, name)
+          }
+        }
+        case _ => List()
+      }
+
+    linking match {
+      case None => List()
+      case Some(interface) => findInInterface(interface)
+    }
+  }
+
+
   private def addAssignmentsFromFunctionCallParameters(context: CPointerAnalysisContext): CPointerAnalysisContext = {
     for ((function, listParams) <- context.functionCallParameters) {
-
-      val listParamsFuncDef: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(context.functionDefParameters.getOrElse(function, List()))
+      // TODO Fix wrong explodes
+      // TODO Do returns
+      val externalFuncDef = getExternalParamsFuncDef(function, context)
+      val listParamsFuncDef: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(context.functionDefParameters.getOrElse(function, externalFuncDef))
       val listParamsFuncCal: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(listParams)
 
       val assignments = ConditionalLib.explode(listParamsFuncCal, listParamsFuncDef).toList
@@ -185,7 +137,11 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
         val (list1, list2) = t._2
         val condAssignments = list1.zip(list2)
 
-        condAssignments.foreach({ a => context.addObjectNameAssignment(a, expr) })
+        condAssignments.foreach({ a => {
+          LinkedObjectNames.addObjectNameAssignment(a, expr) // will be only added if one of the object names is known to be declared externally
+          context.addObjectNameAssignment(a, expr)
+        }
+        })
       })
     }
     context
@@ -193,6 +149,8 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
 
   // replace each auxiliary function call reference for its real return values
   private def addAssignmentsFromFunctionCallReturnValues(context: CPointerAnalysisContext): CPointerAnalysisContext = {
+    // TODO Global Linking
+
     val assignmentsPartition = context.getObjectNamesAssignments.partition({ a: ((String, String)) => !a._1.contains(ObjectNameOperator.FunctionCall.toString) && !a._2.contains(ObjectNameOperator.FunctionCall.toString) })
     var normalizedAssignments: ConditionalSet[Assignment] = assignmentsPartition._1
 
@@ -212,11 +170,11 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
     context
   }
 
-  private def extractObjectNames(ast: AST, file : String, ctx: FeatureExpr): CPointerAnalysisContext = {
+  private def extractObjectNames(ast: AST, cFile: String): CPointerAnalysisContext = {
 
     // context variables
-    var analyisContext: CPointerAnalysisContext = new CPointerAnalysisContext(file)
-    var currentFile: String = file
+    var analyisContext: CPointerAnalysisContext = new CPointerAnalysisContext(cFile)
+    var currentFile: String = cFile
     var currentFunction: Scope = "GLOBAL"
     var currentFunctionKind: String = "function"
     var currentDeclarator: ObjectName = ""
@@ -239,7 +197,7 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
     var functionCallParameters: List[(FunctionName, List[Opt[ObjectName]])] = List()
 
     // Recursive Extraction Functions
-    def extractAST(ast: AST, ctx: FeatureExpr): Option[String] = {
+    def extractAST(ast: AST, ctx: FeatureExpr = True): Option[String] = {
       if (DEBUG) println(ast)
 
       currentFile = extractFilename(ast)
@@ -349,7 +307,7 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
           isDeclarationStatement = False
           isFunctionDef = False
           currentFunction = "GLOBAL"
-          analyisContext = oldObjectNamesScope // TODO
+          analyisContext = oldObjectNamesScope // TODO why?
 
           None
         }
@@ -901,7 +859,7 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
 
     }
 
-    extractAST(ast, ctx)
+    extractAST(ast)
     analyisContext.addFuncMappings(functionDefs, functionDefParameters, functionDefReturns, functionCalls, functionCallParameters)
     analyisContext
   }
