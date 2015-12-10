@@ -47,17 +47,17 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
   private def findMain(tUnit: TranslationUnit, file : String) =
     if (filterAllASTElems[FunctionDef](tUnit).exists(_.getName.equalsIgnoreCase("main"))) updateMainList(options.mainListPath, file)
 
-  private def updateMainList(filesWithMain: String, fileToAdd: String) = {
+  private def updateMainList(fileWithMain: String, fileToAdd: String) = {
     val update = {
-      if (scala.tools.nsc.io.File(filesWithMain).exists) {
-        val source = scala.io.Source.fromFile(filesWithMain)
+      if (scala.tools.nsc.io.File(fileWithMain).exists) {
+        val source = scala.io.Source.fromFile(fileWithMain)
         val mains = try source.getLines.toList finally source.close()
 
-        mains.par.exists(fileToAdd.equalsIgnoreCase)
+        !mains.par.exists(fileToAdd.equalsIgnoreCase)
       } else true
     }
 
-    if (update) scala.tools.nsc.io.File(filesWithMain).appendAll(fileToAdd + "\n")
+    if (update) scala.tools.nsc.io.File(fileWithMain).appendAll(fileToAdd + "\n")
   }
 
   private def refineFieldValues(context: CPointerAnalysisContext) = {

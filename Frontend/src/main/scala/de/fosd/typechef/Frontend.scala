@@ -182,6 +182,10 @@ object Frontend extends EnforceTreeHelper {
                     // TODO Optionshandling
                     val paOptions = DefaultOpenSSLPointerAnalysisOptions
 
+                    val file = new File(paOptions.linkedObjectNames)
+                    println(file.getAbsolutePath)
+                    println(file.getCanonicalPath)
+
                     if (opt.pointerLinking) LinkedObjectNames.load(paOptions.linkedObjectNames)
 
                     val pa = new CPointerAnalysisFrontend(paOptions, fullFM)
