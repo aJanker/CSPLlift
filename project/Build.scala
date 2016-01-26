@@ -237,7 +237,7 @@ object TypeChef extends Build {
 
   ) dependsOn(cparser % "test->test;compile->compile", ctypechecker, conditionallib, errorlib, crewrite)
 
-  lazy val cspplift = Project(
+  lazy val cspllift = Project(
     "CSPPLift",
     file("CSPPLift"),
     settings = buildSettings ++
