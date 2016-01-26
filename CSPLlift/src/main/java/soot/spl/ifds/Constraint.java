@@ -1,4 +1,4 @@
-package ifds;
+package soot.spl.ifds;
 
 import net.sf.javabdd.BDD;
 import net.sf.javabdd.BDDFactory;

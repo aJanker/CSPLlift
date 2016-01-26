@@ -1,4 +1,4 @@
-package ifds;
+package soot.spl.ifds;
 
 import soot.util.StringNumberer;
 

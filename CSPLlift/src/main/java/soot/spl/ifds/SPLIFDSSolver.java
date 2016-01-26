@@ -1,4 +1,4 @@
-package ifds;
+package soot.spl.ifds;
 
 import de.ecspride.cide.CICFG;
 import de.fosd.typechef.parser.c.AST;
