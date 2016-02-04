@@ -1,22 +1,24 @@
 package soot.spl.ifds;
 
-import de.ecspride.cide.CICFG;
 import de.fosd.typechef.parser.c.AST;
 import de.fosd.typechef.parser.c.FunctionDef;
+import de.fosd.typechef.spllift.CInterCFG;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import heros.solver.IDESolver;
 import heros.template.DefaultIDETabulationProblem;
+import net.sf.javabdd.BDD;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class SPLIFDSSolver <D> extends IDESolver<AST,D,FunctionDef, Constraint<String>,CICFG> {
-	private static CICFG interCfg;
-	public SPLIFDSSolver(final IFDSTabulationProblem<AST, D, FunctionDef, CICFG> ifdsProblem, final FeatureModelContext fmContext, final boolean useFMInEdgeComputations) {
-		super(new DefaultIDETabulationProblem<AST,D,FunctionDef,Constraint<String>,CICFG>(ifdsProblem.interproceduralCFG()) {
+public class SPLIFDSSolver<D> extends IDESolver<AST, D, FunctionDef, Constraint<String>, CInterCFG> {
+	private static CInterCFG interCfg;
+
+	public SPLIFDSSolver(final IFDSTabulationProblem<AST, D, FunctionDef, CInterCFG> ifdsProblem, final FeatureModelContext fmContext, final boolean useFMInEdgeComputations) {
+		super(new DefaultIDETabulationProblem<AST, D, FunctionDef, Constraint<String>, CInterCFG>(ifdsProblem.interproceduralCFG()) {
 
 			@Override
 			public Map<AST, Set<D>> initialSeeds() {
@@ -24,9 +26,9 @@ public class SPLIFDSSolver <D> extends IDESolver<AST,D,FunctionDef, Constraint<S
 			}
 			class IFDSEdgeFunctions implements EdgeFunctions<AST,D,FunctionDef,Constraint<String>> {
 				private final FlowFunctions<AST, D, FunctionDef> zeroedFlowFunctions;
-				private final CICFG icfg;
-				
-				public IFDSEdgeFunctions(CICFG icfg) {
+				private final CInterCFG icfg;
+
+				public IFDSEdgeFunctions(CInterCFG icfg) {
 					this.icfg = icfg;
 					zeroedFlowFunctions = new ZeroedFlowFunctions<AST, D, FunctionDef>(ifdsProblem.flowFunctions(),ifdsProblem.zeroValue());
 				}

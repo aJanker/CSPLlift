@@ -1,9 +1,8 @@
 package de.fosd.typechef.crewrite
 
+import de.fosd.typechef.conditional.{Conditional, ConditionalMap, Opt}
 import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.conditional.{Opt, ConditionalMap, Conditional}
 import de.fosd.typechef.parser.c._
-import scala.Some
 
 // interprocedural control flow graph (cfg) implementation based on the
 // intraprocedural cfg implementation (see IntraCFG.scala)
@@ -44,7 +43,7 @@ trait InterCFG extends IntraCFG {
         functionDefs.getOrElse(name, None)
     }
 
-    override private[crewrite] def findMethodCalls(t: AST, env: ASTEnv, oldres: CFGRes, ctx: FeatureExpr, _res: CFGRes): CFGRes = {
+    override def findMethodCalls(t: AST, env: ASTEnv, oldres: CFGRes, ctx: FeatureExpr, _res: CFGRes): CFGRes = {
         var res: CFGRes = _res
         val postfixExprs = filterAllASTElems[PostfixExpr](t)
         for (pf@PostfixExpr(Id(funName), FunctionCall(_)) <- postfixExprs) {

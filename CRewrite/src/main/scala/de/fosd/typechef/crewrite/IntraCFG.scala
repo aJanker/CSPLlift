@@ -2,8 +2,8 @@ package de.fosd.typechef.crewrite
 
 
 import de.fosd.typechef.conditional._
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExprFactory, FeatureExpr}
 
 // implements intraprocedural conditional control flow (cfg) on top of
 // the typechef infrastructure
@@ -159,7 +159,7 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
     // determine context of new element based on the current result
     // the context is the not of all elements (or-d) together combined with the context of the source elemente
     // (ctx) and the context of the current element (curctx)
-    private[crewrite] def getNewResCtx(curres: CFGRes, ctx: FeatureExpr, curctx: FeatureExpr) = {
+    def getNewResCtx(curres: CFGRes, ctx: FeatureExpr, curctx: FeatureExpr) = {
         curres.map(_._1).fold(FeatureExprFactory.False)(_ or _).not() and ctx and curctx
     }
 
@@ -544,11 +544,11 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
 
     // necessary hook for InterCFG implementation; provides means to resolve function calls for inter procedural control
     // flow computation
-    private[crewrite] def findMethodCalls(t: AST, env: ASTEnv, oldres: CFGRes, ctx: FeatureExpr, _res: CFGRes): CFGRes = {
+    def findMethodCalls(t: AST, env: ASTEnv, oldres: CFGRes, ctx: FeatureExpr, _res: CFGRes): CFGRes = {
         _res
     }
 
-    private[crewrite] def getExprSucc(exp: Expr, ctx: FeatureExpr, oldres: CFGRes, env: ASTEnv): CFGRes = {
+    def getExprSucc(exp: Expr, ctx: FeatureExpr, oldres: CFGRes, env: ASTEnv): CFGRes = {
         exp match {
             case c@CompoundStatementExpr(CompoundStatement(innerStatements)) => {
                 if (barrierExists(c)) {

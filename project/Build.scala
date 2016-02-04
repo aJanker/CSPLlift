@@ -12,7 +12,7 @@ object BuildSettings {
 
   val buildOrganization = "de.fosd.typechef"
   val buildVersion = "0.4.0"
-  val buildScalaVersion = "2.11.4"
+  val buildScalaVersion = "2.11.7"
 
   val buildSettings = Defaults.coreDefaultSettings ++ Seq(
     organization := buildOrganization,
@@ -21,7 +21,7 @@ object BuildSettings {
     shellPrompt := ShellPrompt.buildShellPrompt,
 
     javacOptions ++= Seq("-Xlint:unchecked", "-target", "1.7", "-source", "1.7"),
-    scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise", "-target:jvm-1.7"),
+    scalacOptions ++= Seq("-unchecked", "-target:jvm-1.7"),
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v"),
 
     // suppress feature warnings in Scala 2.10.x
@@ -32,13 +32,13 @@ object BuildSettings {
           //"-Yinline-warnings",
           "-feature",
           "-language:postfixOps",
-          "-language:implicitConversions",
-          "-Xfatal-warnings" // make sure we take warnings seriously
+          "-language:implicitConversions"
+          // "-Xfatal-warnings" // make sure we take warnings seriously
         )
         else Nil
     },
 
-    crossScalaVersions := Seq("2.10.4", "2.11.4"),
+    crossScalaVersions := Seq("2.10.4", "2.11.7"),
 
     conflictWarning := ConflictWarning.disable,
 
