@@ -1,12 +1,12 @@
 package de.fosd.typechef.typesystem.linker
 
 import java.io._
-import de.fosd.typechef.typesystem.CType
-import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureExprParser}
+
 import de.fosd.typechef.error.Position
+import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureExprParser}
+import de.fosd.typechef.typesystem.CType
 
 trait InterfaceWriter {
-
 
     def writeInterface(interface: CInterface, file: File) {
         val stream = new FileWriter(file)
@@ -26,6 +26,13 @@ trait InterfaceWriter {
         interfaceFromXML(loadnode)
     }
 
+    def readMergedInterfaceFromXML(node: scala.xml.Node) = new CInterface(
+        null,
+        (node \ "feature").map(_.text.trim).toSet,
+        (node \ "newfeature").map(_.text.trim).toSet,
+        (node \ "import").map(signatureFromXML(_)),
+        (node \ "export").map(signatureFromXML(_))
+    )
 
     def interfaceFromXML(node: scala.xml.Node): CInterface = new CInterface(
         getFM(node),
