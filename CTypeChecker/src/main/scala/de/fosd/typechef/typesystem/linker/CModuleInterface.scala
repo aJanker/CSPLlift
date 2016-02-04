@@ -27,17 +27,9 @@ class CModuleInterface(private val linkPath: String) {
     addToPosMap(exp.name, exp.pos.toList)
   }
 
-  private def addToExpMap(key: String, value: CSignature) =
-    if (idLinkExpCache.containsKey(key))
-      idLinkExpCache.put(key, value :: idLinkExpCache.get(key))
-    else
-      idLinkExpCache.put(key, List(value))
+  private def addToExpMap(key: String, value: CSignature) = addToCache(idLinkExpCache, key, value)
 
-  private def addToPosMap(key: String, value: List[Position]) =
-    if (idLinkPosCache.containsKey(key))
-      idLinkPosCache.put(key, value ::: idLinkPosCache.get(key))
-    else
-      idLinkPosCache.put(key, value)
+  private def addToPosMap(key: String, value: List[Position]) = addToListCache(idLinkPosCache, key, value)
 
   def isNameKnown(name: String) = idLinkExpCache.containsKey(name) || idLinkPosCache.containsKey(name)
 
@@ -58,4 +50,12 @@ class CModuleInterface(private val linkPath: String) {
     if (result != null) result
     else List[Position]()
   }
+
+  private def addToCache[K, V](map: util.Map[K, List[V]], key: K, value: V) =
+    if (map.containsKey(key)) map.put(key, value :: map.get(key))
+    else map.put(key, List(value))
+
+  private def addToListCache[K, V](map: util.Map[K, List[V]], key: K, value: List[V]) =
+    if (map.containsKey(key)) map.put(key, value ::: map.get(key))
+    else map.put(key, value)
 }
