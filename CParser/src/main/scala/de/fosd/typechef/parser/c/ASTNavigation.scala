@@ -2,6 +2,7 @@ package de.fosd.typechef.parser.c
 
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExpr
+
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
 
@@ -145,9 +146,9 @@ trait ASTNavigation {
     def filterAllASTElems[T <: AST](a: Any)(implicit m: ClassTag[T]): List[T] = {
         a match {
             case p: Product if (m.runtimeClass.isInstance(p)) => List(p.asInstanceOf[T]) ++
-                p.productIterator.toList.flatMap(filterASTElems[T])
+              p.productIterator.toList.flatMap(filterAllASTElems[T])
             case l: List[_] => l.flatMap(filterASTElems[T])
-            case p: Product => p.productIterator.toList.flatMap(filterASTElems[T])
+            case p: Product => p.productIterator.toList.flatMap(filterAllASTElems[T])
             case _ => List()
         }
     }

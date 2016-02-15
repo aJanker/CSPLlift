@@ -447,8 +447,7 @@ class SingleBDDFeatureExpr(id: Int) extends BDDFeatureExpr(lookupFeatureBDD(id))
  * Central builder class, responsible for simplification of expressions during creation
  * and for extensive caching.
  */
-private[bdd] object FExprBuilder {
-
+object FExprBuilder {
 
     val bddCacheSize = 100000
     var bddValNum: Int = 524288 / 2
