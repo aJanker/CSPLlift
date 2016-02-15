@@ -12,23 +12,11 @@ import soot.spl.ifds.Constraint
 
 import scala.collection.JavaConverters._
 
-// TODO Options for loading? -> Handler for linking
-// TODO Linking
-class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions) extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTNavigation with ConditionalNavigation with CModuleCache {
+class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultCSPLliftOptions) extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTNavigation with ConditionalNavigation with CModuleCache {
 
-  private val moduleCacheEnv = new CModuleCacheEnv(startTunit, options.getModuleInterface, options.getPointerInterface)
+  private val moduleCacheEnv = new CModuleCacheEnv(startTunit, options)
 
-  private def nodeToEnv(node: AST): ASTEnv =
-    findEnv(node, moduleCacheEnv) match {
-      case Some(env) => env
-      case _ => throw new NoSuchElementException("No env found for node: " + node)
-    }
-
-  private def nodeToTUnit(node: AST): TranslationUnit =
-    getTranslationUnit(node, moduleCacheEnv) match {
-      case Some(tunit) => tunit
-      case _ => throw new NoSuchElementException("No tunit found for node: " + node)
-    }
+  lazy val entryFunctions = filterAllASTElems[FunctionDef](startTunit).filter(fdef => options.getEntryNames.exists(fdef.getName.equalsIgnoreCase))
 
   /**
     * Returns the method containing a node.
@@ -45,16 +33,12 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions) extends I
     * Returns whether succ is a branch target of stmt.
     */
   override def isBranchTarget(stmt: AST, suc: AST): Boolean =
-    succ(stmt, nodeToEnv(stmt)).par.exists(_.entry.equals(suc)) // TODO Check for inter vs intra
+    succ(stmt, nodeToEnv(stmt)).exists(_.entry.equals(suc)) // TODO Check for inter vs intra
 
   /**
     * Returns all caller statements/nodes of a given method.
     */
-  override def getCallersOf(m: FunctionDef): util.Set[AST] = {
-      // TODO Pointer & Linking
-
-      null
-  }
+  override def getCallersOf(m: FunctionDef): util.Set[AST] = util.Collections.emptySet() // TODO
 
   /**
     * Returns all statements to which a call could return.
@@ -62,12 +46,10 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions) extends I
     * We, however, use as return site the successor statements, of which
     * there can be many in case of exceptional flow.
     */
-  override def getReturnSitesOfCallAt(node: AST): util.List[AST] = {
-    if (!isCallStmt(node)) return java.util.Collections.emptyList[AST]
+  override def getReturnSitesOfCallAt(node: AST): util.List[AST] =
+    if (isCallStmt(node)) getSuccsOf(node) else java.util.Collections.emptyList[AST]
 
-    // what is the return-site of an exit node? // Hamid
-    getSuccsOf(node)
-  }
+  // TODO what is the return-site of an exit node? // Hamid
 
   /**
     * Returns all callee methods for a given call.
@@ -90,12 +72,17 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions) extends I
     if (preds.isEmpty) false
     else
       preds.head match {
-        case Opt(_, f: FunctionDef) => true
+        case Opt(_, f: FunctionDef) => true // check for variability
         case _ => false
       }
   }
 
-  override def getStartPointsOf(m: FunctionDef): util.Set[AST] = ???
+  /**
+    * Returns all start points of a given method. There may be
+    * more than one start point in case of a backward analysis.
+    */
+  override def getStartPointsOf(fDef: FunctionDef): util.Set[AST] =
+    new util.HashSet(getSuccsOf(fDef))
 
   /**
     * Returns <code>true</code> if the given statement is a call site.
@@ -109,17 +96,37 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions) extends I
     * Returns the successor nodes.
     */
   override def getSuccsOf(stmt: AST): util.List[AST] =
-  // TODO Why Filter FDefs?
     succ(stmt, nodeToEnv(stmt)).flatMap {
       case Opt(_, f: FunctionDef) => None
       case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
     }.asJava
 
-  override def isExitStmt(stmt: AST): Boolean = ???
+  /**
+    * Returns <code>true</code> if the given statement leads to a method return
+    * (exceptional or not). For backward analyses may also be start statements.
+    */
+  override def isExitStmt(stmt: AST): Boolean = succ(stmt, nodeToEnv(stmt)).exists { case Opt(_, f: FunctionDef) => true }
 
-  override def getCallsFromWithin(m: FunctionDef): util.Set[AST] = ???
+  // TODO Verify
 
-  override def allNonCallStartNodes(): util.Set[AST] = ???
+  /**
+    * Returns all call sites within a given method.
+    */
+  override def getCallsFromWithin(method: FunctionDef): util.Set[AST] = {
+    val res: Set[AST] =
+      filterAllASTElems[PostfixExpr](method.stmt.innerStatements).filter(isCallStmt).toSet
+
+    res.asJava
+  }
+
+  /**
+    * Returns the set of all nodes that are neither call nor start nodes.
+    */
+  override def allNonCallStartNodes(): util.Set[AST] = {
+    // TODO beware only nodes from start tunit.
+    val res: Set[AST] = filterAllASTElems[Statement](startTunit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt)).toSet
+    res.asJava
+  }
 
   /**
     * Returns whether succ is the fall-through successor of stmt,
@@ -164,20 +171,25 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions) extends I
         Some(Opt(ft, f))
     }
 
-    val externalDef =
-      if (!nameIsLinked(name, moduleCacheEnv)) List()
-      else {
-        // GET DEFINITIONS
-        List()
-      }
+    val externalDef = getExternalDefinitions(name, moduleCacheEnv)
 
-    localDef ++ externalDef
-
-    List()
+    externalDef ++ localDef
   }
 
   private def getCalleeNames(call: AST): List[Opt[String]] =
     filterAllASTElems[PostfixExpr](call).flatMap {
       case pf@PostfixExpr(Id(calleeName), FunctionCall(_)) => Some(Opt(nodeToEnv(pf).featureExpr(pf), calleeName))
+    }
+
+  def nodeToEnv(node: AST): ASTEnv =
+    findEnv(node, moduleCacheEnv) match {
+      case Some(env) => env
+      case _ => throw new NoSuchElementException("No env found for node: " + node)
+    }
+
+  def nodeToTUnit(node: AST): TranslationUnit =
+    getTranslationUnit(node, moduleCacheEnv) match {
+      case Some(tunit) => tunit
+      case _ => throw new NoSuchElementException("No tunit found for node: " + node)
     }
 }

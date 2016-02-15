@@ -31,7 +31,8 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             simplifyPresenceConditions = false,
             writePI = false,
             printInclude = false,
-            printVersion = false;
+            printVersion = false,
+            spllift = false;
     protected File errorXMLFile = null;
     private final File _autoErrorXMLFile = new File(".");
     String outputStem = "";
@@ -59,6 +60,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     private static final char TY_DEBUG_INCLUDES = genOptionId();
     private static final char TY_VERSION = genOptionId();
     private static final char TY_HELP = genOptionId();
+    private static final char F_SPLLIFT = genOptionId();
     private Function3<FeatureExpr, String, Position, Object> _renderParserError;
 
 
@@ -112,7 +114,10 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
                         "Use BDD engine instead of SAT engine (provide as first parameter)."),
 
                 new Option("errorXML", LongOpt.OPTIONAL_ARGUMENT, F_ERRORXML, "file",
-                        "File to store syntax and type errors in XML format.")
+                        "File to store syntax and type errors in XML format."),
+
+                new Option("spllift", LongOpt.NO_ARGUMENT, F_SPLLIFT, null,
+                        "Perform static analysis using SPLLIFT.")
 
         ));
         r.add(new OptionGroup("Parser options", 23,
@@ -194,6 +199,8 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             printVersion = true;
         } else if (c == F_POINTERANALYSIS) {
             pointerAnalysis = true;
+        } else if (c == F_SPLLIFT) {
+            spllift = true;
         } else if (c == F_SAVEPOINTERCONTEXT) {
             savePointerContext = true;
         } else

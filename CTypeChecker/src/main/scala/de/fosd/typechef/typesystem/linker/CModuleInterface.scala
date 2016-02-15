@@ -22,19 +22,10 @@ class CModuleInterface(private val linkPath: String) {
     if (isNameKnown(expr.name)) fillCache(expr)
     else incompleteLinks += expr.name)
 
-  private def fillCache(exp: CSignature) = {
-    addToExpMap(exp.name, exp)
-    addToPosMap(exp.name, exp.pos.toList)
-  }
-
-  private def addToExpMap(key: String, value: CSignature) = addToCache(idLinkExpCache, key, value)
-
-  private def addToPosMap(key: String, value: List[Position]) = addToListCache(idLinkPosCache, key, value)
-
   def isNameKnown(name: String) = idLinkExpCache.containsKey(name) || idLinkPosCache.containsKey(name)
 
   def isKnown(id: Opt[String], fm: FeatureModel): Boolean =
-    if (idLinkExpCache.containsKey(id.entry)) idLinkExpCache.get(id.entry).exists(_.fexpr.implies(id.feature).isTautology(fm))
+    if (idLinkExpCache.containsKey(id.entry)) idLinkExpCache.get(id.entry).exists(_.fexpr.implies(id.condition).isTautology(fm))
     else false
 
   def isBlackListed(id: String) = incompleteLinks.contains(id)
@@ -45,11 +36,11 @@ class CModuleInterface(private val linkPath: String) {
       case x => Some(x)
     }
 
-  def getPositions(id: String) = {
-    val result = idLinkPosCache.get(id)
-    if (result != null) result
-    else List[Position]()
-  }
+  def getPositions(id: String): Option[List[Position]] =
+    idLinkPosCache.get(id) match {
+      case null => None
+      case result => Some(result)
+    }
 
   private def addToCache[K, V](map: util.Map[K, List[V]], key: K, value: V) =
     if (map.containsKey(key)) map.put(key, value :: map.get(key))
@@ -58,4 +49,9 @@ class CModuleInterface(private val linkPath: String) {
   private def addToListCache[K, V](map: util.Map[K, List[V]], key: K, value: List[V]) =
     if (map.containsKey(key)) map.put(key, value ::: map.get(key))
     else map.put(key, value)
+
+  private def fillCache(exp: CSignature) = {
+    addToCache(idLinkExpCache, exp.name, exp)
+    addToListCache(idLinkPosCache, exp.name, exp.pos.toList)
+  }
 }

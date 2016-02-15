@@ -1,12 +1,12 @@
 package de.fosd.typechef.spllift
 
-import java.io.{FileInputStream, ObjectInputStream, ObjectStreamClass, ObjectStreamException}
+import java.io._
 import java.util
 import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cpointeranalysis.CLinking
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.linker.CModuleInterface
 
 import scala.collection.JavaConversions._
 
@@ -27,16 +27,36 @@ trait CModuleCache {
       case _ => None
     }
 
-  def nameIsLinked(name: Opt[String], cache: CModuleCacheEnv): Boolean = false
+  def isNameLinked(name: Opt[String], cache: CModuleCacheEnv): Boolean =
+    cache.isNameKnown(name)
 
-  // TODO Implement
+  def getExternalDefinitions(name: Opt[String], cache: CModuleCacheEnv): List[Opt[FunctionDef]] =
+    cache.getNameLocations(name).getOrElse(List()).foldLeft(List[Opt[FunctionDef]]())((res, path) => {
+      val tUnit =
+        cache.getTunitForFile(path) match {
+          case Some(t) => t
+          case None => throw new FileNotFoundException(path)
+        }
+
+      val foundDefs = tUnit.defs.flatMap {
+        case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isTautology(/* TODO FM */) =>
+          Some(Opt(ft, f))
+      }
+      res ::: foundDefs
+    })
 }
 
-class CModuleCacheEnv(initialTUnit: TranslationUnit, cModuleInterfacePath: Option[String] = None, cPointerInterfacePath: Option[String] = None) {
+class CModuleCacheEnv private(initialTUnit: TranslationUnit, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String]) {
 
-  private val cModuleInterface =
+  def this(initialTUnit: TranslationUnit, options: CSPLliftOptions = DefaultCSPLliftOptions) =
+    this(initialTUnit, options.getModuleInterface, options.getPointerInterface)
+
+  private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
+  private val fileToTUnit: util.IdentityHashMap[String, TranslationUnit] = new util.IdentityHashMap()
+
+  private val cModuleInterface: Option[CModuleInterface] =
     cModuleInterfacePath match {
-      case Some(path) => new CLinking(path)
+      case Some(path) => Some(new CModuleInterface(path))
       case _ => None
     }
 
@@ -46,18 +66,40 @@ class CModuleCacheEnv(initialTUnit: TranslationUnit, cModuleInterfacePath: Optio
       case _ => None
     }
 
-  private val envToTunit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
-
   add(initialTUnit)
 
   def add(tunit: TranslationUnit) = {
     val env = CASTEnv.createASTEnv(tunit)
-    envToTunit.put(env, tunit)
+    envToTUnit.put(env, tunit)
+    fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
   }
 
-  def getTunitForEnv(env: ASTEnv) = envToTunit.get(env)
+  def getAllKnownTranslationunits: List[TranslationUnit] = envToTUnit.values.toList
 
-  def getEnvs: List[ASTEnv] = envToTunit.keySet().toList
+  def getTunitForEnv(env: ASTEnv) = envToTUnit.get(env)
+
+  def getTunitForFile(file: String): Option[TranslationUnit] =
+    if (fileToTUnit.containsKey(file)) Some(fileToTUnit.get(file))
+    else loadTUnit(file)
+
+  def getEnvs: List[ASTEnv] = envToTUnit.keySet.toList
+
+  def isNameKnown(name: Opt[String]): Boolean =
+    cModuleInterface match {
+      case None => false
+      case Some(interface) => interface.isNameKnown(name.entry)
+    }
+
+  def getNameLocations(name: Opt[String]): Option[List[String]] =
+    cModuleInterface match {
+      case None => None
+      case Some(interface) => {
+        interface.getPositions(name.entry) match {
+          case None => None
+          case Some(pos) => Some(pos.map(_.getFile))
+        }
+      }
+    }
 
   def loadTUnit(filename: String): Option[TranslationUnit] =
     try {
@@ -67,6 +109,8 @@ class CModuleCacheEnv(initialTUnit: TranslationUnit, cModuleInterfacePath: Optio
 
       val tunit = fr.readObject().asInstanceOf[TranslationUnit]
       fr.close()
+
+      add(tunit)
 
       Some(tunit)
     } catch {

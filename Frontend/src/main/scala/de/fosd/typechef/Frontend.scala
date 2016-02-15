@@ -9,6 +9,8 @@ import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{CTypeContext, TranslationUnit, _}
+import de.fosd.typechef.spllift.CSPLliftFrontend
+import de.fosd.typechef.spllift.analysis.InformationFlow
 import de.fosd.typechef.typesystem._
 
 object Frontend extends EnforceTreeHelper {
@@ -237,6 +239,18 @@ object Frontend extends EnforceTreeHelper {
                     val writer = new CFGCSVWriter(new FileWriter(new File(opt.getCCFGFilename)))
                     val dotwriter = new DotGraph(new FileWriter(new File(opt.getCCFGDotFilename)))
                     cf.writeCFG(opt.getFile, new ComposedWriter(List(dotwriter, writer)))
+                }
+
+                if (opt.spllift) {
+                    println("#static analysis with lifting")
+                    stopWatch.start("spllift")
+                    val spllift = new CSPLliftFrontend(ast /*, options */)
+                    val problem = new InformationFlow(spllift.getCInterCFG)
+
+                    stopWatch.start("spllift_solve")
+                    spllift.solve(problem)
+
+                    stopWatch.start("none")
                 }
 
                 if (opt.staticanalyses) {
