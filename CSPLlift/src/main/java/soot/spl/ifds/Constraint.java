@@ -1,13 +1,11 @@
 package soot.spl.ifds;
 
-import net.sf.javabdd.BDD;
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
 import net.sf.javabdd.BDDFactory;
 import soot.util.NumberedString;
 import soot.util.StringNumberer;
 
-import java.util.BitSet;
 import java.util.Collection;
-import java.util.Set;
 
 import static soot.spl.ifds.Constraint.FeatureModelMode.NO_SINGLETON;
 
@@ -105,74 +103,20 @@ public class Constraint<T> implements Cloneable {
 		}
 	};
 
-	public final BDD bdd;
-	
-	private Constraint(BitSet elems, boolean positive) {
-		synchronized (FACTORY) {
-			BDD curr = FACTORY.one();
-			if(!elems.isEmpty()) {
-				for(int i=elems.nextSetBit(0); i>=0; i=elems.nextSetBit(i+1)) {
-					BDD ithVar = FACTORY.ithVar(i);
-					curr = curr.andWith(ithVar);
-				}
-			} else
-				curr = curr.not(); //no elements provided; assume the "FALSE" constraint
-			if(positive) 
-				bdd = curr;
-			else
-				bdd = curr.not();
-		}
-	}
-	
-	private Constraint(BitSet elems, Set<NumberedString> featureDomain) {
-		synchronized (FACTORY) {
-			BDD curr = FACTORY.one();
-			for(NumberedString feature: featureDomain) {
-				int i = feature.getNumber();
-				BDD ithVar = FACTORY.ithVar(i);
-				if(!elems.get(i)) {
-					ithVar = ithVar.not();
-				}
-				curr = curr.andWith(ithVar);
-			}
-			bdd = curr;
-		}
-	}
-	
-	
-	/**
-	 * Constructs a <i>full</i> constraint in the sense that all variables mentioned in
-	 * featureDomain but not mentioned in elems will be automatically negated.
-	 * If the domain is {a,b,c} and elems is {b} then this will construct the
-	 * constraint !a && b && !c.
-	 */
-	public static <T> Constraint<T> make(BitSet elems, Set<NumberedString> featureDomain) {
-		return new Constraint<T>(elems,featureDomain);
-	}
+	public final BDDFeatureExpr bFexpr;
 
-	/**
-	 * If positive is true then for elems={a,b} this constructs a constraint
-	 * a && b. Otherwise, this constructs a constraint !(a && b).
-	 * A constraint of the form a && b does not say anything at all about variables
-	 * not mentioned. In particular, a && b is not the same as a && b && !c.
-	 */
-	public static <T> Constraint<T> make(BitSet elems, boolean positive) {
-		if(elems.isEmpty()) throw new RuntimeException("empty constraint!");
-		return new Constraint<T>(elems,positive);
-	}
-	
-	public synchronized static <T> Constraint<T> make(BDD bdd) {
+	public synchronized static <T> Constraint<T> make(BDDFeatureExpr bdd) {
 		synchronized (FACTORY) {
-			if(bdd.isOne())
+			if (bdd.leak().isOne())
 				return Constraint.trueValue();
-			else if(bdd.isZero())
+			else if (bdd.leak().isZero())
 				return Constraint.falseValue();
 			else return new Constraint<T>(bdd);
 		}
 	}
-	
-	private Constraint(BDD bdd) {
-		this.bdd = bdd;		
+
+	private Constraint(BDDFeatureExpr bdd) {
+		this.bFexpr = bdd;
 	}
 	
 	/**
@@ -185,9 +129,9 @@ public class Constraint<T> implements Cloneable {
 		synchronized (FACTORY) {
 			if(other==trueValue()) return other;
 			if(other==falseValue()) return this;
-			
-			BDD disjunction = bdd.or(other.bdd);
-			if(disjunction.isOne()) 
+
+			BDDFeatureExpr disjunction = (BDDFeatureExpr) bFexpr.or(other.bFexpr);
+			if (disjunction.leak().isOne())
 				return trueValue();
 			else
 				return new Constraint<T>(disjunction);
@@ -204,9 +148,9 @@ public class Constraint<T> implements Cloneable {
 		synchronized (FACTORY) {
 			if(other==trueValue()) return this;
 			if(other==falseValue()) return other;
-			
-			BDD conjunction = bdd.and(other.bdd);
-			if(conjunction.isZero())
+
+			BDDFeatureExpr conjunction = (BDDFeatureExpr) bFexpr.and(other.bFexpr);
+			if (conjunction.leak().isZero())
 				return falseValue();
 			else
 				return new Constraint<T>(conjunction);
@@ -215,58 +159,14 @@ public class Constraint<T> implements Cloneable {
 	
 	@Override
 	public String toString() {
-		return bdd.toString();
+		return this.bFexpr.toString();
 	}
 
-	public String toString(StringNumberer featureNumberer) {
-		synchronized (FACTORY) {
-			StringBuilder sb = new StringBuilder();
-	        int[] set = new int[FACTORY.varNum()];
-			toStringRecurse(FACTORY, sb, bdd, set, featureNumberer);
-			return sb.toString();
-		}
+	public Constraint<T> not() {
+		return Constraint.make((BDDFeatureExpr) this.bFexpr.not());
 	}
-	
-	private static void toStringRecurse(BDDFactory f, StringBuilder sb, BDD r, int[] set,
-			StringNumberer featureNumberer) {
-		synchronized (FACTORY) {
-			int n;
-			boolean first;
-	
-			if (r.isZero())
-				return;
-			else if (r.isOne()) {
-				sb.append("{");
-				first = true;
-	
-				for (n = 0; n < set.length; n++) {
-					if (set[n] > 0) {
-						if (!first)
-							sb.append(" ^ ");
-						first = false;
-						if (set[n] != 2) {
-							sb.append("!");
-						}
-						sb.append(featureNumberer.get((long) f.level2Var(n)));
-					}
-				}
-				sb.append("} ");
-			} else {
-				set[f.var2Level(r.var())] = 1;
-				BDD rl = r.low();
-				toStringRecurse(f, sb, rl, set, featureNumberer);
-				rl.free();
-	
-				set[f.var2Level(r.var())] = 2;
-				BDD rh = r.high();
-				toStringRecurse(f, sb, rh, set, featureNumberer);
-				rh.free();
-	
-				set[f.var2Level(r.var())] = 0;
-			}
-		}
-	}
-	
+
+
 	@SuppressWarnings("unchecked")
 	public static <T> Constraint<T> trueValue() {
 		return TRUE;
@@ -280,7 +180,7 @@ public class Constraint<T> implements Cloneable {
 	@Override
 	public int hashCode() {
 		synchronized (FACTORY) {
-			return bdd.hashCode();
+			return this.bFexpr.hashCode();
 		}
 	}
 
@@ -295,34 +195,18 @@ public class Constraint<T> implements Cloneable {
 				return false;
 			@SuppressWarnings("rawtypes")
 			Constraint other = (Constraint) obj;
-			if (bdd == null) {
-				if (other.bdd != null)
+			if (bFexpr == null) {
+				if (other.bFexpr != null)
 					return false;
-			} else if (!bdd.equals(other.bdd))
+			} else if (!bFexpr.equals(other.bFexpr))
 				return false;
 			return true;
 		}
 	}
 
-	protected Constraint<T> exists(NumberedString varToQuantify) {
-		synchronized (FACTORY) {
-			return make(bdd.exist(FACTORY.one().andWith(FACTORY.ithVar(varToQuantify.getNumber()))));
-		}
-	}
-	
-	public Constraint<T> simplify(Iterable<NumberedString> allFeatures, Collection<NumberedString> usedFeatures) {
-		Constraint<T> fmConstraint = this;
-		for (NumberedString feature : allFeatures) {
-			if(!usedFeatures.contains(feature)) {
-				fmConstraint = fmConstraint.exists(feature);
-			}
-		}
-		return fmConstraint;
-	}
-	
 	public int size() {
 		synchronized (FACTORY) {
-			return bdd.nodeCount();
+			return bFexpr.leak().nodeCount();
 		}
 	}
 }

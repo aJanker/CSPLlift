@@ -7,7 +7,6 @@ import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import heros.solver.IDESolver;
 import heros.template.DefaultIDETabulationProblem;
-import net.sf.javabdd.BDD;
 
 import java.util.HashSet;
 import java.util.List;
@@ -76,14 +75,14 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, FunctionDef, Constraint<
 					boolean srcAnnotated = hasFeatureAnnotation(src);
 					boolean succAnnotated = hasFeatureAnnotation(successor);
 					//if (!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
-					
-					BDD features = Constraint.FACTORY.zero();
+
+					Constraint features = Constraint.falseValue();
 					if(srcAnnotated)
-						features = features.or(icfg.getConstraint(src).bdd);
+						features = features.or(icfg.getConstraint(src));
 					if(isCall && succAnnotated)
-						features = features.or(icfg.getConstraint(successor).bdd);
-					Constraint<String> pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? Constraint.<String>make(features) : Constraint.<String>falseValue();
-					Constraint<String> neg = srcNode == tgtNode ? Constraint.<String>make(features.not()) : Constraint.<String>falseValue();
+						features = features.or(icfg.getConstraint(successor));
+					Constraint<String> pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? features : Constraint.<String>falseValue();
+					Constraint<String> neg = srcNode == tgtNode ? features.not() : Constraint.<String>falseValue();
 					Constraint<String> lifted = pos.or(neg);
 					return new SPLFeatureFunction(lifted, fmContext);
 				}
@@ -177,7 +176,7 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, FunctionDef, Constraint<
 		Constraint c = interCfg.getConstraint(stmt);
 		if (c == Constraint.trueValue()) return false;
 		if (c == Constraint.falseValue()) return true; // c
-		return (!(c.bdd.isOne()));
+		return (!(c.bFexpr.leak().isOne()));
 	}
 	static class WrappedFlowFunction<D> implements FlowFunction<D> {
 		

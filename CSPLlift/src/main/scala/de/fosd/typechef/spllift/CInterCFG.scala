@@ -14,6 +14,8 @@ import scala.collection.JavaConverters._
 
 class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultCSPLliftOptions) extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTNavigation with ConditionalNavigation with CModuleCache {
 
+  Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
+
   private val moduleCacheEnv = new CModuleCacheEnv(startTunit, options)
 
   lazy val entryFunctions = filterAllASTElems[FunctionDef](startTunit).filter(fdef => options.getEntryNames.exists(fdef.getName.equalsIgnoreCase))
@@ -81,8 +83,7 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     * Returns all start points of a given method. There may be
     * more than one start point in case of a backward analysis.
     */
-  override def getStartPointsOf(fDef: FunctionDef): util.Set[AST] =
-    new util.HashSet(getSuccsOf(fDef))
+  override def getStartPointsOf(fDef: FunctionDef): util.Set[AST] = new util.HashSet(getSuccsOf(fDef))
 
   /**
     * Returns <code>true</code> if the given statement is a call site.
@@ -99,13 +100,17 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     succ(stmt, nodeToEnv(stmt)).flatMap {
       case Opt(_, f: FunctionDef) => None
       case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
+      case _ => None
     }.asJava
 
   /**
     * Returns <code>true</code> if the given statement leads to a method return
     * (exceptional or not). For backward analyses may also be start statements.
     */
-  override def isExitStmt(stmt: AST): Boolean = succ(stmt, nodeToEnv(stmt)).exists { case Opt(_, f: FunctionDef) => true }
+  override def isExitStmt(stmt: AST): Boolean = succ(stmt, nodeToEnv(stmt)).exists {
+    case Opt(_, f: FunctionDef) => true
+    case _ => false
+  }
 
   // TODO Verify
 
@@ -135,13 +140,13 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     */
   override def isFallThroughSuccessor(stmt: AST, succ: AST): Boolean =
     throw new UnsupportedOperationException("oops, isFallThroughSuccessor is not supported!")
-
   // TODO Check function purpose
 
   // TODO undocumented function call to cifg from spllift
   def getConstraint(node: AST): Constraint[String] = {
     val featureExpr: BDDFeatureExpr = nodeToEnv(node).featureExpr(node).asInstanceOf[BDDFeatureExpr]
-    Constraint.make(featureExpr.leak)
+    // println("Constraint for: " + featureExpr + " is " + Constraint.make(featureExpr.leak))
+    Constraint.make(featureExpr)
   }
 
 
@@ -167,8 +172,9 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
 
   private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
     val localDef = callTUnit.defs.flatMap {
-      case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isTautology(/* TODO FM */)) =>
+      case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
         Some(Opt(ft, f))
+      case _ => None
     }
 
     val externalDef = getExternalDefinitions(name, moduleCacheEnv)
