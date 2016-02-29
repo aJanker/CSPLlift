@@ -42,7 +42,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
           else None
         })
 
-        GEN((zeroValue() :: globalInfoFlowFacts))
+        GEN((zeroValue()  :: globalInfoFlowFacts))
       }
 
       interproceduralCFG.getStartPointsOf(entry).asScala.foreach(res.put(_, intialSeeds))
@@ -185,6 +185,10 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
       * different values depending on where control0flow branches.
       */
     override def getNormalFlowFunction(curr: AST, succ: AST): FlowFunction[InfoFlowFact] = {
+      println("CURRRRRRRR" +  curr)
+      println("SUCCC" + succ)
+      println(icfg.getSuccsOf(succ))
+
       new FlowFunction[InfoFlowFact] {
         val currOpt = parentOpt(curr, icfg.nodeToEnv(curr))
         val currDefs = defines(curr)

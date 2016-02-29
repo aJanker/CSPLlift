@@ -98,7 +98,7 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     */
   override def getSuccsOf(stmt: AST): util.List[AST] =
     succ(stmt, nodeToEnv(stmt)).flatMap {
-      case Opt(_, f: FunctionDef) => None
+      case Opt(_, f: FunctionDef) => Some(f.asInstanceOf[AST]) // TODO ASK ALEX!
       case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
       case _ => None
     }.asJava
@@ -107,10 +107,11 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     * Returns <code>true</code> if the given statement leads to a method return
     * (exceptional or not). For backward analyses may also be start statements.
     */
-  override def isExitStmt(stmt: AST): Boolean = succ(stmt, nodeToEnv(stmt)).exists {
-    case Opt(_, f: FunctionDef) => true
-    case _ => false
-  }
+  override def isExitStmt(stmt: AST): Boolean =
+    succ(stmt, nodeToEnv(stmt)).exists {
+      case Opt(_, f: FunctionDef) => true
+      case _ => false
+    }
 
   // TODO Verify
 
@@ -145,7 +146,6 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
   // TODO undocumented function call to cifg from spllift
   def getConstraint(node: AST): Constraint[String] = {
     val featureExpr: BDDFeatureExpr = nodeToEnv(node).featureExpr(node).asInstanceOf[BDDFeatureExpr]
-    // println("Constraint for: " + featureExpr + " is " + Constraint.make(featureExpr.leak))
     Constraint.make(featureExpr)
   }
 
