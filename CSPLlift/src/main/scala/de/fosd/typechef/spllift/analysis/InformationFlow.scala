@@ -36,13 +36,13 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
           val decls = declares(x)
 
           if (decls.nonEmpty) {
-            val res: List[InfoFlowFact] = decls.map(decl => Source(Opt(x.condition, decl), x))
+            val res: List[InfoFlowFact] = decls.map(decl => Source(Opt(x.condition, decl), x, List(), decl.getFile))
             res
           }
           else None
         })
 
-        GEN((zeroValue()  :: globalInfoFlowFacts))
+        GEN(zeroValue()  :: globalInfoFlowFacts)
       }
 
       interproceduralCFG.getStartPointsOf(entry).asScala.foreach(res.put(_, intialSeeds))
@@ -125,13 +125,13 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
       new FlowFunction[InfoFlowFact] {
         override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
           source match {
-            case s@Source(x, _, _) => {
+            case s@Source(x, _, _, file) => {
               callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
+                case None if file.isDefined => GEN(s)
                 case None => KILL
-                case Some(hit) => GEN(Source(Opt(hit.condition, hit.entry._2), fCallOpt, List(s)))
-              }
+                case Some(hit) => GEN(Source(Opt(hit.condition, hit.entry._2), fCallOpt, List(s)))}
             }
-            case _ => KILL
+            case k => KILL
           }
         }
       }
@@ -166,8 +166,12 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
       * @return
       */
     override def getReturnFlowFunction(callSite: AST, calleeMethod: FunctionDef, exitStmt: AST, returnSite: AST): FlowFunction[InfoFlowFact] = {
+      println("callsite: " + callSite)
+      println("exitStmt" + exitStmt)
+      println("returnSite" + returnSite)
       new FlowFunction[InfoFlowFact] {
         override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
+          println("ReturnFlowFunction: " + source)
           GEN(source)
         }
       }
@@ -185,39 +189,73 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
       * different values depending on where control0flow branches.
       */
     override def getNormalFlowFunction(curr: AST, succ: AST): FlowFunction[InfoFlowFact] = {
-      println("CURRRRRRRR" +  curr)
-      println("SUCCC" + succ)
-      println(icfg.getSuccsOf(succ))
-
       new FlowFunction[InfoFlowFact] {
         val currOpt = parentOpt(curr, icfg.nodeToEnv(curr))
         val currDefs = defines(curr)
         val currUses = uses(curr)
 
         override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
-          source match {
-            case Zero if currDefs.nonEmpty => {
-              val res: List[InfoFlowFact] = currDefs.map(id => Source(Opt(currOpt.condition, id), currOpt))
-              GEN(res)
+
+          // def compute (element: AST): util.Set[InfoFlowFact] = {
+            source match {
+              case Zero if currDefs.nonEmpty => {
+                val res: List[InfoFlowFact] = currDefs.map(id => Source(Opt(currOpt.condition, id), currOpt))
+                GEN(res)
+              }
+              case s@Source(x, _, _, global) if global.isEmpty && currDefs.exists(_.name.equalsIgnoreCase(x.entry.name)) => KILL // TODO Validate -> DEFUSE!
+              case s@Source(x, _, _, global) if currUses.nonEmpty =>
+                currUses.find(_.name.equalsIgnoreCase(x.entry.name)) match {
+                  case None => GEN(s)
+                  case Some(i: Id) => {
+                    /*curr match {
+                      case e@ExprStatement(AssignExpr(y@Id(name),_,g@Id(name2))) if name.equalsIgnoreCase("y") && name2.equalsIgnoreCase("global") =>{
+                        println("debug: " + GEN(Reach(Opt(interproceduralCFG().nodeToEnv(i).featureExpr(i), i), curr, List(s))))
+                      }
+                      case _ =>
+                    } */
+                    GEN(Reach(Opt(interproceduralCFG().nodeToEnv(i).featureExpr(i), i), curr, List(s)))
+                  }
+                } // TODO Clean VAA
+              case r@Reach(_, _, _, _) => KILL
+              case _ => GEN(source)
             }
-            case s@Source(x, _, _) if currDefs.exists(_.name.equalsIgnoreCase(x.entry.name)) => KILL // TODO Validate
-            case s@Source(x, _, _) if currUses.nonEmpty =>
-              currUses.find(_.name.equalsIgnoreCase(x.entry.name)) match {
-                case None => GEN(s)
-                case Some(i: Id) => GEN(Sink(Opt(interproceduralCFG().nodeToEnv(i).featureExpr(i), i), curr, List(s)))
-              } // TODO Clean VAA
-            case s: Sink => KILL
-            case _ => GEN(source)
-          }
+
         }
       }
     }
 
-    override def getCallToReturnFlowFunction(n: AST, n1: AST): FlowFunction[InfoFlowFact] = {
+    /**
+      * Returns the flow function that computes the flow from a call site to a
+      * successor statement just after the call. There may be multiple successors
+      * in case of exceptional control flow. In this case this method will be
+      * called for every such successor. Typically, one will propagate into a
+      * method call, using {@link #getCallFlowFunction(Object, Object)}, only
+      * such information that actually concerns the callee method. All other
+      * information, e.g. information that cannot be modified by the call, is
+      * passed along this call-return edge.
+      *
+      * @param callSite
+      * The statement containing the invoke expression giving rise to
+      * this call.
+      * @param returnSite
+      * The return site to which the information is propagated. For
+      * exceptional flow, this may actually be the start of an
+      * exception handler.
+      */
+    override def getCallToReturnFlowFunction(callSite: AST, returnSite: AST): FlowFunction[InfoFlowFact] = {
+      //println("call " + callSite)
+      //println("return" + returnSite)
       new FlowFunction[InfoFlowFact] {
         override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
-          // println("SourcebacktoReturnFlow: " + source)
-          GEN(source)
+        println("SourcebacktoReturnFlow: " + source)
+          source match {
+            case r: Reach => KILL
+            case s@Source(_,_,_,global) if global.isDefined => {
+              println("Killing:" + s)
+              KILL
+            }
+            case _ => GEN(source)
+          }
         }
       }
     }

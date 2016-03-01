@@ -1,14 +1,16 @@
 package de.fosd.typechef.spllift
 
+import de.fosd.typechef.featureexpr.FeatureModel
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.analysis.{Sink, Source}
+import de.fosd.typechef.spllift.analysis.{Reach, Source}
 import heros.IFDSTabulationProblem
 import soot.spl.ifds.{Constraint, FeatureModelContext, SPLIFDSSolver}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class CSPLliftFrontend(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultCSPLliftOptions) extends ASTNavigation {
+class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions) extends ASTNavigation {
 
   private val cintercfg = new CInterCFG(startTunit, options)
 
@@ -24,12 +26,8 @@ class CSPLliftFrontend(startTunit: TranslationUnit, options: CSPLliftOptions = D
     solver.getAllResults.asScala.distinct.foreach(entry => {
       entry.asScala.foreach(x => {
         x._1 match {
-          case s: Sink => {
+          case s: Reach => {
             println("Debug: " + x._1 + " @ " + x._2)
-
-
-            /*val sources = s.sources.map(src => PrettyPrinter.print(src.stmt.entry.asInstanceOf[AST]))
-            val sources = s.sources.map(src => PrettyPrinter.print(src.linkedSources)) */
             val sources = sourceToString(s.sources)
             println("Sink in under condition  (" + x._2 + ") at " + PrettyPrinter.print(s.stmt) + " from " + sources)
           }
@@ -41,31 +39,6 @@ class CSPLliftFrontend(startTunit: TranslationUnit, options: CSPLliftOptions = D
     })
     List()
     // TODO Cleaner Solution
-    /** filterAllASTElems[Statement](startTunit).filterNot {
-      * case c: CompoundStatement => true
-      * case _ => false
-      * }.flatMap(statement => {
-      * val result = solver.resultsAt(statement).asScala
-
-      * //println("###\t" + PrettyPrinter.print(statement))
-      * //println(statement)
-      * if (result.nonEmpty) {
-      * result.foreach(x => {
-      * x._1 match {
-      * case s: Sink => {
-      * println(x._1 + " @ " + x._2)
-      * }
-      * case _ => {
-      * // println(x._1 + " @ " + x._2)
-      * }
-      * }
-
-      * })
-
-      * Some((statement, result))
-      * }
-      * else None
-      * }) */
   }
 
   def getCInterCFG = cintercfg

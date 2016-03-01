@@ -1,16 +1,13 @@
 package de.fosd.typechef
 
 import java.io._
-import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter}
 import de.fosd.typechef.cpointeranalysis.{CPointerAnalysisFrontend, DefaultOpenSSLPointerAnalysisOptions, LinkedObjectNames}
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
-import de.fosd.typechef.parser.TokenReader
-import de.fosd.typechef.parser.c.{CTypeContext, TranslationUnit, _}
+import de.fosd.typechef.parser.c.{TranslationUnit, _}
 import de.fosd.typechef.spllift.CSPLliftFrontend
-import de.fosd.typechef.spllift.analysis.InformationFlow
 import de.fosd.typechef.typesystem._
 
 object Frontend extends EnforceTreeHelper {
@@ -244,7 +241,7 @@ object Frontend extends EnforceTreeHelper {
                 if (opt.spllift) {
                     println("#static analysis with lifting")
                     stopWatch.start("spllift")
-                    val spllift = new CSPLliftFrontend(ast /*, options */)
+                    val spllift = new CSPLliftFrontend(ast, opt /*opt/)
                     val problem = new InformationFlow(spllift.getCInterCFG)
 
                     stopWatch.start("spllift_solve")

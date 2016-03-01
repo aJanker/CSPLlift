@@ -35,12 +35,16 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     * Returns whether succ is a branch target of stmt.
     */
   override def isBranchTarget(stmt: AST, suc: AST): Boolean =
-    succ(stmt, nodeToEnv(stmt)).exists(_.entry.equals(suc)) // TODO Check for inter vs intra
+      getSuccsOf(stmt).asScala.exists(_.equals(suc))
+     // TODO Check for inter vs intra
 
   /**
     * Returns all caller statements/nodes of a given method.
     */
-  override def getCallersOf(m: FunctionDef): util.Set[AST] = util.Collections.emptySet() // TODO
+  override def getCallersOf(m: FunctionDef): util.Set[AST] = {
+    println("HIT TODO FUNCTION!")
+    util.Collections.emptySet()
+  } // TODO
 
   /**
     * Returns all statements to which a call could return.
@@ -98,7 +102,8 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     */
   override def getSuccsOf(stmt: AST): util.List[AST] =
     succ(stmt, nodeToEnv(stmt)).flatMap {
-      case Opt(_, f: FunctionDef) => Some(f.asInstanceOf[AST]) // TODO ASK ALEX!
+      case Opt(_, f: FunctionDef) if isPartOf(stmt, f) => Some(f.asInstanceOf[AST])
+      case Opt(_, f: FunctionDef) => None // TODO ASK ALEX!
       case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
       case _ => None
     }.asJava
@@ -109,7 +114,7 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     */
   override def isExitStmt(stmt: AST): Boolean =
     succ(stmt, nodeToEnv(stmt)).exists {
-      case Opt(_, f: FunctionDef) => true
+      case Opt(_, f: FunctionDef) => true //TODO Calls?
       case _ => false
     }
 
@@ -143,7 +148,7 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     throw new UnsupportedOperationException("oops, isFallThroughSuccessor is not supported!")
   // TODO Check function purpose
 
-  // TODO undocumented function call to cifg from spllift
+  // TODO undocumented function call to cifg from spllift -> gets current condition
   def getConstraint(node: AST): Constraint[String] = {
     val featureExpr: BDDFeatureExpr = nodeToEnv(node).featureExpr(node).asInstanceOf[BDDFeatureExpr]
     Constraint.make(featureExpr)

@@ -7,6 +7,7 @@ import java.util.zip.GZIPInputStream
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.CModuleInterface
+import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 
 import scala.collection.JavaConversions._
 
@@ -52,6 +53,7 @@ class CModuleCacheEnv private(initialTUnit: TranslationUnit, cModuleInterfacePat
     this(initialTUnit, options.getModuleInterface, options.getPointerInterface)
 
   private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
+  private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
   private val fileToTUnit: util.IdentityHashMap[String, TranslationUnit] = new util.IdentityHashMap()
 
   private val cModuleInterface: Option[CModuleInterface] =
@@ -70,7 +72,10 @@ class CModuleCacheEnv private(initialTUnit: TranslationUnit, cModuleInterfacePat
 
   def add(tunit: TranslationUnit) = {
     val env = CASTEnv.createASTEnv(tunit)
+    val ts = new CTypeSystemFrontend(tunit, fullFM) with CTypeCache with CDeclUse
+    ts.checkASTEnv(false)
     envToTUnit.put(env, tunit)
+    envToTS.put(env, ts)
     fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
   }
 

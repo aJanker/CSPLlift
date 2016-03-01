@@ -8,6 +8,6 @@ sealed trait InfoFlowFact
 
 case object Zero extends InfoFlowFact
 
-case class Source(name: Opt[Id], stmt: Opt[_], linkedSources: List[Source] = List()) extends InfoFlowFact
+case class Source(name: Opt[Id], stmt: Opt[_], linkedSources: List[Source] = List(), globalFile : Option[String] = None) extends InfoFlowFact
 
-case class Sink(id: Opt[Id], stmt: AST, sources: List[Source]) extends InfoFlowFact
+case class Reach(id: Opt[Id], stmt: AST, sources: List[Source], toKill : Boolean = false) extends InfoFlowFact
