@@ -4,19 +4,21 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.IntraCFG
-import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
 import soot.spl.ifds.Constraint
 
 import scala.collection.JavaConverters._
 
-class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultCSPLliftOptions) extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTNavigation with ConditionalNavigation with CModuleCache {
+class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions)
+  extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTNavigation with ConditionalNavigation with CModuleCache {
 
   Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
-  private val moduleCacheEnv = new CModuleCacheEnv(startTunit, options)
+  private val moduleCacheEnv = new CModuleCacheEnv(startTunit, fm, options)
 
   lazy val entryFunctions = filterAllASTElems[FunctionDef](startTunit).filter(fdef => options.getEntryNames.exists(fdef.getName.equalsIgnoreCase))
 
@@ -42,7 +44,7 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     * Returns all caller statements/nodes of a given method.
     */
   override def getCallersOf(m: FunctionDef): util.Set[AST] = {
-    println("HIT TODO FUNCTION!")
+    throw new UnsupportedOperationException("HIT TODO FUNCTION!")
     util.Collections.emptySet()
   } // TODO
 
@@ -102,7 +104,7 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     */
   override def getSuccsOf(stmt: AST): util.List[AST] =
     succ(stmt, nodeToEnv(stmt)).flatMap {
-      case Opt(_, f: FunctionDef) if isPartOf(stmt, f) => Some(f.asInstanceOf[AST])
+      //case Opt(_, f: FunctionDef) if isPartOf(stmt, f) => Some(f.asInstanceOf[AST])
       case Opt(_, f: FunctionDef) => None // TODO ASK ALEX!
       case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
       case _ => None
@@ -202,5 +204,11 @@ class CInterCFG(startTunit: TranslationUnit, options: CSPLliftOptions = DefaultC
     getTranslationUnit(node, moduleCacheEnv) match {
       case Some(tunit) => tunit
       case _ => throw new NoSuchElementException("No tunit found for node: " + node)
+    }
+
+  def nodoeToTS(node: AST) : CTypeSystemFrontend with CTypeCache with CDeclUse =
+    getTypeSystem(node, moduleCacheEnv) match {
+      case Some(ts) => ts
+      case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
     }
 }

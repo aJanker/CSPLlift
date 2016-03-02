@@ -5,6 +5,8 @@ import java.util
 import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.FeatureModel
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.CModuleInterface
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
@@ -15,7 +17,7 @@ import scala.collection.JavaConversions._
 trait CModuleCache {
 
   def findEnv(node: AST, cache: CModuleCacheEnv): Option[ASTEnv] =
-    cache.getEnvs.par.find(_.containsASTElem(node))
+    cache.getEnvs.par.find { _.containsASTElem(node) }
 
 
   def getTranslationUnit(node: AST, cache: CModuleCacheEnv): Option[TranslationUnit] =
@@ -27,6 +29,17 @@ trait CModuleCache {
         }
       case _ => None
     }
+
+  def getTypeSystem(node: AST, cache: CModuleCacheEnv): Option[CTypeSystemFrontend with CTypeCache with CDeclUse] =
+    findEnv(node, cache) match {
+      case Some(env) =>
+        cache.getTSForEnv(env) match {
+          case null => None
+          case ts => Some(ts)
+        }
+      case _ => None
+    }
+
 
   def isNameLinked(name: Opt[String], cache: CModuleCacheEnv): Boolean =
     cache.isNameKnown(name)
@@ -47,10 +60,10 @@ trait CModuleCache {
     })
 }
 
-class CModuleCacheEnv private(initialTUnit: TranslationUnit, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String]) {
+class CModuleCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String]) {
 
-  def this(initialTUnit: TranslationUnit, options: CSPLliftOptions = DefaultCSPLliftOptions) =
-    this(initialTUnit, options.getModuleInterface, options.getPointerInterface)
+  def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions) =
+    this(initialTUnit, fm, options.getModuleInterface, options.getPointerInterface)
 
   private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
   private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
@@ -72,8 +85,9 @@ class CModuleCacheEnv private(initialTUnit: TranslationUnit, cModuleInterfacePat
 
   def add(tunit: TranslationUnit) = {
     val env = CASTEnv.createASTEnv(tunit)
-    val ts = new CTypeSystemFrontend(tunit, fullFM) with CTypeCache with CDeclUse
-    ts.checkASTEnv(false)
+    val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
+    ts.checkAST()
+
     envToTUnit.put(env, tunit)
     envToTS.put(env, ts)
     fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
@@ -82,6 +96,8 @@ class CModuleCacheEnv private(initialTUnit: TranslationUnit, cModuleInterfacePat
   def getAllKnownTranslationunits: List[TranslationUnit] = envToTUnit.values.toList
 
   def getTunitForEnv(env: ASTEnv) = envToTUnit.get(env)
+
+  def getTSForEnv(env: ASTEnv) = envToTS.get(env)
 
   def getTunitForFile(file: String): Option[TranslationUnit] =
     if (fileToTUnit.containsKey(file)) Some(fileToTUnit.get(file))

@@ -1,13 +1,16 @@
 package de.fosd.typechef
 
 import java.io._
+import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter}
 import de.fosd.typechef.cpointeranalysis.{CPointerAnalysisFrontend, DefaultOpenSSLPointerAnalysisOptions, LinkedObjectNames}
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
+import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
 import de.fosd.typechef.spllift.CSPLliftFrontend
+import de.fosd.typechef.spllift.analysis.InformationFlow
 import de.fosd.typechef.typesystem._
 
 object Frontend extends EnforceTreeHelper {
@@ -155,9 +158,6 @@ object Frontend extends EnforceTreeHelper {
                 //Debug_FeatureModelExperiments.experiment(fm_ts)
 
                 if (opt.typecheck || opt.writeInterface || opt.typechecksa) {
-                    //ProductGeneration.typecheckProducts(fm,fm_ts,ast,opt,
-                    //logMessage=("Time for lexing(ms): " + (t2-t1) + "\nTime for parsing(ms): " + (t3-t2) + "\n"))
-                    //ProductGeneration.estimateNumberOfVariants(ast, fm_ts)
 
                     stopWatch.start("typechecking")
                     println("#type checking")
@@ -239,9 +239,10 @@ object Frontend extends EnforceTreeHelper {
                 }
 
                 if (opt.spllift) {
-                    println("#static analysis with lifting")
+                    println("#static analysis with spllift")
                     stopWatch.start("spllift")
-                    val spllift = new CSPLliftFrontend(ast, opt /*opt/)
+
+                    val spllift = new CSPLliftFrontend(ast, fullFM/*options*/)
                     val problem = new InformationFlow(spllift.getCInterCFG)
 
                     stopWatch.start("spllift_solve")

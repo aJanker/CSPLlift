@@ -1,9 +1,8 @@
 package de.fosd.typechef.crewrite
 
-import org.kiama.attribution.Attribution._
-
-import de.fosd.typechef.parser.c._
 import de.fosd.typechef.conditional._
+import de.fosd.typechef.parser.c._
+import org.kiama.attribution.Attribution._
 
 // defines functions to compute sets for used, defined, and declared variables
 // used for Liveness and ReachingDefinitions
@@ -31,12 +30,14 @@ trait UsedDefinedDeclaredVariables {
             case ExprStatement(_: Id) => List()
             case ExprStatement(PointerDerefExpr(_)) => List()
             case ExprStatement(expr) => defines(expr)
+            case ExprList(exprs) => exprs.flatMap(defines)
             case PostfixExpr(i@Id(_), SimplePostfixSuffix(_)) => List(i) // a++; or a--;
             case UnaryExpr(kind, i: Id) => if (kind == "++" || kind == "--") List(i) else List() // ++a; or --a;
             case Opt(_, entry) => defines(entry.asInstanceOf[AnyRef])
             case PointerDerefExpr(i: Id) => List(i)
             case _ => List()
         }
+
 
     // returns all used Ids independent of their annotation
     val uses: AnyRef => List[Id] =
@@ -67,6 +68,18 @@ trait UsedDefinedDeclaredVariables {
             case ExprStatement(expr) => uses(expr)
             case AssignExpr(target, op, source) => uses(source) ++ (if (op == "=") List() else uses(target))
             case Opt(_, entry) => uses(entry.asInstanceOf[AnyRef])
+            case _ => List()
+        }
+
+    val assignsVariable: AnyRef => List[(Id,List[Id])] =
+        attr {
+            case AssignExpr(target: Id, _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
+            case DeclarationStatement(d) => assignsVariable(d)
+            case Declaration(_, init) => init.flatMap(assignsVariable)
+            case InitDeclaratorI(i, _, _) => assignsVariable(i)
+            case ExprStatement(expr) => assignsVariable(expr)
+            case ExprList(exprs) => exprs.flatMap(assignsVariable)
+            case Opt(_, entry) => assignsVariable(entry.asInstanceOf[AnyRef])
             case _ => List()
         }
 }

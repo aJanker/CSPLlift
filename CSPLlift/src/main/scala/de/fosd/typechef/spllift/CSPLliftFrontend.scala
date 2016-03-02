@@ -12,7 +12,7 @@ import scala.collection.mutable
 
 class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions) extends ASTNavigation {
 
-  private val cintercfg = new CInterCFG(startTunit, options)
+  private val cintercfg = new CInterCFG(startTunit, fm, options)
 
   def solve[D](problem: IFDSTabulationProblem[AST, D, FunctionDef, CInterCFG]): List[(Statement, mutable.Map[D, Constraint[String]])] = {
     val fmContext = new FeatureModelContext()
@@ -20,20 +20,17 @@ class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatur
     solver.solve()
 
     def sourceToString(sources: List[Source]): List[String] = {
-      sources.flatMap(src => PrettyPrinter.print(src.stmt.entry.asInstanceOf[AST]) :: sourceToString(src.linkedSources))
+      sources.flatMap(src => PrettyPrinter.print(src.stmt.entry.asInstanceOf[AST]) :: sourceToString(src.reachingSources))
     }
 
     solver.getAllResults.asScala.distinct.foreach(entry => {
       entry.asScala.foreach(x => {
         x._1 match {
           case s: Reach => {
-            println("Debug: " + x._1 + " @ " + x._2)
             val sources = sourceToString(s.sources)
-            println("Sink in under condition  (" + x._2 + ") at " + PrettyPrinter.print(s.stmt) + " from " + sources)
+            println("Reach: "+ s.to.entry +" under condition  (" + x._2 + ") from " + s.from + "\nsources: " + s.sources + "\n")
           }
-          case _ => {
-            // println(x._1 + " @ " + x._2)
-          }
+          case _ =>
         }
       })
     })
