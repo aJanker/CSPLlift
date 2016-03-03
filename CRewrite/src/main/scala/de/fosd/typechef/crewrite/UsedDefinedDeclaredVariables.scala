@@ -66,6 +66,7 @@ trait UsedDefinedDeclaredVariables {
             case NArySubExpr(_, ex) => uses(ex)
             case ConditionalExpr(condition, _, _) => uses(condition)
             case ExprStatement(expr) => uses(expr)
+            case ExprList(exprs) => exprs.flatMap(uses)
             case AssignExpr(target, op, source) => uses(source) ++ (if (op == "=") List() else uses(target))
             case Opt(_, entry) => uses(entry.asInstanceOf[AnyRef])
             case _ => List()
