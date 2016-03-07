@@ -20,7 +20,7 @@ class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatur
     solver.solve()
 
     def sourceToString(sources: List[Source]): List[String] = {
-      sources.flatMap(src => PrettyPrinter.print(src.stmt.entry.asInstanceOf[AST]) :: sourceToString(src.reachingSources))
+      sources.flatMap(src => PrettyPrinter.print(src.stmt.entry.asInstanceOf[AST]) :: sourceToString(src.reachingSources.toList))
     }
 
     solver.getAllResults.asScala.distinct.foreach(entry => {
