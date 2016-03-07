@@ -22,6 +22,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
   lazy val entryFunctions = filterAllASTElems[FunctionDef](startTunit).filter(fdef => options.getEntryNames.exists(fdef.getName.equalsIgnoreCase))
 
+  def getFeatureModel = fm
+
   /**
     * Returns the method containing a node.
     *
@@ -68,7 +70,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     val calleeNames = getCalleeNames(call)
     val callees = calleeNames.flatMap(findCallees(_, nodeToTUnit(call)))
 
-    callees.map(_.entry).toSet.asJava
+    callees.map(_.entry).reverse.toSet.asJava // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
   }
 
   /**
@@ -97,6 +99,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
   override def isCallStmt(stmt: AST): Boolean =
     filterAllASTElems[PostfixExpr](stmt).exists {
       case PostfixExpr(_, FunctionCall(_)) => true
+      case _ => false
     }
 
   /**
@@ -104,8 +107,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     */
   override def getSuccsOf(stmt: AST): util.List[AST] =
     succ(stmt, nodeToEnv(stmt)).flatMap {
-      //case Opt(_, f: FunctionDef) if isPartOf(stmt, f) => Some(f.asInstanceOf[AST])
-      case Opt(_, f: FunctionDef) => None // TODO ASK ALEX!
+      case Opt(_, f: FunctionDef) => None
       case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
       case _ => None
     }.asJava
