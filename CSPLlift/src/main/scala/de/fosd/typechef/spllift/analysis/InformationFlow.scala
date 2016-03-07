@@ -211,12 +211,13 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                 val currASTEnv = interproceduralCFG().nodeToEnv(curr)
                 val currTS = interproceduralCFG.nodoeToTS(curr)
 
-                val succEnv = currTS.lookupEnv(succ)
-
                 val currDefines = defines(curr)
                 val currUses = uses(curr)
-                var sourceCache = Map[Opt[Id], List[Source]]()
                 val currAssignments = assignsVariable(curr)
+
+                val succEnv = currTS.lookupEnv(succ)
+
+                var sourceCache = Map[Opt[Id], List[Source]]()
 
                 def isIdMatch(i: Id, o: Opt[Id]) =
                     o.entry.name.equalsIgnoreCase(i.name) && o.condition.and(currASTEnv.featureExpr(i)).isSatisfiable(interproceduralCFG.getFeatureModel)
@@ -272,14 +273,13 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                             case s@Source(id, _, _, global) if useIsSatisfiable(id) =>
                                 val reach = Reach(parentOpt(curr, currASTEnv), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source
                                 val sources = currAssignments.flatMap {
-                                        case (target, assignments) => {
+                                        case (target, assignments) =>
                                             assignments.flatMap {
                                                 case assignment if isEqIdMatch(target, id) && isIdMatch(assignment, id) => genSourceFromSourceAtAssignment(target, s) // Kill source, as the old source gets replaced by the new one
                                                 case assignment if isIdMatch(assignment, id) => s :: genSourceFromSourceAtAssignment(target, s) // Pass source
                                                 case _ => None
                                             }
-                                        }
-                                     }
+                                    }
                                 res = GEN(reach :: sources)
                             case s@Source(id, _, _, global) if global.isEmpty && defineIsSatisfiable(id) =>
                                 res = KILL // Kill previously known local source as it is now no longer valid
@@ -315,7 +315,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                 new FlowFunction[InfoFlowFact] {
                     override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] =
                         source match {
-                            case s@Source(id, _, _,global) if global.isDefined => KILL // TODO: VAA CHECK
+                            case s@Source(id, _, _, global) if global.isDefined => KILL // TODO: VAA CHECK
                             case _ => GEN(source) // TODO Pointer!
                         }
                 }
