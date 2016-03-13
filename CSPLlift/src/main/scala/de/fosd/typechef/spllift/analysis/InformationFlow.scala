@@ -149,25 +149,28 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                         println("#DEST: " + destinationMethod.getName)
                         println("#Fact: " + flowFact)
 
-                        var dbgReturn = KILL
+                        var ret = KILL
 
                         flowFact match {
-                            case s@Source(x, _, _, global) => {
+                            case s@Source(x, _, _, global) =>
                                 callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
-                                    case Some(hit) => dbgReturn = GEN(Source(Opt(hit.condition, hit.entry._2), fCallOpt, ListBuffer(s))) // Local Parameter
-                                    case None if global.isDefined => dbgReturn = GEN(s) // Global Variable
-                                    case None => dbgReturn = KILL // Local Variable from previous function
+                                    case Some(hit) =>
+                                        val source = Source(Opt(hit.condition, hit.entry._2), fCallOpt, ListBuffer(s))
+                                        val reach = Reach(Opt(hit.condition, hit.entry._1), s.name :: s.reachingSources.toList.map(_.name), List(s))
+                                        ret = GEN(List(reach, source)) // New local Parameter
+                                    case None if global.isDefined => ret = GEN(s) // Global Variable // TODO VAA Check
+                                    case None => ret = KILL // Local Variable from previous function
                                 }
-                            }
-                            case Zero if !initialSeedsExists(destinationMethod) => {
+
+                            case Zero if !initialSeedsExists(destinationMethod) =>
+                                // Introduce Global Variables from linked file
                                 filesWithSeeds ::= destinationMethod.getFile.getOrElse("")
-                                dbgReturn = globalsAsInitialSeeds(destinationMethod)
-                            } // Introduce Global Variables from linked file
-                            case k => dbgReturn = KILL // Local Variable from previous function
+                                ret = globalsAsInitialSeeds(destinationMethod)
+                            case k => ret = KILL // Local Variable from previous function
                         }
 
-                        println("DBGRET: " + dbgReturn + "\n")
-                        dbgReturn
+                        println("DBGRET: " + ret + "\n")
+                        ret
                     }
                 }
             }
@@ -265,17 +268,17 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
         }
 
 
-    private def computeAssignments(curr: AST, succ: AST, default : InfoFlowFact => util.Set[InfoFlowFact],
-                                   currDefines : Option[List[Id]] = None, currUses : Option[List[Id]] = None, currAssignments : Option[List[(Id,List[Id])]] = None) : FlowFunction[InfoFlowFact] with Object {def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact]} = {
+    private def computeAssignments(curr: AST, succ: AST, default: InfoFlowFact => util.Set[InfoFlowFact],
+                                   currDefines: Option[List[Id]] = None, currUses: Option[List[Id]] = None, currAssignments: Option[List[(Id, List[Id])]] = None): FlowFunction[InfoFlowFact] with Object {def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact]} = {
         // Cache some repeatedly used variables
         val currOpt = parentOpt(curr, interproceduralCFG.nodeToEnv(curr))
         val currASTEnv = interproceduralCFG().nodeToEnv(curr)
         val currTS = interproceduralCFG.nodoeToTS(curr)
 
         val _currDefines = currDefines match {
-                case None => defines(curr)
-                case Some(x) => x
-            }
+            case None => defines(curr)
+            case Some(x) => x
+        }
 
         val _currUses = currUses match {
             case None => uses(curr)
@@ -375,14 +378,14 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                     case s@Source(id, _, _, global) if useIsSatisfiable(id) =>
 
                         val reach = Reach(parentOpt(curr, currASTEnv), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source
-                        val sources = _currAssignments.flatMap {
-                                case (target, assignments) =>
-                                    assignments.flatMap {
-                                        case assignment if nameMatchIsTautology(target, id) && nameMatchIsSatisfiable(assignment, id) => genSource(target, Some(s)) // Kill source, as the old source gets replaced by the new one // TODO Full VAA
-                                        case assignment if nameMatchIsSatisfiable(assignment, id) => s :: genSource(target, Some(s)) // Pass previous source
-                                        case _ => None
-                                    }
-                            }
+                    val sources = _currAssignments.flatMap {
+                            case (target, assignments) =>
+                                assignments.flatMap {
+                                    case assignment if nameMatchIsTautology(target, id) && nameMatchIsSatisfiable(assignment, id) => genSource(target, Some(s)) // Kill source, as the old source gets replaced by the new one // TODO Full VAA
+                                    case assignment if nameMatchIsSatisfiable(assignment, id) => s :: genSource(target, Some(s)) // Pass previous source
+                                    case _ => None
+                                }
+                        }
 
                         res = GEN(reach :: sources)
 
