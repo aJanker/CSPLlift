@@ -108,7 +108,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def getSuccsOf(stmt: AST): util.List[AST] =
         succ(stmt, nodeToEnv(stmt)).flatMap {
-            case Opt(_, f: FunctionDef) => None
+            case Opt(_, f: FunctionDef) => {
+                println(stmt + "\tfdef: " + f)
+                None
+            }
             case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
             case _ => None
         }.asJava
@@ -177,8 +180,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             })
     }
 
-    override def getExprSucc(exp: Expr, ctx: FeatureExpr, oldres: CFGRes, env: ASTEnv): CFGRes =
-        findMethodCalls(exp, env, oldres, ctx, oldres) ++ super.getExprSucc(exp, ctx, oldres, env)
+    /*override def getExprSucc(exp: Expr, ctx: FeatureExpr, oldres: CFGRes, env: ASTEnv): CFGRes =
+        findMethodCalls(exp, env, oldres, ctx, oldres) ++ super.getExprSucc(exp, ctx, oldres, env)*/
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
         val localDef = callTUnit.defs.flatMap {
