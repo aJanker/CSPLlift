@@ -139,21 +139,31 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                 val callParamToFDefParams = mapCallParamToFDefParam(callExprs, fDefParams)
 
                 new FlowFunction[InfoFlowFact] {
-                    override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
-                        source match {
+                    override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
+                        println("#CallFlow")
+                        println("#Call: " + callStmt)
+                        println("#DEST: " + destinationMethod.getName)
+                        println("#Fact: " + flowFact)
+
+                        var dbgReturn = KILL
+
+                        flowFact match {
                             case s@Source(x, _, _, global) => {
                                 callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
-                                    case Some(hit) => GEN(Source(Opt(hit.condition, hit.entry._2), fCallOpt, ListBuffer(s))) // Local Parameter
-                                    case None if global.isDefined => GEN(s) // Global Variable
-                                    case None => KILL // Local Variable from previous function
+                                    case Some(hit) => dbgReturn = GEN(Source(Opt(hit.condition, hit.entry._2), fCallOpt, ListBuffer(s))) // Local Parameter
+                                    case None if global.isDefined => dbgReturn = GEN(s) // Global Variable
+                                    case None => dbgReturn = KILL // Local Variable from previous function
                                 }
                             }
                             case Zero if !initialSeedsExists(destinationMethod) => {
                                 filesWithSeeds ::= destinationMethod.getFile.getOrElse("")
-                                globalsAsInitialSeeds(destinationMethod)
+                                dbgReturn = globalsAsInitialSeeds(destinationMethod)
                             } // Introduce Global Variables from linked file
-                            case k => KILL // Local Variable from previous function
+                            case k => dbgReturn = KILL // Local Variable from previous function
                         }
+
+                        println("DBGRET: " + dbgReturn + "\n")
+                        dbgReturn
                     }
                 }
             }
@@ -188,13 +198,19 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
               */
             override def getReturnFlowFunction(callSite: AST, calleeMethod: FunctionDef, exitStmt: AST, returnSite: AST): FlowFunction[InfoFlowFact] =
                 new FlowFunction[InfoFlowFact] {
-                    override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] =
+                    override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
+                        println("#returnFlowFunction")
+                        println("#callsite:" + callSite)
+                        println("#calee: " + calleeMethod.getName)
+                        println("#exitstmt: " + exitStmt)
+                        println("#returnsite: " + returnSite)
                         source match {
                             case s@Source(_, _, _, global) if global.isDefined => GEN(s) // Pass global variables back to return site
-                            case s@Source(id, _, _, _) if exitStmt.isInstanceOf[ReturnStatement] => KILL // TODO Return Assignments
+                            case s@Source(id, _, _, _) if exitStmt.isInstanceOf[ReturnStatement] => GEN(s) // TODO Return Assignments
                             case r: Reach => GEN(r)
                             case k => KILL // Kill all local variables - they are no longer required in the analysis
                         }
+                    }
                 }
 
             /**
@@ -280,20 +296,24 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                 }
 
                 new FlowFunction[InfoFlowFact] {
-                    override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
+                    override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
+                        println("#normalflow")
+                        println("Curr: " + curr)
+                        println("Succ: " + succ)
+                        println("Fact: " + flowFact)
                         var res = KILL
 
-                        source match {
+                        flowFact match {
                             case Zero if currDefines.nonEmpty =>
 
                                 val facts: List[InfoFlowFact] = currDefines.flatMap(id =>
                                     currTS.lookupEnv(succ).varEnv.lookupScope(id.name).toOptList.flatMap(scope => {
-                                        if (scope.entry == 0)
-                                            None // Do not generate a source for global variables
-                                        else if (currAssignments.exists(_._1.name.equalsIgnoreCase(id.name)))
+                                        if (currAssignments.exists(_._1.name.equalsIgnoreCase(id.name)))
                                             None // Do not generate a source for assignments from other variables (e.g x = y;)
-                                        else
-                                            Some(Source(Opt(currOpt.condition.and(scope.condition), id), currOpt)) // is completly new introduced declaration without usage (e.g int x = 50;)
+                                        else {
+                                            val file = if (scope.entry == 0) getFileName(id.getFile) /* TODO VAA Check */ else None
+                                            Some(Source(Opt(currOpt.condition.and(scope.condition), id), currOpt, ListBuffer(), file)) // is completly new introduced declaration without usage (e.g int x = 50;)
+                                        }
                                     }))
                                 res = GEN(facts)
 
@@ -315,11 +335,11 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                                 res = KILL // Kill previously known local source as it is now no longer valid // TODO Full VAA
 
                             case s@Source(id, _, _, global) if global.isDefined && defineIsFullySatisfiable(id) && globalNameScopeIsSatisfiable(id, global) =>
-                                res = KILL// Global visible source, only handle this source in case the name scope is globally visible
+                                res = KILL // Global visible source, only handle this source in case the name scope is globally visible
 
-                            case r: Reach => res = KILL // Per default we kill the previously reached "pseudo sinks"
+                            case r: Reach => res = GEN(r) // Per default we kill the previously reached "pseudo sinks" // TODO ALEX Fragen, evtl schöner DBG Ausgabe
 
-                            case _ => res = GEN(source) // Pass through unused infoflowfacts to succ
+                            case _ => res = GEN(flowFact) // Pass through unused infoflowfacts to succ
 
                         }
                         println(res + "\n")
@@ -348,11 +368,12 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
               */
             override def getCallToReturnFlowFunction(callSite: AST, returnSite: AST): FlowFunction[InfoFlowFact] = {
                 new FlowFunction[InfoFlowFact] {
-                    override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] =
+                    override def computeTargets(source: InfoFlowFact): util.Set[InfoFlowFact] = {
                         source match {
                             case s@Source(id, _, _, global) if global.isDefined => KILL
                             case _ => GEN(source) // TODO Pointer!
                         }
+                    }
                 }
             }
         }
