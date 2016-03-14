@@ -2,6 +2,7 @@ package de.fosd.typechef.parser.c
 
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExpr
+
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
 
@@ -180,6 +181,16 @@ trait ASTNavigation {
             case x if (m.runtimeClass.isInstance(x)) => x.asInstanceOf[T] :: findPriorASTElems(parentAST(x, env), env)
             case x: Product => findPriorASTElems(parentAST(x, env), env)
             case null => Nil
+        }
+    }
+
+    // checks reference equality of e in a given structure t (either product or list)
+    def isPartOf(subterm: Product, term: Any): Boolean = {
+        term match {
+            case _: Product if subterm.asInstanceOf[AnyRef].eq(term.asInstanceOf[AnyRef]) => true
+            case l: List[_] => l.exists(isPartOf(subterm, _))
+            case p: Product => p.productIterator.toList.exists(isPartOf(subterm, _))
+            case _ => false
         }
     }
 

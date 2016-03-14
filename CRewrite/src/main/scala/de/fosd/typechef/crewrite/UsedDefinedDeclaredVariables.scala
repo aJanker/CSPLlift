@@ -16,6 +16,7 @@ trait UsedDefinedDeclaredVariables {
             case InitDeclaratorI(declarator, _, _) => declares(declarator)
             case AtomicNamedDeclarator(_, id, _) => List(id)
             case Opt(_, entry) => declares(entry.asInstanceOf[AnyRef])
+            case Some(entry) => declares(entry.asInstanceOf[AnyRef])
             case _ => List()
         }
 
@@ -33,8 +34,9 @@ trait UsedDefinedDeclaredVariables {
             case ExprList(exprs) => exprs.flatMap(defines)
             case PostfixExpr(i@Id(_), SimplePostfixSuffix(_)) => List(i) // a++; or a--;
             case UnaryExpr(kind, i: Id) => if (kind == "++" || kind == "--") List(i) else List() // ++a; or --a;
-            case Opt(_, entry) => defines(entry.asInstanceOf[AnyRef])
             case PointerDerefExpr(i: Id) => List(i)
+            case Opt(_, entry) => defines(entry.asInstanceOf[AnyRef])
+            case Some(entry) => defines(entry.asInstanceOf[AnyRef])
             case _ => List()
         }
 
@@ -69,6 +71,7 @@ trait UsedDefinedDeclaredVariables {
             case ExprList(exprs) => exprs.flatMap(uses)
             case AssignExpr(target, op, source) => uses(source) ++ (if (op == "=") List() else uses(target))
             case Opt(_, entry) => uses(entry.asInstanceOf[AnyRef])
+            case Some(entry) => uses(entry.asInstanceOf[AnyRef])
             case _ => List()
         }
 
@@ -77,10 +80,10 @@ trait UsedDefinedDeclaredVariables {
             case AssignExpr(target: Id, _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
             case DeclarationStatement(d) => assignsVariable(d)
             case Declaration(_, init) => init.flatMap(assignsVariable)
-            case InitDeclaratorI(i, _, _) => assignsVariable(i)
+            case InitDeclaratorI(i, _, init) if init.isDefined => if (uses(init).nonEmpty) List((i.getId, uses(init))) else List()
             case ExprStatement(expr) => assignsVariable(expr)
             case ExprList(exprs) => exprs.flatMap(assignsVariable)
             case Opt(_, entry) => assignsVariable(entry.asInstanceOf[AnyRef])
-            case _ => List()
+            case x => List()
         }
 }
