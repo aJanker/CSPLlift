@@ -60,7 +60,7 @@ trait CModuleCache {
     })
 }
 
-class CModuleCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String]) {
+class CModuleCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String]) extends EnforceTreeHelper {
 
   def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions) =
     this(initialTUnit, fm, options.getModuleInterface, options.getPointerInterface)
@@ -82,6 +82,12 @@ class CModuleCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, c
     }
 
   add(initialTUnit)
+
+  override def prepareAST[T <: Product](ast: T): T = {
+    // TODO Rewrite Nested function calls (outter(inner(x))
+    val tunit = super.prepareAST(ast)
+    tunit
+  }
 
   def add(tunit: TranslationUnit) = {
     val env = CASTEnv.createASTEnv(tunit)
@@ -128,7 +134,7 @@ class CModuleCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, c
         override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
       }
 
-      val tunit = fr.readObject().asInstanceOf[TranslationUnit]
+      val tunit = prepareAST(fr.readObject().asInstanceOf[TranslationUnit])
       fr.close()
 
       add(tunit)

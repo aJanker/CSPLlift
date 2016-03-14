@@ -8,36 +8,64 @@ import heros.IFDSTabulationProblem
 import soot.spl.ifds.{Constraint, FeatureModelContext, SPLIFDSSolver}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
-class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions) extends ASTNavigation {
+class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions, dbg: Boolean = false) extends ASTNavigation {
 
-  private val cintercfg = new CInterCFG(startTunit, fm, options)
+    private val cintercfg = new CInterCFG(startTunit, fm, options)
 
-  def solve[D](problem: IFDSTabulationProblem[AST, D, FunctionDef, CInterCFG]): List[(Statement, mutable.Map[D, Constraint[String]])] = {
-    val fmContext = new FeatureModelContext()
-    val solver = new SPLIFDSSolver(problem, fmContext, false)
-    solver.solve()
+    def solve[D](problem: IFDSTabulationProblem[AST, D, FunctionDef, CInterCFG], fmContext: FeatureModelContext = new FeatureModelContext())
+    : List[(AST, List[(Constraint[_], D)])] = {
+        def sourceToString(sources: List[Source]): List[String] = {
+            sources.flatMap(src => PrettyPrinter.print(src.stmt.entry.asInstanceOf[AST]) :: sourceToString(src.reachingSources.toList))
+        }
 
-    def sourceToString(sources: List[Source]): List[String] = {
-      sources.flatMap(src => PrettyPrinter.print(src.stmt.entry.asInstanceOf[AST]) :: sourceToString(src.reachingSources.toList))
+        val solver = new SPLIFDSSolver(problem, fmContext, false)
+        solver.solve()
+
+        val allResults = solver.getAllResults.asScala.distinct
+
+        if (dbg) {
+            allResults.foreach(entry =>
+                entry.asScala.foreach(x => x._1 match {
+                    case s: Reach => println("Reach: " + s.to.entry + " under condition  (" + x._2 + ") from " + s.from + "\nsources: " + s.sources + "\n")
+                    case _ =>
+                }
+                )
+            )
+
+            println("######### END OF DBG PRINT ############\n")
+        }
+
+        val allSinks = allResults.foldLeft(Map[AST, List[(Constraint[_], D)]]()) {
+            case (m, result) => result.asScala.foldLeft(m) {
+                case (lm, x) => x._1 match {
+                        case r: Reach if isSink(r) =>
+                            val key = r.to.entry
+                            if (lm.contains(key)) lm + (key -> (x.swap :: lm.get(key).get))
+                            else lm + (key -> List(x.swap))
+                        case _ => lm
+                    }
+            }
+        }
+
+        allSinks.foreach(sink => {
+            println("Sink at: \t" + sink._1)
+            sink._2.foreach(ssink => {
+                println("\tCFGcondition " + ssink._1 + "\t" + ssink._2)
+            })
+            println()
+
+        })
+        allSinks.toList
     }
 
-    solver.getAllResults.asScala.distinct.foreach(entry => {
-      entry.asScala.foreach(x => {
-        x._1 match {
-          case s: Reach => {
-            val sources = sourceToString(s.sources)
-            println("Reach: "+ s.to.entry +" under condition  (" + x._2 + ") from " + s.from + "\nsources: " + s.sources + "\n")
-          }
-          case _ =>
+    private def isSink(r: Reach): Boolean = {
+        r.to.entry match {
+            case ExprStatement(AssignExpr(Id(name), _, _)) if name.equalsIgnoreCase("returnSite") => true
+            case _ => false
         }
-      })
-    })
-    List()
-    // TODO Cleaner Solution
-  }
+    }
 
-  def getCInterCFG = cintercfg
+    def getCInterCFG = cintercfg
 
 }

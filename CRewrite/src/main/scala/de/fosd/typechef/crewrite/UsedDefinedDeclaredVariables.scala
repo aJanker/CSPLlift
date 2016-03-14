@@ -75,15 +75,16 @@ trait UsedDefinedDeclaredVariables {
             case _ => List()
         }
 
-    val assignsVariable: AnyRef => List[(Id,List[Id])] =
+    val assignsVariables: AnyRef => List[(Id,List[Id])] =
         attr {
             case AssignExpr(target: Id, _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
-            case DeclarationStatement(d) => assignsVariable(d)
-            case Declaration(_, init) => init.flatMap(assignsVariable)
+            case DeclarationStatement(d) => assignsVariables(d)
+            case Declaration(_, init) => init.flatMap(assignsVariables)
             case InitDeclaratorI(i, _, init) if init.isDefined => if (uses(init).nonEmpty) List((i.getId, uses(init))) else List()
-            case ExprStatement(expr) => assignsVariable(expr)
-            case ExprList(exprs) => exprs.flatMap(assignsVariable)
-            case Opt(_, entry) => assignsVariable(entry.asInstanceOf[AnyRef])
+            case ExprStatement(expr) => assignsVariables(expr)
+            case ExprList(exprs) => exprs.flatMap(assignsVariables)
+            case Opt(_, entry) => assignsVariables(entry.asInstanceOf[AnyRef])
+            case Some(entry) => assignsVariables(entry.asInstanceOf[AnyRef])
             case x => List()
         }
 }

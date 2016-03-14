@@ -78,7 +78,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def flowFunctions(): FlowFunctions[AST, InfoFlowFact, FunctionDef] = cachedFlowFunctions
+    override def flowFunctions(): FlowFunctions[AST, InfoFlowFact, FunctionDef] =  cachedFlowFunctions
 
     private val cachedFlowFunctions: FlowFunctions[AST, InfoFlowFact, FunctionDef] =
         new FlowFunctions[AST, InfoFlowFact, FunctionDef] {
@@ -102,10 +102,6 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: AST, destinationMethod: FunctionDef): FlowFunction[InfoFlowFact] = {
-                println("#CallFlow")
-                println("#Call: " + callStmt)
-                println("#DEST: " + destinationMethod.getName)
-
                 def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[DeclaratorExtension]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
                     if (callParams.isEmpty && fDefParams.isEmpty) return res
 
@@ -144,20 +140,16 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
 
                 new FlowFunction[InfoFlowFact] {
                     override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
-                        println("#CallFlow")
-                        println("#Call: " + callStmt)
-                        println("#DEST: " + destinationMethod.getName)
-                        println("#Fact: " + flowFact)
-
                         var ret = KILL
 
                         flowFact match {
                             case s@Source(x, _, _, global) =>
                                 callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
                                     case Some(hit) =>
+                                        println(hit)
                                         val source = Source(Opt(hit.condition, hit.entry._2), fCallOpt, ListBuffer(s))
                                         val reach = Reach(Opt(hit.condition, hit.entry._1), s.name :: s.reachingSources.toList.map(_.name), List(s))
-                                        ret = GEN(List(reach, source)) // New local Parameter
+                                        ret = GEN(List(source, reach)) // New local Parameter
                                     case None if global.isDefined => ret = GEN(s) // Global Variable // TODO VAA Check
                                     case None => ret = KILL // Local Variable from previous function
                                 }
@@ -169,7 +161,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                             case k => ret = KILL // Local Variable from previous function
                         }
 
-                        println("DBGRET: " + ret + "\n")
+                        println("PARAMETER: " + ret + "\n")
                         ret
                     }
                 }
@@ -204,25 +196,29 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
               * @return
               */
             override def getReturnFlowFunction(callSite: AST, calleeMethod: FunctionDef, exitStmt: AST, returnSite: AST): FlowFunction[InfoFlowFact] = {
+                def assignsReturnVariables(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
+                    val fCall = filterASTElems[FunctionCall](callSite)
+                    assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOf(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
+                }
+
+                def defaultReturnFlow(flowFact : InfoFlowFact) =
+                    flowFact match {
+                        case s@Source(id, _, _, global) if global.isDefined => GEN(s)
+                        case _ => KILL
+                    }
+
+
                 println("#returnFlowFunction")
                 println("#callsite:" + callSite)
                 println("#calee: " + calleeMethod.getName)
                 println("#exitstmt: " + exitStmt)
                 println("#returnsite: " + returnSite)
 
-                val currDefines = List()
-                val currAssignments = List()
-                val currUses = uses(exitStmt)
+                val callDefines = defines(callSite)
+                val returnUses = uses(exitStmt)
+                val assignments = assignsReturnVariables(callSite, exitStmt)
 
-                // computeAssignments(callSite, returnSite, flowFact => KILL)
-                new FlowFunction[InfoFlowFact] {
-                    override def computeTargets(infoFlowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
-                        infoFlowFact match {
-                            case s@Source(_, _, _, global) if !global.isDefined => KILL
-                            case _ => KILL
-                        }
-                    }
-                }
+                computeAssignments2(callSite, returnSite, defaultReturnFlow, Some(callDefines), Some(returnUses), Some(assignments))
             }
 
             /**
@@ -271,7 +267,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
     private def computeAssignments(curr: AST, succ: AST, default: InfoFlowFact => util.Set[InfoFlowFact],
                                    currDefines: Option[List[Id]] = None, currUses: Option[List[Id]] = None, currAssignments: Option[List[(Id, List[Id])]] = None): FlowFunction[InfoFlowFact] with Object {def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact]} = {
         // Cache some repeatedly used variables
-        val currOpt = parentOpt(curr, interproceduralCFG.nodeToEnv(curr))
+        val currOpt : Opt[AST] = parentOpt(curr, interproceduralCFG.nodeToEnv(curr)).asInstanceOf[Opt[AST]]
         val currASTEnv = interproceduralCFG().nodeToEnv(curr)
         val currTS = interproceduralCFG.nodoeToTS(curr)
 
@@ -286,7 +282,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
         }
 
         val _currAssignments = currAssignments match {
-            case None => assignsVariable(curr)
+            case None => assignsVariables(curr)
             case Some(x) => x
         }
 
@@ -318,7 +314,8 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                     val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) else ListBuffer[Source]()
                     val genSources = currTS.lookupEnv(succ).varEnv.lookupScope(target.name).toOptList.flatMap(scope => {
 
-                        val currCondition = targetOpt.condition.and(scope.condition)
+                        val scopeCondition = targetOpt.condition.and(scope.condition)
+                        val currCondition = if (reachingSource.isDefined) scopeCondition.and(reachingSource.get.name.condition) else scopeCondition
 
                         // gen with the correct  and satisfiable scope
                         if (currCondition.isSatisfiable(interproceduralCFG.getFeatureModel))
@@ -376,18 +373,22 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                         res = GEN(facts)
 
                     case s@Source(id, _, _, global) if useIsSatisfiable(id) =>
+                        val reachCondition = id.condition.and(currOpt.condition)
+                        val reach = Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source
 
-                        val reach = Reach(parentOpt(curr, currASTEnv), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source
-                    val sources = _currAssignments.flatMap {
+                        val sources = _currAssignments.flatMap {
                             case (target, assignments) =>
                                 assignments.flatMap {
                                     case assignment if nameMatchIsTautology(target, id) && nameMatchIsSatisfiable(assignment, id) => genSource(target, Some(s)) // Kill source, as the old source gets replaced by the new one // TODO Full VAA
                                     case assignment if nameMatchIsSatisfiable(assignment, id) => s :: genSource(target, Some(s)) // Pass previous source
-                                    case _ => None
+                                    case x => {
+                                        println("MISSED: " + x)
+                                        None
+                                    }
                                 }
                         }
 
-                        res = GEN(reach :: sources)
+                        res = GEN(sources ::: List(reach))
 
                     case s@Source(id, _, _, None) if defineIsFullySatisfiable(id) =>
                         res = KILL // Kill previously known local source as it is now no longer valid // TODO Full VAA
@@ -397,10 +398,156 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
 
                     case r: Reach => res = GEN(r) // Per default we kill the previously reached "pseudo sinks" // TODO ALEX Fragen, evtl schöner DBG Ausgabe
 
-                    case _ => res = default(flowFact) // Pass through unused infoflowfacts to succ
+                    case x => res = {
+                        println("default: " + default(flowFact))
+                        default(flowFact)
+                    } // Pass through unused infoflowfacts to succ
 
                 }
-                println(res + "\n")
+                println("NORMAL: " + res + "\n")
+                res
+            }
+        }
+    }
+
+    private def computeAssignments2(curr: AST, succ: AST, default: InfoFlowFact => util.Set[InfoFlowFact],
+                                   currDefines: Option[List[Id]] = None, currUses: Option[List[Id]] = None, currAssignments: Option[List[(Id, List[Id])]] = None): FlowFunction[InfoFlowFact] with Object {def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact]} = {
+        // Cache some repeatedly used variables
+        val currOpt : Opt[AST] = parentOpt(curr, interproceduralCFG.nodeToEnv(curr)).asInstanceOf[Opt[AST]]
+        val currASTEnv = interproceduralCFG().nodeToEnv(curr)
+        val currTS = interproceduralCFG.nodoeToTS(curr)
+
+        val _currDefines = currDefines match {
+            case None => defines(curr)
+            case Some(x) => x
+        }
+
+        val _currUses = currUses match {
+            case None => uses(curr)
+            case Some(x) => x
+        }
+
+        val _currAssignments = currAssignments match {
+            case None => assignsVariables(curr)
+            case Some(x) => x
+        }
+
+        val succEnv = currTS.lookupEnv(succ)
+
+        var sourceCache = Map[Opt[Id], List[Source]]()
+
+        def nameMatchIsSatisfiable(i: Id, o: Opt[Id]) =
+            o.entry.name.equalsIgnoreCase(i.name) && o.condition.and(currASTEnv.featureExpr(i)).isSatisfiable(interproceduralCFG.getFeatureModel)
+
+        def nameMatchIsTautology(i: Id, o: Opt[Id]) =
+            o.entry.name.equalsIgnoreCase(i.name) && o.condition.equivalentTo(currASTEnv.featureExpr(i))
+
+        def occurrenceIsSatisfiable(x: Opt[Id], occurrences: List[Id]) = occurrences.exists(nameMatchIsSatisfiable(_, x))
+
+        def occurrenceIsFullySatisfiable(x: Opt[Id], occurrences: List[Id]) = occurrences.exists(nameMatchIsTautology(_, x))
+
+        def defineIsSatisfiable(x: Opt[Id]): Boolean = occurrenceIsSatisfiable(x, _currDefines)
+
+        def defineIsFullySatisfiable(x: Opt[Id]): Boolean = occurrenceIsFullySatisfiable(x, _currDefines)
+
+        def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceIsSatisfiable(x, _currUses)
+
+        def genSource(target: Id, reachingSource: Option[Source] = None): List[Source] = {
+            val targetOpt = Opt(currASTEnv.featureExpr(target), target)
+
+            sourceCache.get(targetOpt) match {
+                case None => // New source -> add to cache map
+                    val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) else ListBuffer[Source]()
+                    val genSources = currTS.lookupEnv(succ).varEnv.lookupScope(target.name).toOptList.flatMap(scope => {
+
+                        val scopeCondition = targetOpt.condition.and(scope.condition)
+                        val currCondition = if (reachingSource.isDefined) scopeCondition.and(reachingSource.get.name.condition) else scopeCondition
+
+                        // gen with the correct  and satisfiable scope
+                        if (currCondition.isSatisfiable(interproceduralCFG.getFeatureModel))
+                            if (scope.entry == 0)
+                                Some(Source(targetOpt.copy(condition = currCondition), currOpt, buffer, getFileName(target.getFile))) // add file when global definition exists
+                            else
+                                Some(Source(targetOpt.copy(condition = currCondition), currOpt, buffer))
+                        else
+                            None
+                    })
+
+                    sourceCache += (targetOpt -> genSources)
+                    genSources
+
+                case Some(genSource) => // Update already existing targets
+                    if (reachingSource.isDefined) genSource.foreach(genS => genS.reachingSources.+=(reachingSource.get)) // Update new reaching sources
+                    List()
+            }
+        }
+
+        def globalNameScopeIsSatisfiable(id: Opt[Id], declarationFile: Option[String] = None): Boolean = {
+            val eqDeclFile = declarationFile match {
+                case None => false
+                case Some(declFile) => getFileName(id.entry.getFile).getOrElse("").equalsIgnoreCase(declFile)
+            }
+
+            eqDeclFile && currTS.lookupEnv(succ).varEnv.lookupScope(id.entry.name).toOptList.exists {
+                case o@Opt(cond, 0) => id.condition.and(cond).isSatisfiable(icfg.getFeatureModel)
+                case _ => false
+            }
+        }
+
+        new FlowFunction[InfoFlowFact] {
+            override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
+                println("#returnflow")
+                println("Curr: " + curr)
+                println("Succ: " + succ)
+                println("Succ2 " + interproceduralCFG.getSuccsOf(succ))
+                println("Fact: " + flowFact)
+
+                var res = KILL
+
+                flowFact match {
+                    case Zero if _currDefines.nonEmpty =>
+
+                        val facts: List[InfoFlowFact] = _currDefines.flatMap(id =>
+                            currTS.lookupEnv(succ).varEnv.lookupScope(id.name).toOptList.flatMap(scope => {
+                                if (_currAssignments.exists(_._1.name.equalsIgnoreCase(id.name)))
+                                    None // Do not generate a source for assignments from other variables (e.g x = y;)
+                                else {
+                                    val file = if (scope.entry == 0) getFileName(id.getFile) /* TODO VAA Check */ else None
+                                    Some(Source(Opt(currOpt.condition.and(scope.condition), id), currOpt, ListBuffer(), file)) // is completly new introduced declaration without usage (e.g int x = 50;)
+                                }
+                            }))
+                        res = GEN(facts)
+
+                    case s@Source(id, _, _, global) if useIsSatisfiable(id) =>
+                        val reachCondition = id.condition.and(currOpt.condition)
+                        val reach = Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source
+
+                        val sources = _currAssignments.flatMap {
+                            case (target, assignments) =>
+                                assignments.flatMap {
+                                    case assignment if nameMatchIsTautology(target, id) && nameMatchIsSatisfiable(assignment, id) => genSource(target, Some(s)) // Kill source, as the old source gets replaced by the new one // TODO Full VAA
+                                    case assignment if nameMatchIsSatisfiable(assignment, id) => s :: genSource(target, Some(s)) // Pass previous source
+                                    case x => {
+                                        println("MISSED: " + x)
+                                        None
+                                    }
+                                }
+                        }
+
+                        res = GEN(sources ::: List(reach))
+
+                    case s@Source(id, _, _, None) if defineIsFullySatisfiable(id) =>
+                        res = KILL // Kill previously known local source as it is now no longer valid // TODO Full VAA
+
+                    case s@Source(id, _, _, global) if global.isDefined && defineIsFullySatisfiable(id) && globalNameScopeIsSatisfiable(id, global) =>
+                        res = KILL // Global visible source, only handle this source in case the name scope is globally visible
+
+                    case r: Reach => res = GEN(r) // Per default we kill the previously reached "pseudo sinks" // TODO ALEX Fragen, evtl schöner DBG Ausgabe
+
+                    case _ => res = default(flowFact) // Do default flow action
+
+                }
+                println("RETURN: " + res + "\n")
                 res
             }
         }

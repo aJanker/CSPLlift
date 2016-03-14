@@ -163,15 +163,6 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
         curres.map(_._1).fold(FeatureExprFactory.False)(_ or _).not() and ctx and curctx
     }
 
-    // checks reference equality of e in a given structure t (either product or list)
-    protected def isPartOf(subterm: Product, term: Any): Boolean = {
-        term match {
-            case _: Product if subterm.asInstanceOf[AnyRef].eq(term.asInstanceOf[AnyRef]) => true
-            case l: List[_] => l.exists(isPartOf(subterm, _))
-            case p: Product => p.productIterator.toList.exists(isPartOf(subterm, _))
-            case _ => false
-        }
-    }
 
     def predHelper(source: Product, ctx: FeatureExpr, oldres: CFGRes, env: ASTEnv): CFGRes = {
 
