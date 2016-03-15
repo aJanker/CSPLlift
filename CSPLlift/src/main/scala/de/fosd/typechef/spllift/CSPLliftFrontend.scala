@@ -23,7 +23,7 @@ class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatur
         solver.solve()
 
         val allReaches = solver.getAllResults.asScala.distinct
-        val allSinks = allReaches.foldLeft(Map[AST, List[(Constraint[_], D)]]()) {
+        val allSinks : List[(AST, List[(Constraint[_], D)])]= allReaches.foldLeft(Map[AST, List[(Constraint[_], D)]]()) {
             case (m, result) => result.asScala.foldLeft(m) {
                 case (lm, x) => x._1 match {
                     case r: Reach if isSink(r) =>
@@ -53,18 +53,15 @@ class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatur
         }
 
 
-
         allSinks.foreach(sink => {
-            println("Sink at: \t" + sink._1)
+            println("### Sink at: \t" + sink._1)
             sink._2.take(sink._2.size / 2).foreach(ssink => {
-                println("\tCFGcondition " + ssink._1 + "\t" + ssink._2)
+                println("CFGcondition " + ssink._1 + ":\t" + ssink._2)
             })
-            println()
+            println("### END SINK ###")
 
         })
         allSinks
-
-        // TODO CLEANUP
     }
 
     private def isSink(r: Reach): Boolean = {

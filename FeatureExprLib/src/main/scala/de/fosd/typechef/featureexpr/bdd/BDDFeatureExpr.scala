@@ -537,7 +537,7 @@ object FExprBuilder {
 
 object True extends BDDFeatureExpr(FExprBuilder.TRUE) with DefaultPrint with SingleFeatureExpr {
     override def toString = "True"
-    override def toTextExpr = "1"
+    override def toTextExpr = "True"
     override def debug_print(ind: Int) = indent(ind) + toTextExpr + "\n"
     override def isSatisfiable(fm: FeatureModel) = true
     override def feature = toString
@@ -546,7 +546,7 @@ object True extends BDDFeatureExpr(FExprBuilder.TRUE) with DefaultPrint with Sin
 
 object False extends BDDFeatureExpr(FExprBuilder.FALSE) with DefaultPrint with SingleFeatureExpr {
     override def toString = "False"
-    override def toTextExpr = "0"
+    override def toTextExpr = "False"
     override def debug_print(ind: Int) = indent(ind) + toTextExpr + "\n"
     override def isSatisfiable(fm: FeatureModel) = false
     override def feature = toString
