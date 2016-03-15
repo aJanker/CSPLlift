@@ -79,7 +79,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def flowFunctions(): FlowFunctions[AST, InfoFlowFact, FunctionDef] =  cachedFlowFunctions
+    override def flowFunctions(): FlowFunctions[AST, InfoFlowFact, FunctionDef] = cachedFlowFunctions
 
     private val cachedFlowFunctions: FlowFunctions[AST, InfoFlowFact, FunctionDef] =
         new FlowFunctions[AST, InfoFlowFact, FunctionDef] {
@@ -147,9 +147,10 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                             case s@Source(x, _, _, global) =>
                                 callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
                                     case Some(hit) =>
-                                        val source = Source(Opt(hit.condition, hit.entry._2), fCallOpt, ListBuffer(s))
-                                        val reach = Reach(Opt(hit.condition, hit.entry._1), s.name :: s.reachingSources.toList.map(_.name), List(s))
-                                        ret = GEN(List(source, reach)) // New local Parameter
+                                        val condition = hit.condition.and(x.condition)
+                                        val source = Source(Opt(condition, hit.entry._2), fCallOpt, ListBuffer(s))
+                                        val reach = Reach(Opt(condition, hit.entry._1), s.name :: s.reachingSources.toList.map(_.name), List(s))
+                                        ret = if (global.isDefined) GEN(List(source, s, reach)) else GEN(List(source, reach)) // New local Parameter
                                     case None if global.isDefined => ret = GEN(s) // Global Variable
                                     case None => ret = KILL // Local Variable from previous function
                                 }
@@ -158,11 +159,11 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                                 // Introduce Global Variables from linked file
                                 filesWithSeeds ::= destinationMethod.getFile.getOrElse("")
                                 ret = globalsAsInitialSeeds(destinationMethod)
-                            case r : Reach => GEN(r)
-                            case x => KILL
+                            case r: Reach => GEN(r)
+                            case _ => KILL
                         }
 
-                        println("PARAMETER: " + ret + "\n")
+                        // println("PARAMETER: " + ret + "\n")
                         ret
                     }
                 }
@@ -197,31 +198,25 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
               * @return
               */
             override def getReturnFlowFunction(callSite: AST, calleeMethod: FunctionDef, exitStmt: AST, returnSite: AST): FlowFunction[InfoFlowFact] = {
-                def assignsReturnVariables(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
-                    val fCall = filterASTElems[FunctionCall](callSite)
-                    assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOf(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
-                }
-
-                def default(flowFact : InfoFlowFact) =
-                    flowFact match {
-                        case s@Source(id, _, _, global) if global.isDefined => GEN(s)
-                        case _ => KILL
-                    }
-
-
                 println("#returnFlowFunction")
                 println("#callsite:" + callSite)
                 println("#calee: " + calleeMethod.getName)
                 println("#exitstmt: " + exitStmt)
                 println("#returnsite: " + returnSite)
 
-                val callDefines = defines(callSite)
-                val returnUses = uses(exitStmt)
-                val assignments = assignsReturnVariables(callSite, exitStmt)
+                def assignsReturnVariables(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
+                    val fCall = filterASTElems[FunctionCall](callSite)
+                    assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOf(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
+                }
+
+                def default(flowFact: InfoFlowFact) = flowFact match {
+                    case s@Source(id, _, _, global) if global.isDefined => GEN(s)
+                    case _ => KILL
+                }
 
                 val exitOpt = parentOpt(exitStmt, interproceduralCFG.nodeToEnv(exitStmt))
 
-                new SharedInfoFlowFunction(callSite, returnSite, Some(callDefines), Some(returnUses), Some(assignments)){
+                new SharedInfoFlowFunction(callSite, returnSite, Some(defines(callSite)), Some(uses(exitStmt)), Some(assignsReturnVariables(callSite, exitStmt))) {
                     override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
                         /* println("#returnflow")
                         println("Curr: " + curr)
@@ -249,7 +244,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                                         }
                                 }
 
-                                res = if (global.isDefined) GEN(sources ::: List(s ,reach)) else GEN(sources ::: List(reach))
+                                res = if (global.isDefined) GEN(sources ::: List(s, reach)) else GEN(sources ::: List(reach))
 
                             case Zero if _currUses.isEmpty => // Return is something like return 0; -> we generate a new source
                                 val sources = _currAssignments.flatMap {
@@ -264,7 +259,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                             case _ => res = default(flowFact) // Do default flow action
 
                         }
-                        res.asScala.foreach(fact =>  {
+                        res.asScala.foreach(fact => {
                             fact match {
                                 case s: Source =>
                                     println("EXITOPT " + exitOpt)
@@ -293,7 +288,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
               * different values depending on where control0flow branches.
               */
             override def getNormalFlowFunction(curr: AST, succ: AST): FlowFunction[InfoFlowFact] = {
-                def default(flowFact : InfoFlowFact) = GEN(flowFact)
+                def default(flowFact: InfoFlowFact) = GEN(flowFact)
 
                 new SharedInfoFlowFunction(curr, succ) {
                     override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
@@ -373,11 +368,9 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                 }
         }
 
-    abstract class SharedInfoFlowFunction(curr: AST, succ: AST, currDefines: Option[List[Id]] = None, currUses: Option[List[Id]] = None, currAssignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InfoFlowFact]{
-        override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact]
-
+    abstract class SharedInfoFlowFunction(curr: AST, succ: AST, currDefines: Option[List[Id]] = None, currUses: Option[List[Id]] = None, currAssignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InfoFlowFact] {
         // Cache some repeatedly used variables
-        val currOpt : Opt[AST] = parentOpt(curr, interproceduralCFG.nodeToEnv(curr)).asInstanceOf[Opt[AST]]
+        val currOpt: Opt[AST] = parentOpt(curr, interproceduralCFG.nodeToEnv(curr)).asInstanceOf[Opt[AST]]
         val currASTEnv = interproceduralCFG().nodeToEnv(curr)
         val currTS = interproceduralCFG.nodoeToTS(curr)
 
@@ -416,7 +409,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
 
         def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceIsSatisfiable(x, _currUses)
 
-        def genSource(target: Id, reachingSource: Option[Source] = None, reachCondition : FeatureExpr = FeatureExprFactory.True): List[Source] = {
+        def genSource(target: Id, reachingSource: Option[Source] = None, reachCondition: FeatureExpr = FeatureExprFactory.True): List[Source] = {
             val targetOpt = Opt(currASTEnv.featureExpr(target), target)
 
             sourceCache.get(targetOpt) match {
@@ -458,5 +451,6 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
             }
         }
     }
+
 }
 
