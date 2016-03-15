@@ -46,17 +46,19 @@ class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatur
                         case _ => lm
                     }
             }
-        }
+        }.toList.distinct
 
         allSinks.foreach(sink => {
             println("Sink at: \t" + sink._1)
-            sink._2.foreach(ssink => {
+            sink._2.take(sink._2.size / 2).foreach(ssink => {
                 println("\tCFGcondition " + ssink._1 + "\t" + ssink._2)
             })
             println()
 
         })
         allSinks.toList
+
+        // TODO CLEANUP
     }
 
     private def isSink(r: Reach): Boolean = {
