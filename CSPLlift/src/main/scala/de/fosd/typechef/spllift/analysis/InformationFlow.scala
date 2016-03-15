@@ -362,15 +362,21 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
 
         var sourceCache = Map[Opt[Id], List[Source]]()
 
-        def isSatisfiable(i: Id, o: Opt[Id]) = o.entry.name.equalsIgnoreCase(i.name) && o.condition.and(currASTEnv.featureExpr(i)).isSatisfiable(interproceduralCFG.getFeatureModel)
+        def isSatisfiable(inner: Id, outer: Opt[Id]) : Boolean = isSatisfiable(Opt(currASTEnv.featureExpr(inner), inner), outer)
+        def isSatisfiable(inner: Opt[Id], outer : Opt[Id]) : Boolean = inner.entry.name.equalsIgnoreCase(outer.entry.name) && inner.condition.and(outer.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
-        def isImplication(innerImpl: Id, outerImpl: Opt[Id]) = outerImpl.entry.name.equalsIgnoreCase(innerImpl.name) && outerImpl.condition.implies(currASTEnv.featureExpr(innerImpl)).isTautology(interproceduralCFG.getFeatureModel)
+        def isImplication(inner: Id, outer: Opt[Id]) : Boolean = isImplication(Opt(currASTEnv.featureExpr(inner), inner), outer)
+        def isImplication(inner: Opt[Id], outer : Opt[Id]) : Boolean = outer.entry.name.equalsIgnoreCase(inner.entry.name) && outer.condition.implies(inner.condition).isTautology(interproceduralCFG.getFeatureModel)
 
-        def defineIsSatisfiable(x: Opt[Id]): Boolean = occurrenceIsSatisfiable(x, currDefines)
 
-        def defineIsImplication(x: Opt[Id]): Boolean = occurrenceIsImplication(x, currDefines)
+        def defineIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currDefines, isSatisfiable)
 
-        def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceIsSatisfiable(x, currUses)
+        def defineIsImplication(x: Opt[Id]): Boolean = occurrenceFulfills(x, currDefines, isImplication)
+
+        def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currUses, isSatisfiable)
+
+        private def occurrenceFulfills(x: Opt[Id], occurrences: List[Id], fulfills : (Id, Opt[Id]) => Boolean) = occurrences.exists(fulfills(_, x))
+
 
         def globalNameScopeIsSatisfiable(id: Opt[Id], declarationFile: Option[String] = None): Boolean = {
             val eqDeclFile = declarationFile match {
@@ -383,10 +389,6 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                 case _ => false
             }
         }
-
-        private def occurrenceIsSatisfiable(x: Opt[Id], occurrences: List[Id]) = occurrences.exists(isSatisfiable(_, x))
-
-        private def occurrenceIsImplication(x: Opt[Id], occurrences: List[Id]) = occurrences.exists(isImplication(_, x))
 
         def genSource(target: Id, reachingSource: Option[Source] = None, reachCondition: FeatureExpr = FeatureExprFactory.True): List[Source] = {
             val targetCondition = currASTEnv.featureExpr(target).and(reachCondition)
