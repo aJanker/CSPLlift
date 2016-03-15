@@ -9,7 +9,7 @@ import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
 import org.junit.Test
 
 
-class returnInfoFlowTest extends SPLLiftTestHelper {
+class ReturnInfoFlowTest extends SPLLiftTestHelper {
 
     private val dbg = true
 
@@ -20,7 +20,6 @@ class returnInfoFlowTest extends SPLLiftTestHelper {
                 case _ => false
             }
         }
-
 
         var successful = true
 
