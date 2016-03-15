@@ -5,7 +5,7 @@ package de.fosd.typechef.spllift
   * Options for using SPLLift with TypeChef
   *
   */
-trait CSPLliftOptions {
+trait CInterCFGOptions {
 
   def getModuleInterface: Option[String] // TODO Type
 
@@ -14,7 +14,7 @@ trait CSPLliftOptions {
   def getEntryNames: List[String] = List("main")
 }
 
-object DefaultCSPLliftOptions extends CSPLliftOptions {
+object DefaultCInterCFGOptions extends CInterCFGOptions {
   override def getModuleInterface: Option[String] = None
 
   override def getPointerInterface: Option[String] = None

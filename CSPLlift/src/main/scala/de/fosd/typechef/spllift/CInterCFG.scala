@@ -7,13 +7,14 @@ import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
 import soot.spl.ifds.Constraint
 
 import scala.collection.JavaConverters._
 
-class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions)
+class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions)
     extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTNavigation with ConditionalNavigation with CModuleCache {
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
@@ -98,7 +99,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isCallStmt(stmt: AST): Boolean =
         filterAllASTElems[PostfixExpr](stmt).exists {
-            case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, stmt)
+            case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, stmt) || !SystemLinker.allLibs.par.contains(name)
             case PostfixExpr(uncovered, FunctionCall(_)) => throw new IllegalArgumentException("Do not know rule for: " + uncovered)
             case _ => false
         }

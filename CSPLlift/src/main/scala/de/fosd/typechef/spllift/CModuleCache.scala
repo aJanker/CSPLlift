@@ -62,7 +62,7 @@ trait CModuleCache {
 
 class CModuleCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String]) extends EnforceTreeHelper {
 
-  def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions = DefaultCSPLliftOptions) =
+  def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions) =
     this(initialTUnit, fm, options.getModuleInterface, options.getPointerInterface)
 
   private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
