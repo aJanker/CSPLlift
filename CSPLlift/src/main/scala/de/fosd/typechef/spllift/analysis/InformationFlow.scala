@@ -148,7 +148,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                                 callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
                                     case Some(hit) =>
                                         val condition = hit.condition.and(x.condition)
-                                        val source = Source(Opt(condition, hit.entry._2), fCallOpt, ListBuffer(s))
+                                        val source = Source(Opt(condition, hit.entry._2), fCallOpt, ListBuffer(s) ++ s.reachingSources)
                                         val reach = Reach(Opt(condition, hit.entry._1), s.name :: s.reachingSources.toList.map(_.name), List(s))
                                         ret = if (global.isDefined) GEN(List(source, s, reach)) else GEN(List(source, reach)) // New local Parameter
                                     case None if global.isDefined => ret = GEN(s) // Global Variable
@@ -290,9 +290,16 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
             override def getNormalFlowFunction(curr: AST, succ: AST): FlowFunction[InfoFlowFact] = {
                 def default(flowFact: InfoFlowFact) = GEN(flowFact)
 
+
                 new SharedInfoFlowFunction(curr, succ) {
                     override def computeTargets(flowFact: InfoFlowFact): util.Set[InfoFlowFact] = {
                         var res = KILL
+
+                        curr match {
+                            case e@ExprStatement(AssignExpr(Id(name),_,_)) if name.equalsIgnoreCase("returnSite") =>
+                                println("debug")
+                            case _ =>
+                        }
 
                         flowFact match {
                             case Zero if _currDefines.nonEmpty =>
@@ -358,14 +365,17 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
               * exceptional flow, this may actually be the start of an
               * exception handler.
               */
-            override def getCallToReturnFlowFunction(callSite: AST, returnSite: AST): FlowFunction[InfoFlowFact] =
+            override def getCallToReturnFlowFunction(callSite: AST, returnSite: AST): FlowFunction[InfoFlowFact] = {
+                def default(flowFact: InfoFlowFact) = GEN(flowFact)
+
                 new FlowFunction[InfoFlowFact] {
                     override def computeTargets(infoFlowFact: InfoFlowFact): util.Set[InfoFlowFact] =
                         infoFlowFact match {
                             case s@Source(_, _, _, global) if global.isDefined => KILL
-                            case _ => GEN(infoFlowFact) // TODO Pointer passed to function!
+                            case _ => default(infoFlowFact) // TODO Pointer passed to function!
                         }
                 }
+            }
         }
 
     abstract class SharedInfoFlowFunction(curr: AST, succ: AST, currDefines: Option[List[Id]] = None, currUses: Option[List[Id]] = None, currAssignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InfoFlowFact] {
@@ -414,7 +424,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
 
             sourceCache.get(targetOpt) match {
                 case None => // New source -> add to cache map
-                    val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) else ListBuffer[Source]()
+                    val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) ++ reachingSource.get.reachingSources else ListBuffer[Source]()
                     val genSources = currTS.lookupEnv(succ).varEnv.lookupScope(target.name).toOptList.flatMap(scope => {
 
                         val scopeCondition = targetOpt.condition.and(scope.condition).and(reachCondition)
@@ -434,7 +444,7 @@ class InformationFlow(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InfoFl
                     genSources
 
                 case Some(genSource) => // Update already existing targets
-                    if (reachingSource.isDefined) genSource.foreach(genS => genS.reachingSources.+=(reachingSource.get)) // Update new reaching sources
+                    if (reachingSource.isDefined) genSource.foreach(genS => genS.reachingSources.+=(reachingSource.get)++reachingSource.get.reachingSources) // Update new reaching sources
                     List()
             }
         }

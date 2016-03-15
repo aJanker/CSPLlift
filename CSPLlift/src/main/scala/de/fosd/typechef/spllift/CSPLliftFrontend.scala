@@ -22,31 +22,37 @@ class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatur
         val solver = new SPLIFDSSolver(problem, fmContext, false)
         solver.solve()
 
-        val allResults = solver.getAllResults.asScala.distinct
+        val allReaches = solver.getAllResults.asScala.distinct
+        val allSinks = allReaches.foldLeft(Map[AST, List[(Constraint[_], D)]]()) {
+            case (m, result) => result.asScala.foldLeft(m) {
+                case (lm, x) => x._1 match {
+                    case r: Reach if isSink(r) =>
+                        val key = r.to.entry
+                        if (lm.contains(key)) lm + (key -> (x.swap :: lm.get(key).get))
+                        else lm + (key -> List(x.swap))
+                    case _ => lm
+                }
+            }
+        }.toList.distinct
 
         if (dbg) {
-            allResults.foreach(entry =>
-                entry.asScala.foreach(x => x._1 match {
-                    case s: Reach => println("Reach: " + s.to.entry + " under condition  (" + x._2 + ") from " + s.from + "\nsources: " + s.sources + "\n")
-                    case _ =>
-                }
-                )
-            )
+            allReaches.foreach(_.asScala.foreach(x => x._1 match {
+                case s: Reach => println("Reach: " + s.to.entry + " under condition  (" + x._2 + ") from " + s.from + "\nsources: " + s.sources + "\n")
+                case _ =>
+            }))
+
+            allSinks.foreach(sink => {
+                println("Sink at: \t" + sink._1)
+                sink._2.foreach(ssink => {
+                    println("\tCFGcondition " + ssink._1 + "\t" + ssink._2)
+                })
+                println()
+            })
 
             println("######### END OF DBG PRINT ############\n")
         }
 
-        val allSinks = allResults.foldLeft(Map[AST, List[(Constraint[_], D)]]()) {
-            case (m, result) => result.asScala.foldLeft(m) {
-                case (lm, x) => x._1 match {
-                        case r: Reach if isSink(r) =>
-                            val key = r.to.entry
-                            if (lm.contains(key)) lm + (key -> (x.swap :: lm.get(key).get))
-                            else lm + (key -> List(x.swap))
-                        case _ => lm
-                    }
-            }
-        }.toList.distinct
+
 
         allSinks.foreach(sink => {
             println("Sink at: \t" + sink._1)
@@ -56,7 +62,7 @@ class CSPLliftFrontend(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatur
             println()
 
         })
-        allSinks.toList
+        allSinks
 
         // TODO CLEANUP
     }

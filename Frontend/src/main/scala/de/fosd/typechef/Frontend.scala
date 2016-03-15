@@ -242,7 +242,7 @@ object Frontend extends EnforceTreeHelper {
                     println("#static analysis with spllift")
                     stopWatch.start("spllift")
 
-                    val spllift = new CSPLliftFrontend(ast, fullFM/*options*/, dbg = false)
+                    val spllift = new CSPLliftFrontend(ast, fullFM/*options*/, dbg = true)
                     val problem = new InformationFlow(spllift.getCInterCFG)
 
                     stopWatch.start("spllift_solve")
