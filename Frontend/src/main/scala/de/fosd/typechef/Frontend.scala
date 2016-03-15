@@ -251,7 +251,12 @@ object Frontend extends EnforceTreeHelper {
                     val solution = spllift.solve[InformationFlow](problem)
                     stopWatch.start("none")
 
-                    println(Taint.allReaches[String](solution))
+                    val allReaches = Taint.allReaches[String](solution)
+                    allReaches.foreach(sink => {
+                        println("Sink at:\t" + sink._1)
+                        sink._2.foreach(ssink => println("CFGcondition " + ssink._1 + ":\t" + ssink._2))
+                        println()
+                    })
 
 
                 }

@@ -297,7 +297,7 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                                         }
                                     }))
                                 res = GEN(facts)
-
+                            case r: Reach => KILL
                             case _ => res = default(flowFact)
 
                         }
