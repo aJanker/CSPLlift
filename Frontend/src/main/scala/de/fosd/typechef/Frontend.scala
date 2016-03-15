@@ -9,8 +9,9 @@ import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
-import de.fosd.typechef.spllift.CSPLliftFrontend
-import de.fosd.typechef.spllift.analysis.InformationFlow
+import de.fosd.typechef.spllift.analysis.Taint
+import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblem}
+import de.fosd.typechef.spllift.{CInterCFG, CSPLliftFrontend}
 import de.fosd.typechef.typesystem._
 
 object Frontend extends EnforceTreeHelper {
@@ -242,13 +243,17 @@ object Frontend extends EnforceTreeHelper {
                     println("#static analysis with spllift")
                     stopWatch.start("spllift")
 
-                    val spllift = new CSPLliftFrontend(ast, fullFM/*options*/, dbg = false)
-                    val problem = new InformationFlow(spllift.getCInterCFG)
+                    val spllift = CSPLliftFrontend
+                    val cInterCFG = new CInterCFG(ast, fullFM /*options*/)
+                    val problem  = new InformationFlowProblem(cInterCFG)
 
                     stopWatch.start("spllift_solve")
-                    spllift.solve(problem)
-
+                    val solution = spllift.solve[InformationFlow](problem)
                     stopWatch.start("none")
+
+                    println(Taint.allReaches[String](solution))
+
+
                 }
 
                 if (opt.staticanalyses) {

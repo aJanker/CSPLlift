@@ -1,4 +1,4 @@
-package de.fosd.typechef.spllift.analysis
+package de.fosd.typechef.spllift.ifdsproblem
 
 import heros.SolverConfiguration
 
@@ -25,12 +25,12 @@ trait InformationFlowConfiguration extends SolverConfiguration {
   /**
     * Returns the number of threads to be used by the solver.
     */
-  override def numThreads(): Int = Runtime.getRuntime.availableProcessors
+  override def numThreads(): Int = 1//TODO Validate side effects Runtime.getRuntime.availableProcessors
 
   /**
     * If true, the solver will automatically add the zero value to each flow-function call's result set.
     *
     * @see #zeroValue()
     */
-  override def autoAddZero(): Boolean = ???
+  override def autoAddZero(): Boolean = true
 }
