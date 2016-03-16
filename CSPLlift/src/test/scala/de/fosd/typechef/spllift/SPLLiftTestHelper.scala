@@ -14,9 +14,13 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
     de.fosd.typechef.featureexpr.FeatureExprFactory.setDefault(de.fosd.typechef.featureexpr.FeatureExprFactory.bdd)
 
+    val dbg = true
+
     override val fa = FeatureExprFactory.createDefinedExternal("A")
     override val fb = FeatureExprFactory.createDefinedExternal("B")
     override val fc = FeatureExprFactory.createDefinedExternal("C")
+    val fd = FeatureExprFactory.createDefinedExternal("D")
+    val fe = FeatureExprFactory.createDefinedExternal("E")
     override val fx = FeatureExprFactory.createDefinedExternal("X")
     override val fy = FeatureExprFactory.createDefinedExternal("Y")
 

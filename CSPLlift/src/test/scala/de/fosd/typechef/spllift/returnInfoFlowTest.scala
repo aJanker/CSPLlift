@@ -11,8 +11,6 @@ import org.junit.Test
 
 class ReturnInfoFlowTest extends SPLLiftTestHelper {
 
-    private val dbg = true
-
     @Test def testMultipleExitReturnFlows() = {
         def isSink(r: Reach): Boolean = {
             r.to.entry match {
