@@ -4,8 +4,8 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.IntraCFG
+import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
@@ -15,15 +15,17 @@ import soot.spl.ifds.Constraint
 import scala.collection.JavaConverters._
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions)
-    extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTNavigation with ConditionalNavigation with CModuleCache {
+    extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTHelper with CModuleCache {
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
     private val moduleCacheEnv = new CModuleCacheEnv(startTunit, fm, options)
 
-    lazy val entryFunctions = filterAllASTElems[FunctionDef](startTunit).filter(fdef => options.getEntryNames.exists(fdef.getName.equalsIgnoreCase))
+    lazy val entryFunctions = filterAllASTElems[FunctionDef](startTunit).filter(fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase))
 
     def getFeatureModel = fm
+
+    def getOptions = options
 
     /**
       * Returns the method containing a node.
@@ -41,15 +43,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isBranchTarget(stmt: AST, suc: AST): Boolean =
         getSuccsOf(stmt).asScala.exists(_.equals(suc))
-    // TODO Check for inter vs intra
 
     /**
       * Returns all caller statements/nodes of a given method.
       */
-    override def getCallersOf(m: FunctionDef): util.Set[AST] = {
+    override def getCallersOf(m: FunctionDef): util.Set[AST] =
         throw new UnsupportedOperationException("HIT TODO FUNCTION!")
-        util.Collections.emptySet()
-    } // TODO
+        // TODO
 
     /**
       * Returns all statements to which a call could return.
@@ -99,7 +99,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isCallStmt(stmt: AST): Boolean =
         filterAllASTElems[PostfixExpr](stmt).exists {
-            case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, stmt) || !SystemLinker.allLibs.par.contains(name)
+            case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, stmt) // && !SystemLinker.allLibs.par.contains(name)
             case PostfixExpr(uncovered, FunctionCall(_)) => throw new IllegalArgumentException("Do not know rule for: " + uncovered)
             case _ => false
         }
@@ -123,8 +123,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case Opt(_, f: FunctionDef) => true //TODO Calls?
             case _ => false
         }
-
-    // TODO Verify
 
     /**
       * Returns all call sites within a given method.
@@ -160,28 +158,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         Constraint.make(featureExpr)
     }
 
-
-    override def findMethodCalls(t: AST, env: ASTEnv, oldres: CFGRes, ctx: FeatureExpr, _res: CFGRes): CFGRes = {
-        val tunit = nodeToTUnit(t)
-
-        filterAllASTElems[PostfixExpr](t).foldLeft(_res)((res, pf) =>
-            pf match {
-                case PostfixExpr(Id(funName), FunctionCall(_)) => {
-                    val fexpr = env.featureExpr(pf)
-                    val newresctx = getNewResCtx(oldres, ctx, fexpr)
-                    val callees = findCallees(Opt(fexpr, funName), tunit)
-
-                    callees.foldLeft(res)((nres, callee) =>
-                        (newresctx and callee.condition, callee.condition, callee.entry) :: nres)
-                }
-                case _ => res
-            })
-    }
-
-    /*override def getExprSucc(exp: Expr, ctx: FeatureExpr, oldres: CFGRes, env: ASTEnv): CFGRes =
-        findMethodCalls(exp, env, oldres, ctx, oldres) ++ super.getExprSucc(exp, ctx, oldres, env)*/
-
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
+        if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
+            return List(moduleCacheEnv.PSEUDO_SYSTEM_FUNCTION_CALL)
+
         val localDef = callTUnit.defs.flatMap {
             case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
                 Some(Opt(ft, f))
@@ -189,8 +169,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         }
 
         val externalDef = getExternalDefinitions(name, moduleCacheEnv)
+        val result = externalDef ++ localDef
 
-        externalDef ++ localDef
+        if (result.isEmpty) Console.err.println("No function definiton found for " + name + "!")
+        result
     }
 
     private def isRecursive(fCallName: String, fCallStmt: AST) : Boolean = fCallName.equalsIgnoreCase(getMethodOf(fCallStmt).getName)

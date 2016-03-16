@@ -4,22 +4,23 @@ import java.util
 import java.util.Collections
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.crewrite.UsedDefinedDeclaredVariables
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.{ASTHelper, CInterCFG}
+import de.fosd.typechef.spllift.{ASTHelper, CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
 import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, FunctionDef, CInterCFG] with InformationFlowConfiguration with UsedDefinedDeclaredVariables with ASTHelper {
+trait InformationFlowProblemOperations {
+    def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
-    private def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
+    def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
 
-    private def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
+    def KILL: util.Set[InformationFlow] = Collections.emptySet()
+}
 
-    private def KILL: util.Set[InformationFlow] = Collections.emptySet()
+class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, FunctionDef, CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with ASTHelper with CInterCFGPseudoVistingSystemLibFunctions {
 
     private var initialGlobalsFile: String = ""
 
@@ -103,6 +104,13 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: AST, destinationMethod: FunctionDef): FlowFunction[InformationFlow] = {
+                val callEnv = interproceduralCFG.nodeToEnv(callStmt)
+
+                if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
+                    && destinationMethod.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    return pseudoSystemFunctionCallCallFlowFunction(callStmt, callEnv, interproceduralCFG)
+
+
                 def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[DeclaratorExtension]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
                     if (callParams.isEmpty && fDefParams.isEmpty) return res
 
@@ -130,7 +138,6 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                     mapCallParamToFDefParam(callParams.tail, fDefParams.tail, currRes ::: res)
                 }
 
-                val callEnv = interproceduralCFG().nodeToEnv(callStmt)
                 val destinationEnv = interproceduralCFG().nodeToEnv(destinationMethod)
 
                 val fCallOpt = parentOpt(callStmt, callEnv)
@@ -208,6 +215,10 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                     case _ => KILL
                 }
 
+                if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
+                    && calleeMethod.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    return pseudoSystemFunctionCallReturnFlow
+
                 val exitOpt = parentOpt(exitStmt, interproceduralCFG.nodeToEnv(exitStmt))
 
                 new InfoFlowFunction(callSite, returnSite, Some(defines(callSite)), Some(uses(exitStmt)), Some(assignsReturnVariablesTo(callSite, exitStmt))) {
@@ -271,12 +282,14 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                                 val reachCondition = sId.condition.and(currOpt.condition)
                                 val reach = Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source
 
-                                val sources = currAssignments.flatMap { // Find the correct assignee matching the current source
+
+                                val sources = currAssignments.flatMap {
+                                    // Find the correct assignee matching the current source
                                     case (target, assignments) =>
                                         assignments.flatMap {
                                             case assignment if !isSatisfiable(assignment, sId) => None // Does not match - featurewise or namewise -> just do nothing. Note: this behaviour is correct as at least one match will be satisfiable, as the previous useIsSatisfiable returned true
-                                            case assignment if isImplication(target, sId) => genSource(target, Some(s)) // Kill source, as the old source gets replaced by the new one
-                                            case assignment => s :: genSource(target, Some(s)) // Pass the original source through, because of the fact that it will be not become invalid
+                                            case assignment if isImplication(target, sId) => genSource(target, Some(s), reachCondition) // Kill source, as the old source gets replaced by the new one
+                                            case assignment => s :: genSource(target, Some(s), reachCondition) // Pass the original source through, because of the fact that it will be not become invalid
                                         }
                                 }
 
@@ -301,7 +314,6 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                             case _ => res = default(flowFact)
 
                         }
-
                         res
                     }
                 }
@@ -362,11 +374,11 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
 
         private var sourceCache = Map[Opt[Id], List[Source]]()
 
-        def isSatisfiable(inner: Id, outer: Opt[Id]) : Boolean = isSatisfiable(Opt(currASTEnv.featureExpr(inner), inner), outer)
-        def isSatisfiable(inner: Opt[Id], outer : Opt[Id]) : Boolean = inner.entry.name.equalsIgnoreCase(outer.entry.name) && inner.condition.and(outer.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
+        def isSatisfiable(inner: Id, outer: Opt[Id]): Boolean = isSatisfiable(Opt(currASTEnv.featureExpr(inner), inner), outer)
+        def isSatisfiable(inner: Opt[Id], outer: Opt[Id]): Boolean = inner.entry.name.equalsIgnoreCase(outer.entry.name) && inner.condition.and(outer.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
-        def isImplication(inner: Id, outer: Opt[Id]) : Boolean = isImplication(Opt(currASTEnv.featureExpr(inner), inner), outer)
-        def isImplication(inner: Opt[Id], outer : Opt[Id]) : Boolean = outer.entry.name.equalsIgnoreCase(inner.entry.name) && outer.condition.implies(inner.condition).isTautology(interproceduralCFG.getFeatureModel)
+        def isImplication(inner: Id, outer: Opt[Id]): Boolean = isImplication(Opt(currASTEnv.featureExpr(inner), inner), outer)
+        def isImplication(inner: Opt[Id], outer: Opt[Id]): Boolean = outer.entry.name.equalsIgnoreCase(inner.entry.name) && outer.condition.implies(inner.condition).isTautology(interproceduralCFG.getFeatureModel)
 
         def defineIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currDefines, isSatisfiable)
 
@@ -374,7 +386,7 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
 
         def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currUses, isSatisfiable)
 
-        private def occurrenceFulfills(x: Opt[Id], occurrences: List[Id], fulfills : (Id, Opt[Id]) => Boolean) = occurrences.exists(fulfills(_, x))
+        private def occurrenceFulfills(x: Opt[Id], occurrences: List[Id], fulfills: (Id, Opt[Id]) => Boolean) = occurrences.exists(fulfills(_, x))
 
 
         def globalNameScopeIsSatisfiable(id: Opt[Id], declarationFile: Option[String] = None): Boolean = {
@@ -415,7 +427,7 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                     genSources
 
                 case Some(genSource) => // Update already existing targets
-                    if (reachingSource.isDefined) genSource.foreach(genS => genS.reachingSources.+=(reachingSource.get)++reachingSource.get.reachingSources) // Update new reaching sources
+                    if (reachingSource.isDefined) genSource.foreach(genS => genS.reachingSources.+=(reachingSource.get) ++ reachingSource.get.reachingSources) // Update new reaching sources
                     List()
             }
         }

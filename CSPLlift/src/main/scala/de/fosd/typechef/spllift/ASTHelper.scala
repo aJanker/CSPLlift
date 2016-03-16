@@ -2,9 +2,10 @@ package de.fosd.typechef.spllift
 
 import java.io.File
 
+import de.fosd.typechef.crewrite.UsedDefinedDeclaredVariables
 import de.fosd.typechef.parser.c.{ASTNavigation, ConditionalNavigation}
 
-trait ASTHelper extends ASTNavigation with ConditionalNavigation {
+trait ASTHelper extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation {
 
     def getFileName(originalFilePath: Option[String]): Option[String] =
         originalFilePath match {

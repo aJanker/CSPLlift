@@ -11,11 +11,15 @@ trait CInterCFGOptions {
 
   def getPointerInterface: Option[String] // TODO Type
 
-  def getEntryNames: List[String] = List("main")
+  def getGraphEntryFunctionNames: List[String] = List("main")
+
+  def pseudoVisitingSystemLibFunctions : Boolean
 }
 
 object DefaultCInterCFGOptions extends CInterCFGOptions {
   override def getModuleInterface: Option[String] = None
 
   override def getPointerInterface: Option[String] = None
+
+  override def pseudoVisitingSystemLibFunctions = true
 }
