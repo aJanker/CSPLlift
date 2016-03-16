@@ -27,31 +27,25 @@ trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOpe
         def useIsSatisfiable(x: Opt[Id]): Boolean = callUses.exists(isSatisfiable(_, x))
 
         new FlowFunction[InformationFlow] {
-            override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
-                var res = KILL
+            override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] =
                 flowFact match {
                     case s@Source(sId, _, _, global) if useIsSatisfiable(sId) =>
                         val r = Reach(fCallOpt, s.name :: s.reachingSources.toList.map(_.name), List(s))
-                        res = if (global.isDefined) GEN(List(r, s)) else GEN(r)
-                    case s@Source(_, _, _, global) if global.isDefined => res = GEN(s)
-                    case _ => res = KILL
+                        if (global.isDefined) GEN(List(r, s)) else GEN(r)
+                    case s@Source(_, _, _, global) if global.isDefined => GEN(s)
+                    case _ => KILL
                 }
-                res
-            }
         }
     }
 
     def pseudoSystemFunctionCallReturnFlow: FlowFunction[InformationFlow] with Object {def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow]} =
         new FlowFunction[InformationFlow] {
-            override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
-                var res = KILL
+            override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] =
                 flowFact match {
-                    case r: Reach => res = GEN(r)
-                    case s@Source(_, _, _, global) if global.isDefined => res = GEN(s)
-                    case _ => res = KILL
+                    case r: Reach => GEN(r)
+                    case s@Source(_, _, _, global) if global.isDefined => GEN(s)
+                    case _ => KILL
                 }
-                res
-            }
         }
 
 }
