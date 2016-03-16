@@ -1,3 +1,4 @@
+// This file issues an typeerror, but nevermind as we are still detecting printf as system function call.
 int secret = 666;
 
 int bar(int b) {
@@ -33,8 +34,6 @@ void main () {
     returnSite = y;
 
     printf("%s\n", &returnSite);
-    ;
-    ;
     return;
  }
 
