@@ -45,33 +45,21 @@ class ReturnInfoFlowTest extends SPLLiftTestHelper {
             case _ => false
         })
 
-        def isReachMatch(r: Reach, condition: FeatureExpr, reachingIds: List[Opt[Id]]): Boolean =
-            r.to.condition.equivalentTo(condition) && r.from.forall(reachingIds contains)
+        var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
 
         // sink1 : True, (y, True)
-        successful = successful && sink._2.exists(s => {
-            val reachingIds = List(Opt(True, Id("y")))
-            val condition = True
-            isReachMatch(s._2, condition, reachingIds)
-        })
+        expectedReaches ::= (True, List(Opt(True, Id("y"))))
+
         // sink2 : A&B&C, (y, A&B&C) , (p, A)
-        successful = successful && sink._2.exists(s => {
-            val reachingIds = List(Opt(fa.and(fb).and(fc), Id("y")), Opt(fa, Id("p")))
-            val condition = fa.and(fb).and(fc)
-            isReachMatch(s._2, condition, reachingIds)
-        })
+        expectedReaches ::= (fa.and(fb).and(fc), List(Opt(fa.and(fb).and(fc), Id("y")), Opt(fa, Id("p"))))
+
         // sink3 : B&C, (y, B&C) , (p, C), (x, True)
-        successful = successful && sink._2.exists(s => {
-            val reachingIds = List(Opt(fb.and(fc), Id("y")), Opt(fc, Id("p")), Opt(True, Id("x")))
-            val condition = fb.and(fc)
-            isReachMatch(s._2, condition, reachingIds)
-        })
+        expectedReaches ::= (fb.and(fc), List(Opt(fb.and(fc), Id("y")), Opt(fc, Id("p")), Opt(True, Id("x"))))
+
         // sink4 : !B&C, (y, !B&C)
-        successful = successful && sink._2.exists(s => {
-            val reachingIds = List(Opt(fb.not().and(fc), Id("y")))
-            val condition = fb.not().and(fc)
-            isReachMatch(s._2, condition, reachingIds)
-        })
+        expectedReaches ::= (fb.not().and(fc), List(Opt(fb.not().and(fc), Id("y"))))
+
+        successful = successful && allReachesMatch(sink._2, expectedReaches)
 
         successful should be(true)
     }

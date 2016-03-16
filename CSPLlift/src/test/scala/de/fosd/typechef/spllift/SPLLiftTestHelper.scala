@@ -3,9 +3,12 @@ package de.fosd.typechef.spllift
 import java.io._
 import java.util.zip.GZIPInputStream
 
-import de.fosd.typechef.featureexpr.FeatureExprFactory
-import de.fosd.typechef.parser.c.{EnforceTreeHelper, TestHelper, TranslationUnit}
+import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import de.fosd.typechef.parser.c.{EnforceTreeHelper, Id, TestHelper, TranslationUnit}
+import de.fosd.typechef.spllift.ifdsproblem.Reach
 import org.scalatest.Matchers
+import soot.spl.ifds.Constraint
 
 trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers {
 
@@ -47,5 +50,14 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         prepareAST(tunit)
 
     }
+
+    def allReachesMatch(reaches: List[(Constraint[_], Reach)], exectedConditonsAndSources: List[(FeatureExpr, List[Opt[Id]])]): Boolean =
+        reaches.forall(reach => exectedConditonsAndSources.exists {
+            case (condition, sources) => isReachMatch(reach._2, condition, sources)
+            case _ => false
+        })
+
+    def isReachMatch(r: Reach, condition: FeatureExpr, reachingIds: List[Opt[Id]]): Boolean =
+        r.to.condition.equivalentTo(condition) && r.from.forall(reachingIds contains)
 
 }
