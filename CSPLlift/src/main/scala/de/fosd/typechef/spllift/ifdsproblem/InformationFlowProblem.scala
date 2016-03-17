@@ -35,24 +35,6 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
             res
         })
 
-    private def globalsAsInitialSeeds(f: FunctionDef): util.Set[InformationFlow] = {
-        val globalVariables = interproceduralCFG.nodeToTUnit(f).defs.filterNot {
-            case Opt(_, f: FunctionDef) => true
-            case _ => false
-        }
-
-        val globalInfoFlowFacts = globalVariables.flatMap(x => {
-            val decls = declares(x)
-
-            // Note: we ignore the actual file of the declaration as it may be declared in a header file.
-            // As variables declared in header files may be included across several files, this way prevents matching errors.
-            if (decls.nonEmpty) decls.map(decl => Source(Opt(x.condition, decl), x, ListBuffer(), getFileName(f.getFile)))
-            else None
-        })
-
-        GEN(globalInfoFlowFacts :+ zeroValue())
-    }
-
     /**
       * Returns the interprocedural control-flow graph which this problem is computed over.
       *
@@ -350,7 +332,25 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
             }
         }
 
-    abstract class InfoFlowFunction(curr: AST, succ: AST, definedIds: Option[List[Id]] = None, usedIds: Option[List[Id]] = None, assignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InformationFlow] {
+    private def globalsAsInitialSeeds(f: FunctionDef): util.Set[InformationFlow] = {
+        val globalVariables = interproceduralCFG.nodeToTUnit(f).defs.filterNot {
+            case Opt(_, f: FunctionDef) => true
+            case _ => false
+        }
+
+        val globalInfoFlowFacts = globalVariables.flatMap(x => {
+            val decls = declares(x)
+
+            // Note: we ignore the actual file of the declaration as it may be declared in a header file.
+            // As variables declared in header files may be included across several files, this way prevents matching errors.
+            if (decls.nonEmpty) decls.map(decl => Source(Opt(x.condition, decl), x, ListBuffer(), getFileName(f.getFile)))
+            else None
+        })
+
+        GEN(globalInfoFlowFacts :+ zeroValue())
+    }
+
+    private abstract class InfoFlowFunction(curr: AST, succ: AST, definedIds: Option[List[Id]] = None, usedIds: Option[List[Id]] = None, assignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InformationFlow] {
         // Cache some repeatedly used variables
         val currOpt: Opt[AST] = parentOpt(curr, interproceduralCFG.nodeToEnv(curr)).asInstanceOf[Opt[AST]]
         val currASTEnv = interproceduralCFG.nodeToEnv(curr)

@@ -1,11 +1,12 @@
 package de.fosd.typechef.parser.c
 
 import java.io.InputStream
-import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExprFactory}
-import de.fosd.typechef.conditional.One
 import java.util.Collections
-import de.fosd.typechef.parser.TokenReader
+
+import de.fosd.typechef.conditional.One
+import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.lexer.LexerFrontend
+import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.CLexerAdapter.TokenWrapper
 
 /**
@@ -18,6 +19,10 @@ trait TestHelper {
     val fa = FeatureExprFactory.createDefinedExternal("A")
     val fb = FeatureExprFactory.createDefinedExternal("B")
     val fc = FeatureExprFactory.createDefinedExternal("C")
+    val fd = FeatureExprFactory.createDefinedExternal("D")
+    val fe = FeatureExprFactory.createDefinedExternal("E")
+    val ff = FeatureExprFactory.createDefinedExternal("F")
+    val fg = FeatureExprFactory.createDefinedExternal("G")
     val fx = FeatureExprFactory.createDefinedExternal("X")
     val fy = FeatureExprFactory.createDefinedExternal("Y")
 
