@@ -25,7 +25,7 @@ trait InformationFlowConfiguration extends SolverConfiguration {
   /**
     * Returns the number of threads to be used by the solver.
     */
-  override def numThreads(): Int = 1//TODO Validate side effects Runtime.getRuntime.availableProcessors
+  override def numThreads(): Int = 1//TODO Validate side effects when using Runtime.getRuntime.availableProcessors
 
   /**
     * If true, the solver will automatically add the zero value to each flow-function call's result set.

@@ -5,8 +5,9 @@ import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
-import de.fosd.typechef.parser.c.{EnforceTreeHelper, Id, TestHelper, TranslationUnit}
-import de.fosd.typechef.spllift.ifdsproblem.Reach
+import de.fosd.typechef.parser.c._
+import de.fosd.typechef.spllift.analysis.Taint
+import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
 import org.scalatest.Matchers
 import soot.spl.ifds.Constraint
 
@@ -27,6 +28,24 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
     override val fy = FeatureExprFactory.createDefinedExternal("Y")
 
     private val testfileDir = "testfiles/"
+
+    def defaultInit(filename: String, isSink: Reach => Boolean) = {
+        val tunit = parseTUnitFromFile(filename)
+
+        val cInterCFG = new CInterCFG(tunit)
+        val problem = new InformationFlowProblem(cInterCFG)
+        val solution = CSPLliftFrontend.solve(problem)
+
+        val sinks = Taint.findSinks[String](solution, isSink)
+
+        // dbg print
+        if (dbg) sinks.foreach(sink => {
+            println("Sink at:\t" + PrettyPrinter.print(sink._1))
+            sink._2.foreach(ssink => println("CFGcondition " + ssink._1 + ":\t" + ssink._2))
+        })
+
+        (tunit, problem, solution, sinks)
+    }
 
     def parseTUnitFromFile(filename: String): TranslationUnit = {
         val inStream: InputStream = getClass.getResourceAsStream("/" + testfileDir + filename)

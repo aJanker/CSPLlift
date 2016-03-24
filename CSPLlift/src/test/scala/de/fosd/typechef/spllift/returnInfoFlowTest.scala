@@ -4,8 +4,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c.{AssignExpr, ExprStatement, Id}
-import de.fosd.typechef.spllift.analysis.Taint
-import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
+import de.fosd.typechef.spllift.ifdsproblem.Reach
 import org.junit.Test
 
 
@@ -21,19 +20,7 @@ class ReturnInfoFlowTest extends SPLLiftTestHelper {
 
         var successful = true
 
-        val tunit = parseTUnitFromFile("returnFlow1.c")
-
-        val cInterCFG = new CInterCFG(tunit)
-        val problem = new InformationFlowProblem(cInterCFG)
-        val solution = CSPLliftFrontend.solve(problem)
-
-        val sinks = Taint.findSinks[String](solution, isSink)
-
-        // dbg print
-        if (dbg) sinks.foreach(sink => {
-            println("Sink at:\t" + sink._1)
-            sink._2.foreach(ssink => println("CFGcondition " + ssink._1 + ":\t" + ssink._2))
-        })
+        val (_, _, _, sinks) = defaultInit("returnFlow1.c", isSink)
 
         successful = successful && sinks.size == 1 // only one sink location should be found
 

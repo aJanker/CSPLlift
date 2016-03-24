@@ -4,8 +4,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.analysis.Taint
-import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
+import de.fosd.typechef.spllift.ifdsproblem.Reach
 import org.junit.Test
 
 class PseudoVisitingSystemFunctionCall extends SPLLiftTestHelper {
@@ -20,19 +19,7 @@ class PseudoVisitingSystemFunctionCall extends SPLLiftTestHelper {
 
         var successful = true
 
-        val tunit = parseTUnitFromFile("pseudoVistingSystemFunction_Complex.c")
-
-        val cInterCFG = new CInterCFG(tunit)
-        val problem = new InformationFlowProblem(cInterCFG)
-        val solution = CSPLliftFrontend.solve(problem)
-
-        val sinks = Taint.findSinks[String](solution, isSink)
-
-        // dbg print
-        if (dbg) sinks.foreach(sink => {
-            println("Sink at:\t" + sink._1)
-            sink._2.foreach(ssink => println("CFGcondition " + ssink._1 + ":\t" + ssink._2))
-        })
+        val (_, _, _, sinks) = defaultInit("pseudoVistingSystemFunction_Complex.c", isSink)
 
         successful = successful && sinks.size == 1 // only one sink location should be found
 
