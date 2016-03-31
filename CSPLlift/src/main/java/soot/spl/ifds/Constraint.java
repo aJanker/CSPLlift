@@ -24,12 +24,10 @@ public class Constraint<T> implements Cloneable {
 	@SuppressWarnings({ "rawtypes" })
 	private final static Constraint FALSE = new Constraint(null) {
 		public Constraint and(Constraint other) {
-			//false && other = false
 			return this;
 		}		
 
 		public Constraint or(Constraint other) {
-			//false || other == other
 			return other;
 		}		
 
@@ -64,15 +62,6 @@ public class Constraint<T> implements Cloneable {
 	
 	@SuppressWarnings({ "rawtypes" })
 	private final static Constraint TRUE = new Constraint(null) {
-		public Constraint and(Constraint other) {
-			//true && other == other
-			return other; 
-		}
-		
-		public Constraint or(Constraint other) {
-			//true || other == true
-			return this;
-		}
 
 		public String toString() {
 			return "true";

@@ -98,7 +98,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isCallStmt(stmt: AST): Boolean =
         filterAllASTElems[PostfixExpr](stmt).exists {
-            case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, stmt) // && !SystemLinker.allLibs.par.contains(name)
+            case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, stmt)
             case PostfixExpr(uncovered, FunctionCall(_)) => throw new IllegalArgumentException("Do not know rule for: " + uncovered)
             case _ => false
         }
@@ -138,8 +138,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def allNonCallStartNodes(): util.Set[AST] = {
         // TODO beware only nodes from start tunit.
-        val res: Set[AST] = filterAllASTElems[Statement](CFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt)).toSet
-        res.asJava
+        val list = filterAllASTElems[Statement](CFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt)).asJava
+        val res: util.Set[AST] = util.Collections.newSetFromMap(new util.IdentityHashMap[AST, java.lang.Boolean]) // Using "IdentitySet" as normal sets would remove "equal" but not identical objects like return statements
+        res.addAll(list)
+        res
     }
 
     /**
