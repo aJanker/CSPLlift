@@ -1,10 +1,11 @@
 // This file issues an typeerror, but nevermind as we are still detecting printf as system function call.
 int secret = 666;
 
-int bar(int b) {
-    b += 1;
-    return b;
-}
+ void bar(int b) {
+     secret = b;
+
+     return;
+ }
 
 int foo(int p) {
 #ifdef A

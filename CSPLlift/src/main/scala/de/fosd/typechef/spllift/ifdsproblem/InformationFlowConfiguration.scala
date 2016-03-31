@@ -20,7 +20,7 @@ trait InformationFlowConfiguration extends SolverConfiguration {
     * to avoid not at all processing the exit statement, the {@link IDESolver} will call
     * the <i>return</i> flow function with a <code>null</code> call site and return site.
     */
-  override def followReturnsPastSeeds(): Boolean = true
+  override def followReturnsPastSeeds(): Boolean = false
 
   /**
     * Returns the number of threads to be used by the solver.

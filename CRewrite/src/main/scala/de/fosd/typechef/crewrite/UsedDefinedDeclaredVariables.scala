@@ -75,6 +75,23 @@ trait UsedDefinedDeclaredVariables {
             case _ => List()
         }
 
+    // val fieldParents
+
+    val definesField: AnyRef => List[(Id, List[Id])] =
+        attr {
+            case AssignExpr(target: PostfixExpr, fields, source) => {
+                    List()
+            }
+            case DeclarationStatement(d) => definesField(d)
+            case Declaration(_, init) => init.flatMap(definesField)
+            case InitDeclaratorI(i, _, _) => definesField(i)
+            case ExprStatement(_: Id) => List()
+            case ExprStatement(PointerDerefExpr(_)) => List()
+            case ExprStatement(expr) => definesField(expr)
+            case ExprList(exprs) => exprs.flatMap(definesField)
+            case _ => List()
+        }
+
     val assignsVariables: AnyRef => List[(Id,List[Id])] =
         attr {
             case AssignExpr(target: Id, _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()

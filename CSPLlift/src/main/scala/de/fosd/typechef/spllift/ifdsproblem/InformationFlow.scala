@@ -12,13 +12,33 @@ case object Zero extends InformationFlow {
     def dbgString : String = super.toString
 }
 
-case class Source(name: Opt[Id], stmt: Opt[_], reachingSources: ListBuffer[Source] = ListBuffer(), globalFile: Option[String] = None) extends InformationFlow {
+sealed abstract class Source(val name: Opt[Id], val stmt: Opt[_], val reachingSources: ListBuffer[Source] = ListBuffer(), val globalFile: Option[String] = None) extends InformationFlow
+
+case class VarSource(override val name: Opt[Id], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
     override def hashCode() = name.hashCode + stmt.hashCode() + globalFile.hashCode()
     override def equals(other: Any) = other match {
-        case s@Source(oName, oStmt, _, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile)
+        case s@VarSource(oName, oStmt, _, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile)
         case _ => false
     }
 }
+
+case class StructSource(field: Option[Source], override val name: Opt[Id], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
+    override def hashCode() = super.hashCode() + field.hashCode()
+    override def equals(other: Any) = other match {
+        case s@StructSource(oField, _, _ , _, _) if field.equals(oField) => super.equals(other)
+        case _ => false
+    }
+}
+
+// TODO to implement
+case class PointerSource(override val name: Opt[Id], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
+    override def hashCode() = name.hashCode + stmt.hashCode() + globalFile.hashCode()
+    override def equals(other: Any) = other match {
+        case s@PointerSource(oName, oStmt, _, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile)
+        case _ => false
+    }
+}
+
 
 case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) extends InformationFlow {
     override def toString: String = {

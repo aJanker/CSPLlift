@@ -5,7 +5,7 @@ import java.util
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblemOperations, Reach, Source}
+import de.fosd.typechef.spllift.ifdsproblem._
 import heros.FlowFunction
 
 trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with ASTHelper {
@@ -20,7 +20,6 @@ trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOpe
         val callExprs = fCall.params
         val callUses = uses(callExprs)
 
-        // TODO Reuse code!
         def isSatisfiable_(inner: Opt[Id], outer: Opt[Id]): Boolean = inner.entry.name.equalsIgnoreCase(outer.entry.name) && inner.condition.and(outer.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
         def isSatisfiable(inner: Id, outer: Opt[Id]): Boolean = isSatisfiable_(Opt(callEnv.featureExpr(inner), inner), outer)
 
@@ -29,10 +28,10 @@ trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOpe
         new FlowFunction[InformationFlow] {
             override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] =
                 flowFact match {
-                    case s@Source(sId, _, _, global) if useIsSatisfiable(sId) =>
+                    case s@VarSource(sId, _, _, global) if useIsSatisfiable(sId) =>
                         val r = Reach(fCallOpt, s.name :: s.reachingSources.toList.map(_.name), List(s))
                         if (global.isDefined) GEN(List(r, s)) else GEN(r)
-                    case s@Source(_, _, _, global) if global.isDefined => GEN(s)
+                    case s : Source if s.globalFile.isDefined => GEN(s)
                     case _ => KILL
                 }
         }
@@ -43,7 +42,7 @@ trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOpe
             override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] =
                 flowFact match {
                     case r: Reach => GEN(r)
-                    case s@Source(_, _, _, global) if global.isDefined => GEN(s)
+                    case s : Source if s.globalFile.isDefined => GEN(s)
                     case _ => KILL
                 }
         }

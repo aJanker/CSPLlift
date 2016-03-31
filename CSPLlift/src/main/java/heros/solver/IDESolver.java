@@ -675,12 +675,12 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
     private void setVal(N nHashN, D nHashD, V l) {
         // TOP is the implicit default value which we do not need to store.
         synchronized (val) {
-            if (l == valueLattice.topElement())     // do not store top values
+            /* if (l == valueLattice.topElement())     // do not store top values
                 val.remove(nHashN, nHashD);
-            else
+            else */
                 val.put(nHashN, nHashD, l);
         }
-        logger.debug("VALUE: {} {} {} {}", icfg.getMethodOf(nHashN), nHashN, nHashD, l);
+        logger.debug("VALUE: {} {} {} {}", l, nHashN, nHashD,  icfg.getMethodOf(nHashN));
     }
 
     private EdgeFunction<V> jumpFunction(PathEdge<N, D> edge) {
@@ -759,6 +759,8 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
     }
 
     public List<Map<D, V>> getAllResults() {
+        val.rowKeySet().forEach(System.out::println);
+
         return val.rowKeySet().stream().map(this::resultsAt).collect(Collectors.toCollection(LinkedList::new));
     }
 
