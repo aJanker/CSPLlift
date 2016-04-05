@@ -29,7 +29,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
     private val testfileDir = "testfiles/"
 
-    def defaultInit(filename: String, isSink: Reach => Boolean) = {
+    def defaultTest(filename: String, isSink: Reach => Boolean) = {
         val tunit = parseTUnitFromFile(filename)
 
         val cInterCFG = new CInterCFG(tunit)

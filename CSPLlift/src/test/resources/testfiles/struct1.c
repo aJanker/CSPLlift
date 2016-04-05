@@ -8,27 +8,38 @@ typedef struct {
 	} POINT;
 
 struct punkt {
-    int px;
+    int x;
     int py;
-    POINT p;
+    POINT innerp;
     };
 
 
 int main() {
 
-    test x = 0;
+    int x = 0;
     int y = 0;
     int x2 = 2;
     int y2 = 2;
 
-
     POINT p1;
-    p1.x = x;
-    p1.y = y;
+    p1.x = x2;
+    p1.y = 2;
 
     struct punkt p;
 
-    p.p.x = 1;
+    p.
+    #ifdef A
+    innerp.
+    #endif
+    x = 1;
+
+        #ifdef A
+        p.
+        #endif
+        x = 1;
+
+
+    p.innerp = p1;
 
     int z = p1.x;
     p1.x = y;

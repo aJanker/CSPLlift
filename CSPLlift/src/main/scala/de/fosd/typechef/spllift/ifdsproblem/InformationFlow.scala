@@ -6,33 +6,32 @@ import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 import scala.collection.mutable.ListBuffer
 
 
-sealed trait InformationFlow
-
-case object Zero extends InformationFlow {
-    def dbgString : String = super.toString
+sealed trait InformationFlow extends Product with Cloneable {
+    override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
 }
 
-sealed abstract class Source(val name: Opt[Id], val stmt: Opt[_], val reachingSources: ListBuffer[Source] = ListBuffer(), val globalFile: Option[String] = None) extends InformationFlow
+case object Zero extends InformationFlow
+
+sealed abstract class Source(val name: Opt[Id], val stmt: Opt[_], val reachingSources: ListBuffer[Source] = ListBuffer(), val globalFile: Option[String] = None) extends InformationFlow {
+    override def hashCode() = name.hashCode + stmt.hashCode() + globalFile.hashCode()
+}
 
 case class VarSource(override val name: Opt[Id], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
-    override def hashCode() = name.hashCode + stmt.hashCode() + globalFile.hashCode()
     override def equals(other: Any) = other match {
         case s@VarSource(oName, oStmt, _, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile)
         case _ => false
     }
 }
 
-case class StructSource(field: Option[Source], override val name: Opt[Id], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
-    override def hashCode() = super.hashCode() + field.hashCode()
+case class StructSource(override val name: Opt[Id], field: Option[Source], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
     override def equals(other: Any) = other match {
-        case s@StructSource(oField, _, _ , _, _) if field.equals(oField) => super.equals(other)
+        case s@StructSource(oName, _, oStmt, _, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile)
         case _ => false
     }
 }
 
 // TODO to implement
 case class PointerSource(override val name: Opt[Id], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
-    override def hashCode() = name.hashCode + stmt.hashCode() + globalFile.hashCode()
     override def equals(other: Any) = other match {
         case s@PointerSource(oName, oStmt, _, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile)
         case _ => false
@@ -53,5 +52,7 @@ case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) exten
         if (sources.nonEmpty) buffer.append("\n\tSources: " + sources)
         buffer.toString
     }
+
+    def dbgString : String = super.toString
 }
 

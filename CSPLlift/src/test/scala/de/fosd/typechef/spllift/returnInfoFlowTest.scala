@@ -20,7 +20,7 @@ class ReturnInfoFlowTest extends SPLLiftTestHelper {
 
         var successful = true
 
-        val (_, _, _, sinks) = defaultInit("returnFlow1.c", isSink)
+        val (_, _, _, sinks) = defaultTest("returnFlow1.c", isSink)
 
         successful = successful && sinks.size == 1 // only one sink location should be found
 

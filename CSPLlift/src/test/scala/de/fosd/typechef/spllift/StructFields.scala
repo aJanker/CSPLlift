@@ -10,10 +10,11 @@ class StructFields extends SPLLiftTestHelper {
 
         var successful = true
 
-        val (tunit, _, _, sinks) = defaultInit("struct1.c", isSink)
+        val (_, _, _, sinks) = defaultTest("struct1.c", isSink)
 
-        println(tunit)
         println(sinks)
+
+        successful should be(true)
     }
 
 }

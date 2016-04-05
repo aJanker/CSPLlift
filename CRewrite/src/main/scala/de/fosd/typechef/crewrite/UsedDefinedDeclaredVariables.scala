@@ -72,28 +72,46 @@ trait UsedDefinedDeclaredVariables {
             case AssignExpr(target, op, source) => uses(source) ++ (if (op == "=") List() else uses(target))
             case Opt(_, entry) => uses(entry.asInstanceOf[AnyRef])
             case Some(entry) => uses(entry.asInstanceOf[AnyRef])
+            case x => List()
+
+        }
+
+    val usesField: AnyRef => List[(Id, List[Id])] =
+        attr {
             case _ => List()
         }
 
-    // val fieldParents
+    private val parents: AnyRef => List[Id] =
+        attr {
+            case PostfixExpr(p, s) => parents(p) ++ parents(s)
+            case PointerPostfixSuffix(_, i) => List(i)
+            case i: Id => List(i)
+            case _ => List()
+        }
 
+    /**
+      * Returns the defined field and its struct parents
+      * e.g. x.y.z => List(Id(z), List(Id(x), Id(y))
+      */
     val definesField: AnyRef => List[(Id, List[Id])] =
         attr {
-            case AssignExpr(target: PostfixExpr, fields, source) => {
-                    List()
-            }
+            case AssignExpr(p: PostfixExpr, _, _) => definesField(p)
             case DeclarationStatement(d) => definesField(d)
             case Declaration(_, init) => init.flatMap(definesField)
             case InitDeclaratorI(i, _, _) => definesField(i)
             case ExprStatement(_: Id) => List()
-            case ExprStatement(PointerDerefExpr(_)) => List()
+            case ExprStatement(PointerDerefExpr(_)) => List() // TODO Struct Pointer
             case ExprStatement(expr) => definesField(expr)
             case ExprList(exprs) => exprs.flatMap(definesField)
+            case Opt(_, entry) => definesField(entry.asInstanceOf[AnyRef])
+            case Some(entry) => definesField(entry.asInstanceOf[AnyRef])
+            case PostfixExpr(p, PointerPostfixSuffix(_, i: Id)) => List((i, parents(p)))
             case _ => List()
         }
 
     val assignsVariables: AnyRef => List[(Id,List[Id])] =
         attr {
+            case AssignExpr(PostfixExpr(target : Id, _), _ , source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
             case AssignExpr(target: Id, _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
             case DeclarationStatement(d) => assignsVariables(d)
             case Declaration(_, init) => init.flatMap(assignsVariables)
