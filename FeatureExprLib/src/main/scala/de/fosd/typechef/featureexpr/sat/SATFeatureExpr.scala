@@ -6,7 +6,6 @@ import java.util.Collections
 import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.featureexpr.sat.LazyLib._
 
-import scala.Some
 import scala.collection.convert.decorateAsScala._
 import scala.collection.immutable._
 import scala.collection.mutable.{ArrayBuffer, Map}
@@ -997,7 +996,7 @@ class DefinedExternal(name: String) extends DefinedExpr {
     DefinedExpr.checkFeatureName(name)
 
     def feature = name
-    override def toTextExpr = "definedEx(" + name + ")";
+    override def toTextExpr = /* "definedEx(" + */name /*+ ")";*/
     override def toString = "def(" + name + ")"
     def countSize() = 1
     def isExternal = true

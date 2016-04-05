@@ -1,5 +1,7 @@
 package de.fosd.typechef.spllift.ifdsproblem
 
+import java.io.{StringWriter, Writer}
+
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 
@@ -40,17 +42,19 @@ case class PointerSource(override val name: Opt[Id], override val stmt: Opt[_], 
 
 
 case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) extends InformationFlow {
-    def toText: String = {
-        val builder = new StringBuilder
-        builder.append("Reach under condition " + to.condition.toTextExpr + " at " + PrettyPrinter.print(to.entry) + "\n")
+    def toText: String = toText(new StringWriter).toString
+
+    def toText(writer: Writer) : Writer = {
+        writer.append("Reach under condition " + to.condition.toTextExpr + " at " + PrettyPrinter.print(to.entry) + "\n")
 
         if (from.nonEmpty) {
-            builder.append("\tFrom:\t")
-            from.foreach(entry => builder.append(entry.entry.name + " when " + entry.condition.toTextExpr + ";\t"))
+            writer.append("\tFrom:\t")
+            from.foreach(entry => writer.append(entry.entry.name + " (" + entry.entry.getPositionFrom + ") when " + entry.condition.toTextExpr + ";\t"))
         }
 
-        if (sources.nonEmpty) builder.append("\n\tSources: " + sources)
-        builder.toString
+        if (sources.nonEmpty) writer.append("\n\tSources: " + sources)
+
+        writer
     }
 }
 

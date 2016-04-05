@@ -21,7 +21,7 @@ object Taint {
     def prettyPrintSinks(sinks: List[(AST, List[(Constraint[_], Reach)])], writer: Writer): Writer =
         sinks.foldLeft(writer) {
             (writer, sink) => {
-                writer.append("Sink at:\t" + PrettyPrinter.print(sink._1) + "\n")
+                writer.append("Sink at:\t" + PrettyPrinter.print(sink._1) + "\tin:\t" + sink._1.getPositionFrom + "\n")
                 sink._2.foreach { ssink => writer.append("CFGcondition " + ssink._1 + ":\t" + ssink._2.toText + "\n") }
                 writer.append("\n")
             }

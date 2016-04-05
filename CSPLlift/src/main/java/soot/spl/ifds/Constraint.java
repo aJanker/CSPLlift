@@ -159,7 +159,7 @@ public class Constraint<T> implements Cloneable {
 	
 	@Override
 	public String toString() {
-		return this.bFexpr.toString();
+		return this.bFexpr./* toString() */ toTextExpr();
 	}
 
 	public Constraint<T> not() {
