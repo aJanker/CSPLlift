@@ -40,19 +40,17 @@ case class PointerSource(override val name: Opt[Id], override val stmt: Opt[_], 
 
 
 case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) extends InformationFlow {
-    override def toString: String = {
-        val buffer = new StringBuffer
-        buffer.append("Reach under condition " + to.condition.toTextExpr + " at " + PrettyPrinter.print(to.entry) + "\n")
+    def toText: String = {
+        val builder = new StringBuilder
+        builder.append("Reach under condition " + to.condition.toTextExpr + " at " + PrettyPrinter.print(to.entry) + "\n")
 
         if (from.nonEmpty) {
-            buffer.append("\tFrom:\t")
-            from.foreach(entry => buffer.append(entry.entry.name + " when " + entry.condition.toTextExpr + ";\t"))
+            builder.append("\tFrom:\t")
+            from.foreach(entry => builder.append(entry.entry.name + " when " + entry.condition.toTextExpr + ";\t"))
         }
 
-        if (sources.nonEmpty) buffer.append("\n\tSources: " + sources)
-        buffer.toString
+        if (sources.nonEmpty) builder.append("\n\tSources: " + sources)
+        builder.toString
     }
-
-    def dbgString : String = super.toString
 }
 

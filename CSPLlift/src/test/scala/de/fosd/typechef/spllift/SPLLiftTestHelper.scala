@@ -39,10 +39,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         val sinks = Taint.findSinks[String](solution, isSink)
 
         // dbg print
-        if (dbg) sinks.foreach(sink => {
-            println("Sink at:\t" + PrettyPrinter.print(sink._1))
-            sink._2.foreach(ssink => println("CFGcondition " + ssink._1 + ":\t" + ssink._2))
-        })
+        if (dbg) println(Taint.prettyPrintSinks(sinks))
 
         (tunit, problem, solution, sinks)
     }

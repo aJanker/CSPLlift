@@ -31,12 +31,12 @@ int main() {
     #ifdef A
     innerp.
     #endif
-    x = 1;
+    x = y2;
 
         #ifdef A
         p.
         #endif
-        x = 1;
+        x = y;
 
 
     p.innerp = p1;

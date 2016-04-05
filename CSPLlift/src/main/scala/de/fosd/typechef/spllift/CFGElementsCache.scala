@@ -17,7 +17,7 @@ import scala.collection.JavaConversions._
 trait CFGElementsCache {
 
     def findEnv(node: AST, cache: CFGElementsCacheEnv): Option[ASTEnv] =
-        cache.getEnvs.par.find {_.containsASTElem(node)}
+        cache.getEnvs.find {_.containsASTElem(node)}
 
 
     def getTranslationUnit(node: AST, cache: CFGElementsCacheEnv): Option[TranslationUnit] =

@@ -398,45 +398,28 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
         lazy val currASTEnv = interproceduralCFG.nodeToEnv(curr)
         lazy val currOpt: Opt[AST] = parentOpt(curr, currASTEnv).asInstanceOf[Opt[AST]]
         lazy val currTS = interproceduralCFG.nodeToTS(curr)
+        lazy val succVarEnv = currTS.lookupEnv(succ)
 
-        lazy val currDefines = definedIds match {
+        val currDefines = definedIds match {
             case None => defines(curr)
             case Some(x) => x
         }
 
-        lazy val currUses = usedIds match {
+        val currUses = usedIds match {
             case None => uses(curr)
             case Some(x) => x
         }
 
-        lazy val currAssignments = assignments match {
+        val currAssignments = assignments match {
             case None => assignsVariables(curr)
             case Some(x) => x
         }
 
-        lazy val currStructFieldDefines = definesField(curr)
-
-        lazy val succVarEnv = currTS.lookupEnv(succ)
+        val currStructFieldDefines = definesField(curr)
 
         private var varSourceCache = Map[Opt[Id], List[Source]]()
 
-        private var structSourcesToGenCache = Map[Opt[Id], List[(Id, List[(Id, List[Id])], Option[Source], FeatureExpr)]]()
-
         private var structSourceCache = Map[Opt[Id], List[StructSource]]()
-
-
-        private def updateStructSource(s: StructSource, x: (Id, List[(Id, List[Id])], Option[Source], FeatureExpr)): StructSource = updateStructSource(s, x._1, x._2, x._3, x._4)
-        private def updateStructSource(s: StructSource, target: Id, fields: List[(Id, List[Id])], reachingSource: Option[Source] = None, reachCondition: FeatureExpr = FeatureExprFactory.True): StructSource = {
-            println("updatefor: " + s)
-            println("with: " + fields)
-            println(reachingSource)
-            println(reachCondition)
-
-            fields.foldLeft(s)((cs, currField) => {
-                cs
-            })
-
-        }
 
         def isStructOrUnion(cType: CType): Boolean =
             cType.atype match {
@@ -529,15 +512,11 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                 genFieldSource(target, field)
             }
 
-            val matches = structSourceCache.get(targetOpt) match {
-                case None => List()
-                case Some(sources) => sources.filter(source => structFieldMatch(source, field))
-            }
+            val matches = structSourceCache.getOrElse(targetOpt, List()).filter(structFieldMatch(_, field))
+
+            // TODO Global scoping
 
             var res: List[StructSource] = List()
-
-            println("Fieldsource: " + fieldSources)
-
             if (matches.isEmpty) {
                 val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) ++ reachingSource.get.reachingSources else ListBuffer[Source]()
                 res :::= fieldSources.map(src => StructSource(targetOpt, Some(src), currOpt, buffer))
@@ -545,10 +524,13 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
             } else
                 matches.foreach(genS => genS.reachingSources.+=(reachingSource.get) ++ reachingSource.get.reachingSources) // Update new reaching sources
 
-
             res
         }
 
+        /*
+         * We are using the variability-aware typesystem of TypeChef. However, variability encoded in the type definition of an variable or struct does not matter for us.
+         * As a consequence we only visit one type-definition as we do assume correct type assignments.
+         */
         def singleVisitOnSourceTypes[T <: InformationFlow](typedId: Id, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
             val cTypes = succVarEnv.varEnv.lookupType(typedId.name)
             var cFacts: List[T] = List()
@@ -566,12 +548,12 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
          * Retrieves if a given struct field access (e.g. parent.innerStruct.actualField) is matched by a certain InfoFlowFact source.
          * For example: the given struct above would match with the following StructSource: StructSource(parent, StructSource(innerStruct, VarSource(actualField)))
          */
-        private def structFieldMatch(s: Source, fieldMapping: (Id, List[Id])): Boolean = {
+        def structFieldMatch(s: Source, fieldMapping: (Id, List[Id])): Boolean = {
             def isMatch(field: Opt[Id], otherField: Opt[Id]): Boolean =
                 field.entry.eq(otherField.entry) && field.condition.and(otherField.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
             val (cField, cParents) = fieldMapping
-            val fieldOpt = Opt(currASTEnv.featureExpr(cField), cField)
+            lazy val fieldOpt = Opt(currASTEnv.featureExpr(cField), cField)
 
             s match {
                 case VarSource(fieldVar, _, _, _) if cParents.isEmpty => isMatch(fieldVar, fieldOpt) // matches if field source was found
