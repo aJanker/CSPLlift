@@ -13,10 +13,10 @@ import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-trait InformationFlowProblemOperations {
+trait InformationFlowProblemOperations extends ASTHelper {
     def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
-    def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
+    def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = asJavaIdentitySet(res)
 
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
@@ -329,37 +329,9 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                                 res = GEN(facts)
 
                             case Zero if currStructFieldDefines.nonEmpty && currUses.isEmpty =>
-
-                                println("TODO: Simple declaration")
-                                println(curr)
-                                println(PrettyPrinter.print(curr))
-                                println(PrettyPrinter.print(succ))
-                                println(currStructFieldDefines)
-                                println(currDefines)
-
-                                val facts: List[InformationFlow] = currDefines.flatMap(id =>
-                                    succVarEnv.varEnv.lookupScope(id.name).toOptList.flatMap(scope =>
-                                        if (currAssignments.exists(_._1.name.equalsIgnoreCase(id.name)))
-                                            {
-                                                println("entered here")
-                                                None
-                                            } // Do not generate a source for assignments from other variables (e.g x = y;)
-                                        else {
-                                            // is completly new introduced declaration without usage (e.g int x = 50;)
-                                            val file = if ((scope.entry == 0) && scope.condition.isSatisfiable(interproceduralCFG.getFeatureModel)) getFileName(id.getFile) else None
-
-                                            def zeroStructSource(i: Id) = List(StructSource(Opt(currOpt.condition.and(scope.condition), id), None, currOpt, ListBuffer(), file))
-                                            def zeroVarSource(i: Id) = List(VarSource(Opt(currOpt.condition.and(scope.condition), id), currOpt, ListBuffer(), file))
-
-                                            println("here i am")
-
-                                            singleVisitOnSourceTypes(id, zeroStructSource, zeroVarSource)
-                                        }))
+                                // TODO Scoping
+                                val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition))
                                 res = GEN(facts)
-
-                                println("Fact: " +facts)
-
-
                             case r: Reach => res = KILL
                             case _ => res = default(flowFact)
 
@@ -545,13 +517,17 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
 
             // TODO Global scoping
 
-            var res: List[StructSource] = List()
-            if (matches.isEmpty) {
-                val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) ++ reachingSource.get.reachingSources else ListBuffer[Source]()
-                res :::= fieldSources.map(src => StructSource(targetOpt, Some(src), currOpt, buffer))
-                structSourceCache += (targetOpt -> (res ::: structSourceCache.getOrElse(targetOpt, List())))
-            } else
-                matches.foreach(genS => genS.reachingSources.+=(reachingSource.get) ++ reachingSource.get.reachingSources) // Update new reaching sources
+            val res: List[StructSource] = {
+                if (matches.isEmpty) {
+                    val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) ++ reachingSource.get.reachingSources else ListBuffer[Source]()
+                    val sources = fieldSources.map(src => StructSource(targetOpt, Some(src), currOpt, buffer))
+                    structSourceCache += (targetOpt -> (sources ::: structSourceCache.getOrElse(targetOpt, List())))
+                    sources
+                } else {
+                    matches.foreach(genS => genS.reachingSources.+=(reachingSource.get) ++ reachingSource.get.reachingSources) // Update new reaching sources
+                    List()
+                }
+            }
 
             res
         }
@@ -595,4 +571,5 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
             }
         }
     }
+
 }

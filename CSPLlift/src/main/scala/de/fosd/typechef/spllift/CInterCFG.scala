@@ -69,7 +69,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val calleeNames = getCalleeNames(call)
         val callees = calleeNames.flatMap(findCallees(_, nodeToTUnit(call)))
 
-        toJavaIdentitySet(callees.map(_.entry).reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
+        asJavaIdentitySet(callees.map(_.entry).reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
     }
 
     /**
@@ -91,7 +91,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * more than one start point in case of a backward analysis.
       */
     override def getStartPointsOf(fDef: FunctionDef): util.Set[AST] =
-        toJavaIdentitySet(getSuccsOf(fDef))
+        asJavaIdentitySet(getSuccsOf(fDef))
 
     /**
       * Returns <code>true</code> if the given statement is a call site.
@@ -130,7 +130,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def getCallsFromWithin(method: FunctionDef): util.Set[AST] = {
         val callsWithIn = filterAllASTElems[PostfixExpr](method.stmt.innerStatements).filter(isCallStmt)
-        toJavaIdentitySet(callsWithIn)
+        asJavaIdentitySet(callsWithIn)
     }
 
 
@@ -140,7 +140,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def allNonCallStartNodes(): util.Set[AST] = {
         // TODO beware only nodes from start tunit.
         val allNonCallStartNodes = filterAllASTElems[Statement](CFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt))
-        toJavaIdentitySet(allNonCallStartNodes)
+        asJavaIdentitySet(allNonCallStartNodes)
     }
 
     /**
