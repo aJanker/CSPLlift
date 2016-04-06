@@ -83,9 +83,9 @@ class CFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureMode
 
     val startTUnit = add(initialTUnit)
 
-    override def prepareAST[T <: Product](ast: T): T = {
+    override def prepareAST[T <: Product](t: T): T = {
         // TODO Rewrite Nested function calls (outter(inner(x))
-        val tunit = super.prepareAST(ast)
+        val tunit = super.prepareAST(t)
         tunit
     }
 
@@ -139,12 +139,10 @@ class CFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureMode
                 override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
             }
 
-            val tunit = prepareAST(fr.readObject().asInstanceOf[TranslationUnit])
+            val tunit = fr.readObject().asInstanceOf[TranslationUnit]
             fr.close()
 
-            add(tunit)
-
-            Some(tunit)
+            Some(add(tunit))
         } catch {
             case e: ObjectStreamException => System.err.println("failed loading serialized AST: " + e.getMessage); None
         }

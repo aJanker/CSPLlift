@@ -21,7 +21,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private val CFGElementsCacheEnv = new CFGElementsCacheEnv(startTunit, fm, options)
 
-    lazy val entryFunctions = filterAllASTElems[FunctionDef](CFGElementsCacheEnv.startTUnit).filter(fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase))
+    val entryFunctions = filterAllASTElems[FunctionDef](CFGElementsCacheEnv.startTUnit).filter(fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase))
 
     def getFeatureModel = fm
 
@@ -111,7 +111,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     private def getSuccsOfS(stmt: AST): List[AST] =
         succ(stmt, nodeToEnv(stmt)).flatMap {
             case Opt(_, f: FunctionDef) => None
-            case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
+            case Opt(_, a: AST) => Some(a)
             case _ => None
         }
 

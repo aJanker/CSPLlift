@@ -21,7 +21,7 @@ trait InformationFlowProblemOperations extends ASTHelper {
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
 
-class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, FunctionDef, CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with ASTHelper with CInterCFGPseudoVistingSystemLibFunctions {
+class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, FunctionDef, CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with ASTHelper with CInterCFGPseudoVistingSystemLibFunctions {
 
     private var initialGlobalsFile: String = ""
 
@@ -42,7 +42,7 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def interproceduralCFG: CInterCFG = icfg
+    override def interproceduralCFG: CInterCFG = cICFG
 
     /**
       * This must be a data-flow fact of type {@link D}, but must <i>not</i>
@@ -571,5 +571,4 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
             }
         }
     }
-
 }
