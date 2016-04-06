@@ -23,7 +23,7 @@ int main() {
 
     POINT p1;
     p1.x = x2;
-    p1.y = 2;
+    p1.y = 10;
 
     struct punkt p;
 
@@ -52,7 +52,11 @@ int main() {
      p1 = p2;
 #endif
 
-     int sink = p1.y + z;  // reach from x = 0, y = 0; or def A x = 0;
+#ifdef B
+    p1.y = 20;
+ #endif
+
+     int sink = p1.y + z;  // reach from x = 0, y = 0; or def A x = 0; or DEF B p1.y = 2
 
 
     return sink;

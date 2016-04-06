@@ -328,9 +328,39 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
                                         }))
                                 res = GEN(facts)
 
-                            case Zero if currStructFieldDefines.nonEmpty && currUses.isEmpty => println("TODO: Simple declaration")
+                            case Zero if currStructFieldDefines.nonEmpty && currUses.isEmpty =>
 
-                            case r: Reach => KILL
+                                println("TODO: Simple declaration")
+                                println(curr)
+                                println(PrettyPrinter.print(curr))
+                                println(PrettyPrinter.print(succ))
+                                println(currStructFieldDefines)
+                                println(currDefines)
+
+                                val facts: List[InformationFlow] = currDefines.flatMap(id =>
+                                    succVarEnv.varEnv.lookupScope(id.name).toOptList.flatMap(scope =>
+                                        if (currAssignments.exists(_._1.name.equalsIgnoreCase(id.name)))
+                                            {
+                                                println("entered here")
+                                                None
+                                            } // Do not generate a source for assignments from other variables (e.g x = y;)
+                                        else {
+                                            // is completly new introduced declaration without usage (e.g int x = 50;)
+                                            val file = if ((scope.entry == 0) && scope.condition.isSatisfiable(interproceduralCFG.getFeatureModel)) getFileName(id.getFile) else None
+
+                                            def zeroStructSource(i: Id) = List(StructSource(Opt(currOpt.condition.and(scope.condition), id), None, currOpt, ListBuffer(), file))
+                                            def zeroVarSource(i: Id) = List(VarSource(Opt(currOpt.condition.and(scope.condition), id), currOpt, ListBuffer(), file))
+
+                                            println("here i am")
+
+                                            singleVisitOnSourceTypes(id, zeroStructSource, zeroVarSource)
+                                        }))
+                                res = GEN(facts)
+
+                                println("Fact: " +facts)
+
+
+                            case r: Reach => res = KILL
                             case _ => res = default(flowFact)
 
                         }
@@ -444,7 +474,6 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
         def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currUses, isSatisfiable)
 
         private def occurrenceFulfills(x: Opt[Id], occurrences: List[Id], fulfills: (Id, Opt[Id]) => Boolean) = occurrences.exists(fulfills(_, x))
-
 
         def globalNameScopeIsSatisfiable(id: Opt[Id], declarationFile: Option[String] = None): Boolean = {
             val eqDeclFile = declarationFile match {
@@ -566,5 +595,4 @@ class InformationFlowProblem(icfg: CInterCFG) extends IFDSTabulationProblem[AST,
             }
         }
     }
-
 }

@@ -42,7 +42,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns whether succ is a branch target of stmt.
       */
     override def isBranchTarget(stmt: AST, suc: AST): Boolean =
-        getSuccsOf(stmt).asScala.exists(_.equals(suc))
+        getSuccsOfS(stmt).exists(_.equals(suc))
 
     /**
       * Returns all caller statements/nodes of a given method.
@@ -69,7 +69,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val calleeNames = getCalleeNames(call)
         val callees = calleeNames.flatMap(findCallees(_, nodeToTUnit(call)))
 
-        callees.map(_.entry).reverse.toSet.asJava // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
+        toJavaIdentitySet(callees.map(_.entry).reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
     }
 
     /**
@@ -91,7 +91,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * more than one start point in case of a backward analysis.
       */
     override def getStartPointsOf(fDef: FunctionDef): util.Set[AST] =
-        new util.HashSet(getSuccsOf(fDef))
+        toJavaIdentitySet(getSuccsOf(fDef))
 
     /**
       * Returns <code>true</code> if the given statement is a call site.
@@ -106,12 +106,14 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns the successor nodes.
       */
-    override def getSuccsOf(stmt: AST): util.List[AST] =
+    override def getSuccsOf(stmt: AST): util.List[AST] = getSuccsOfS(stmt).asJava
+
+    private def getSuccsOfS(stmt: AST): List[AST] =
         succ(stmt, nodeToEnv(stmt)).flatMap {
-                    case Opt(_, f: FunctionDef) => None
-                    case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
-                    case _ => None
-                }.asJava
+            case Opt(_, f: FunctionDef) => None
+            case Opt(_, a: AST) => Some(a.asInstanceOf[AST]) // required casting otherwise java compilation will fail
+            case _ => None
+        }
 
     /**
       * Returns <code>true</code> if the given statement leads to a method return
@@ -127,21 +129,18 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns all call sites within a given method.
       */
     override def getCallsFromWithin(method: FunctionDef): util.Set[AST] = {
-        val res: Set[AST] =
-            filterAllASTElems[PostfixExpr](method.stmt.innerStatements).filter(isCallStmt).toSet
-
-        res.asJava
+        val callsWithIn = filterAllASTElems[PostfixExpr](method.stmt.innerStatements).filter(isCallStmt)
+        toJavaIdentitySet(callsWithIn)
     }
+
 
     /**
       * Returns the set of all nodes that are neither call nor start nodes.
       */
     override def allNonCallStartNodes(): util.Set[AST] = {
         // TODO beware only nodes from start tunit.
-        val list = filterAllASTElems[Statement](CFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt)).asJava
-        val res: util.Set[AST] = util.Collections.newSetFromMap(new util.IdentityHashMap[AST, java.lang.Boolean]) // Using "IdentitySet" as normal sets would remove "equal" but not identical objects like return statements
-        res.addAll(list)
-        res
+        val allNonCallStartNodes = filterAllASTElems[Statement](CFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt))
+        toJavaIdentitySet(allNonCallStartNodes)
     }
 
     /**
