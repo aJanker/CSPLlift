@@ -15,13 +15,13 @@ import soot.spl.ifds.Constraint
 import scala.collection.JavaConverters._
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions)
-    extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with ASTHelper with CFGElementsCache {
+    extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
-    private val CFGElementsCacheEnv = new CFGElementsCacheEnv(startTunit, fm, options)
+    private val CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
-    val entryFunctions = filterAllASTElems[FunctionDef](CFGElementsCacheEnv.startTUnit).filter(fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase))
+    val entryFunctions = filterAllASTElems[FunctionDef](CInterCFGElementsCacheEnv.startTUnit).filter(fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase))
 
     def getFeatureModel = fm
 
@@ -139,7 +139,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def allNonCallStartNodes(): util.Set[AST] = {
         // TODO beware only nodes from start tunit.
-        val allNonCallStartNodes = filterAllASTElems[Statement](CFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt))
+        val allNonCallStartNodes = filterAllASTElems[Statement](CInterCFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt))
         asJavaIdentitySet(allNonCallStartNodes)
     }
 
@@ -160,7 +160,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
-            return List(CFGElementsCacheEnv.PSEUDO_SYSTEM_FUNCTION_CALL)
+            return List(CInterCFGElementsCacheEnv.PSEUDO_SYSTEM_FUNCTION_CALL)
 
         val localDef = callTUnit.defs.flatMap {
             case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
@@ -168,7 +168,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => None
         }
 
-        val externalDef = getExternalDefinitions(name, CFGElementsCacheEnv)
+        val externalDef = getExternalDefinitions(name, CInterCFGElementsCacheEnv)
         val result = externalDef ++ localDef
 
         if (result.isEmpty) Console.err.println("No function definiton found for " + name + "!")
@@ -184,19 +184,19 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         }
 
     def nodeToEnv(node: AST): ASTEnv =
-        findEnv(node, CFGElementsCacheEnv) match {
+        findEnv(node, CInterCFGElementsCacheEnv) match {
             case Some(env) => env
             case _ => throw new NoSuchElementException("No env found for node: " + node)
         }
 
     def nodeToTUnit(node: AST): TranslationUnit =
-        getTranslationUnit(node, CFGElementsCacheEnv) match {
+        getTranslationUnit(node, CInterCFGElementsCacheEnv) match {
             case Some(tunit) => tunit
             case _ => throw new NoSuchElementException("No tunit found for node: " + node)
         }
 
     def nodeToTS(node: AST): CTypeSystemFrontend with CTypeCache with CDeclUse =
-        getTypeSystem(node, CFGElementsCacheEnv) match {
+        getTypeSystem(node, CInterCFGElementsCacheEnv) match {
             case Some(ts) => ts
             case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
         }

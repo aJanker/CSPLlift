@@ -6,14 +6,14 @@ import java.util.Collections
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.{ASTHelper, CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
+import de.fosd.typechef.spllift.{CInterCFG, CInterCFGCommons, CInterCFGPseudoVistingSystemLibFunctions}
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-trait InformationFlowProblemOperations extends ASTHelper {
+trait InformationFlowProblemOperations extends CInterCFGCommons {
     def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
     def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = asJavaIdentitySet(res)
@@ -21,7 +21,7 @@ trait InformationFlowProblemOperations extends ASTHelper {
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
 
-class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, FunctionDef, CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with ASTHelper with CInterCFGPseudoVistingSystemLibFunctions {
+class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, FunctionDef, CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
 
     private var initialGlobalsFile: String = ""
 
@@ -300,12 +300,30 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                             case s@VarSource(id, _, _, None) if defineIsImplication(id) => res = KILL // Kill previously known local source as it is now no longer valid
                             case s@VarSource(id, _, _, global) if global.isDefined && defineIsImplication(id) && globalNameScopeIsSatisfiable(id, global) => res = KILL // Kill previously known global source as it is now no longer valid , only kill this source in case the name scope is globally visible
 
+                            case s@StructSource(_, _, _, _, None) if structFieldDefineIsImplication(s) => res = KILL // Kill previously known local source as it is now no longer valid
                             case s: StructSource =>
+                                println(s)
+                                println(PrettyPrinter.print(curr))
+                                println(currUses)
+                                println()
                                 val currRes =
-                                    if (structFieldDefineIsSatisfiable(s.name)) GEN(s) // Keep struct source but update fields
-                                    else if (defineIsImplication(s.name)) {
-                                        println("going to kill...")
+                                    if (structFieldDefineIsImplication(s)) {
+                                        println("kill")
+                                        println("StructSource: " + s)
+                                        println(curr)
+                                        println(PrettyPrinter.print(curr))
+                                        println(currDefines)
+                                        println(currAssignments)
+                                        println(currStructFieldDefines)
+                                        println(structFieldDefineIsSatisfiable(s.name))
+                                        println(structFieldDefineIsImplication(s))
+                                        println()
                                         KILL
+                                    }
+                                    else if (structFieldDefineIsSatisfiable(s.name)) {
+                                        // Keep struct source but update fields
+                                        //println("only update")
+                                        GEN(s)
                                     }
                                     else GEN(s)
 
@@ -402,22 +420,24 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
         lazy val currTS = interproceduralCFG.nodeToTS(curr)
         lazy val succVarEnv = currTS.lookupEnv(succ)
 
-        val currDefines = definedIds match {
+        lazy val currDefines = definedIds match {
             case None => defines(curr)
             case Some(x) => x
         }
 
-        val currUses = usedIds match {
+        lazy val currUses = usedIds match {
             case None => uses(curr)
             case Some(x) => x
         }
 
-        val currAssignments = assignments match {
+        lazy val currAssignments = assignments match {
             case None => assignsVariables(curr)
             case Some(x) => x
         }
 
-        val currStructFieldDefines = definesField(curr)
+        lazy val currStructFieldDefines = definesField(curr)
+
+        lazy val currStructFieldUses = usesField(curr)
 
         private var varSourceCache = Map[Opt[Id], List[Source]]()
 
@@ -441,7 +461,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
 
         def defineIsImplication(x: Opt[Id]): Boolean = occurrenceFulfills(x, currDefines, isImplication)
 
-        def structFieldDefineIsImplication(x: Opt[Id]): Boolean = occurrenceFulfills(x, currStructFieldDefines.flatMap(_._2.headOption), isImplication)
+        def structFieldDefineIsImplication(s: StructSource): Boolean = currStructFieldDefines.exists(structFieldMatch(s, _, _.equals(_)))
 
         def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currUses, isSatisfiable)
 
@@ -553,9 +573,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
          * Retrieves if a given struct field access (e.g. parent.innerStruct.actualField) is matched by a certain InfoFlowFact source.
          * For example: the given struct above would match with the following StructSource: StructSource(parent, StructSource(innerStruct, VarSource(actualField)))
          */
-        def structFieldMatch(s: Source, fieldMapping: (Id, List[Id])): Boolean = {
+        def structFieldMatch(s: Source, fieldMapping: (Id, List[Id]), isEqual: (Id, Id) => Boolean = _.eq(_)): Boolean = {
             def isMatch(field: Opt[Id], otherField: Opt[Id]): Boolean =
-                field.entry.eq(otherField.entry) && field.condition.and(otherField.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
+            /* field.entry.equals(otherField.entry)*/ isEqual(field.entry, otherField.entry) && field.condition.and(otherField.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
             val (cField, cParents) = fieldMapping
             lazy val fieldOpt = Opt(currASTEnv.featureExpr(cField), cField)
@@ -564,11 +584,12 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                 case VarSource(fieldVar, _, _, _) if cParents.isEmpty => isMatch(fieldVar, fieldOpt) // matches if field source was found
                 case StructSource(sParent, sField, _, _, _) if sField.isEmpty && cParents.isEmpty => isMatch(sParent, fieldOpt) // matches with outerStruct.innerStruct
                 case StructSource(sParent, sField, _, _, _) if sField.isDefined => cParents.headOption match {
-                    case Some(head) if isMatch(sParent, Opt(currASTEnv.featureExpr(head), head)) => structFieldMatch(sField.get, (cField, cParents.tail)) // Remove matched parent and continue search
+                    case Some(head) if isMatch(sParent, Opt(currASTEnv.featureExpr(head), head)) => structFieldMatch(sField.get, (cField, cParents.tail), isEqual) // Remove matched parent and continue search
                     case _ => false
                 }
                 case _ => false
             }
         }
     }
+
 }

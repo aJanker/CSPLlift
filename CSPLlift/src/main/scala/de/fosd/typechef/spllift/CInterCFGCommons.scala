@@ -8,7 +8,7 @@ import de.fosd.typechef.parser.c.{ASTNavigation, ConditionalNavigation}
 
 import scala.collection.JavaConverters._
 
-trait ASTHelper extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation {
+trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation {
 
     def getFileName(originalFilePath: Option[String]): Option[String] =
         originalFilePath match {

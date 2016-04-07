@@ -14,13 +14,13 @@ import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import scala.collection.JavaConversions._
 
 
-trait CFGElementsCache {
+trait CInterCFGElementsCache {
 
-    def findEnv(node: AST, cache: CFGElementsCacheEnv): Option[ASTEnv] =
+    def findEnv(node: AST, cache: CInterCFGElementsCacheEnv): Option[ASTEnv] =
         cache.getEnvs.find {_.containsASTElem(node)}
 
 
-    def getTranslationUnit(node: AST, cache: CFGElementsCacheEnv): Option[TranslationUnit] =
+    def getTranslationUnit(node: AST, cache: CInterCFGElementsCacheEnv): Option[TranslationUnit] =
         findEnv(node, cache) match {
             case Some(env) =>
                 cache.getTunitForEnv(env) match {
@@ -30,7 +30,7 @@ trait CFGElementsCache {
             case _ => None
         }
 
-    def getTypeSystem(node: AST, cache: CFGElementsCacheEnv): Option[CTypeSystemFrontend with CTypeCache with CDeclUse] =
+    def getTypeSystem(node: AST, cache: CInterCFGElementsCacheEnv): Option[CTypeSystemFrontend with CTypeCache with CDeclUse] =
         findEnv(node, cache) match {
             case Some(env) =>
                 cache.getTSForEnv(env) match {
@@ -41,10 +41,10 @@ trait CFGElementsCache {
         }
 
 
-    def isNameLinked(name: Opt[String], cache: CFGElementsCacheEnv): Boolean =
+    def isNameLinked(name: Opt[String], cache: CInterCFGElementsCacheEnv): Boolean =
         cache.isNameKnown(name)
 
-    def getExternalDefinitions(name: Opt[String], cache: CFGElementsCacheEnv): List[Opt[FunctionDef]] =
+    def getExternalDefinitions(name: Opt[String], cache: CInterCFGElementsCacheEnv): List[Opt[FunctionDef]] =
         cache.getNameLocations(name).getOrElse(List()).foldLeft(List[Opt[FunctionDef]]())((res, path) => {
             val tUnit =
                 cache.getTunitForFile(path) match {
@@ -60,7 +60,7 @@ trait CFGElementsCache {
         })
 }
 
-class CFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String], options: CInterCFGOptions) extends EnforceTreeHelper with CInterCFGPseudoVistingSystemLibFunctions{
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], cPointerInterfacePath: Option[String], options: CInterCFGOptions) extends EnforceTreeHelper with CInterCFGPseudoVistingSystemLibFunctions{
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions) =
         this(initialTUnit, fm, options.getModuleInterface, options.getPointerInterface, options)

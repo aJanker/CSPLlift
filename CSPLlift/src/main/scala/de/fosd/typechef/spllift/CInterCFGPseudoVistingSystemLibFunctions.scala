@@ -8,7 +8,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.ifdsproblem._
 import heros.FlowFunction
 
-trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with ASTHelper {
+trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with CInterCFGCommons {
 
     lazy val PSEUDO_SYSTEM_FUNCTION_CALL = Opt(True, FunctionDef(List(Opt(True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(True, ReturnStatement(None))))))
 

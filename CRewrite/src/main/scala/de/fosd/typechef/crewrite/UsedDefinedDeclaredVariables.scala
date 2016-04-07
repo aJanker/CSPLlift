@@ -78,7 +78,9 @@ trait UsedDefinedDeclaredVariables {
 
     val usesField: AnyRef => List[(Id, List[Id])] =
         attr {
-            case _ => List()
+            case x =>
+                println("missed: " + x)
+                List()
         }
 
     private val parents: AnyRef => List[Id] =
