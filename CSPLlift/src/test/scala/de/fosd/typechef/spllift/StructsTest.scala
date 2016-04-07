@@ -5,62 +5,49 @@ import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.Taint
-import de.fosd.typechef.spllift.ifdsproblem.Reach
 import org.junit.Test
 
 class StructsTest extends SPLLiftTestHelper {
 
-    @Test def simpleStructFields() = {
-        var successful = true
-
-        val (tunit, _, _, sinks) = defaultTest("struct1.c", allSinks)
-
-        println(PrettyPrinter.print(tunit))
-
-        println(Taint.prettyPrintSinks(sinks))
-
-        println(tunit)
-
-        successful should be(true)
-    }
-
     /**
       * Tests the correct assignment from variables to struct fields (x.y = z);
       */
-    @Test def basicStructAssignments() = {
-        def isSink(r: Reach): Boolean = {
-            r.to.entry match {
-                case ExprStatement(AssignExpr(PostfixExpr(Id(p1),PointerPostfixSuffix(_,Id("x"))),_,Id("mx2"))) => true
-                case _ => false
-            }
-        }
-        var successful = true
+    @Test def basicStructAssignments1() = {
+        var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
 
-        val (tunit, _, _, sinks) = defaultTest("basicStructAssignments.c", isSink)
+        // sink1 : A, (mx2, A), (mx, True)
+        expectedReaches ::= (fa, List(Opt(fa, Id("mx2")), Opt(True, Id("mx"))))
 
-        successful = successful && sinks.size == 1 // only one sink location should be found
+        // sink1 : A, (mx2, A), (mx, True)
+        expectedReaches ::= (fa.not, List(Opt(fa.not, Id("mx2")), Opt(True, Id("my"))))
 
-        val sink = sinks.head
+        val sinkStmt = ExprStatement(AssignExpr(PostfixExpr(Id("p1"),PointerPostfixSuffix(".", Id("x"))),"=",Id("mx2")))
 
-        successful = successful && (sink._1 match {
-            case ExprStatement(AssignExpr(PostfixExpr(Id(p1),PointerPostfixSuffix(_,Id("x"))),_,Id("mx2"))) => true // correct sink statement should be found
-            case _ => false
-        })
+        defaultSingleSinkTest("basicStructAssignments.c", sinkStmt, expectedReaches) should be(true)
+    }
+
+    /**
+      * Tests the correct assignment from struct field to variable (x = y.z);
+      */
+    @Test def basicStructAssignments2() = {
 
         var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
 
-        // sink1 : True, (mx2, True), (mx, True)
-        expectedReaches ::= (True, List(Opt(True, Id("mx2")), Opt(True, Id("mx"))))
+        // sink1 : A, (p1, A), (mx2, A), (mx, True)
+        expectedReaches ::= (fa, List(Opt(fa, Id("p1")) , Opt(fa, Id("mx2")), Opt(True, Id("mx"))))
 
-        successful = successful && allReachesMatch(sink._2, expectedReaches)
+        // sink2 : !A, (p1, !A), (mx2, !A), (my, True)
+        expectedReaches ::= (fa.not, List(Opt(fa.not, Id("p1")), Opt(fa.not, Id("mx2")), Opt(True, Id("my"))))
 
-        successful should be(true)
+        val sinkStmt = ExprStatement(AssignExpr(Id("my2"),"=",PostfixExpr(Id("p1"),PointerPostfixSuffix(".",Id("x")))))
+
+        defaultSingleSinkTest("basicStructAssignments.c", sinkStmt, expectedReaches) should be(true)
     }
 
     @Test def allStructAssignments() = {
         var successful = true
 
-        val (tunit, _, _, sinks) = defaultTest("basicStructAssignments.c", allSinks)
+        val (tunit, _, _, sinks) = defaultTestInit("basicStructAssignments.c", allSinks)
 
         println(PrettyPrinter.print(tunit))
 
@@ -70,5 +57,20 @@ class StructsTest extends SPLLiftTestHelper {
 
         successful should be(true)
     }
+
+    @Test def simpleStructFields() = {
+        var successful = true
+
+        val (tunit, _, _, sinks) = defaultTestInit("struct1.c", allSinks)
+
+        println(PrettyPrinter.print(tunit))
+
+        println(Taint.prettyPrintSinks(sinks))
+
+        println(tunit)
+
+        successful should be(true)
+    }
+
 
 }

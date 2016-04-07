@@ -14,7 +14,13 @@ int main()
     int sink;
     int mx = 0;
     int my = 0;
-    int mx2 = mx;
+    int mx2 =
+    #ifdef A
+    mx;
+    #else
+    my;
+    #endif
+
     int my2 = my;
 
     POINT p1;

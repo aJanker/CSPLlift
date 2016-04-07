@@ -16,7 +16,7 @@ import scala.collection.mutable.ListBuffer
 trait InformationFlowProblemOperations extends CInterCFGCommons {
     def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
-    def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = asJavaIdentitySet(res)
+    def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
 
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
@@ -266,6 +266,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
 
                         flowFact match {
                             case s@VarSource(sId, _, _, global) if useIsSatisfiable(sId) =>
+
                                 val reachCondition = sId.condition.and(currOpt.condition)
                                 val reach = Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source
 
@@ -294,40 +295,19 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
 
                                         singleVisitOnSourceTypes(target, assignToStruct, assignToVar)
                                 }
-
-                                res = GEN(sources ::: List(reach))
+                                res = GEN(reach :: sources)
 
                             case s@VarSource(id, _, _, None) if defineIsImplication(id) => res = KILL // Kill previously known local source as it is now no longer valid
                             case s@VarSource(id, _, _, global) if global.isDefined && defineIsImplication(id) && globalNameScopeIsSatisfiable(id, global) => res = KILL // Kill previously known global source as it is now no longer valid , only kill this source in case the name scope is globally visible
 
                             case s@StructSource(_, _, _, _, None) if structFieldDefineIsImplication(s) => res = KILL // Kill previously known local source as it is now no longer valid
                             case s: StructSource =>
-                                println(s)
-                                println(PrettyPrinter.print(curr))
-                                println(currUses)
-                                println()
-                                val currRes =
-                                    if (structFieldDefineIsImplication(s)) {
-                                        println("kill")
-                                        println("StructSource: " + s)
-                                        println(curr)
-                                        println(PrettyPrinter.print(curr))
-                                        println(currDefines)
-                                        println(currAssignments)
-                                        println(currStructFieldDefines)
-                                        println(structFieldDefineIsSatisfiable(s.name))
-                                        println(structFieldDefineIsImplication(s))
-                                        println()
-                                        KILL
-                                    }
-                                    else if (structFieldDefineIsSatisfiable(s.name)) {
-                                        // Keep struct source but update fields
-                                        //println("only update")
-                                        GEN(s)
-                                    }
-                                    else GEN(s)
+                                val currRes = if (structUseIsSatisfiable(s)) {
+                                    val reachCondition = s.name.condition.and(currOpt.condition)
+                                    List(Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)))
+                                } else List()
 
-                                res = currRes
+                                res = GEN(s :: currRes)
 
                             case Zero if currDefines.nonEmpty =>
 
@@ -465,6 +445,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
 
         def useIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currUses, isSatisfiable)
 
+        def structUseIsSatisfiable(s: StructSource) = currStructFieldUses.exists(structFieldMatch(s, _, _.equals(_)))
+
         private def occurrenceFulfills(x: Opt[Id], occurrences: List[Id], fulfills: (Id, Opt[Id]) => Boolean) = occurrences.exists(fulfills(_, x))
 
         def globalNameScopeIsSatisfiable(id: Opt[Id], declarationFile: Option[String] = None): Boolean = {
@@ -574,8 +556,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
          * For example: the given struct above would match with the following StructSource: StructSource(parent, StructSource(innerStruct, VarSource(actualField)))
          */
         def structFieldMatch(s: Source, fieldMapping: (Id, List[Id]), isEqual: (Id, Id) => Boolean = _.eq(_)): Boolean = {
-            def isMatch(field: Opt[Id], otherField: Opt[Id]): Boolean =
-            /* field.entry.equals(otherField.entry)*/ isEqual(field.entry, otherField.entry) && field.condition.and(otherField.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
+            def isMatch(field: Opt[Id], otherField: Opt[Id]): Boolean = isEqual(field.entry, otherField.entry) && field.condition.and(otherField.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
             val (cField, cParents) = fieldMapping
             lazy val fieldOpt = Opt(currASTEnv.featureExpr(cField), cField)

@@ -9,7 +9,7 @@ import org.kiama.attribution.Attribution._
 trait UsedDefinedDeclaredVariables {
 
     // returns all declared Ids independent of their annotation
-    val declares: AnyRef => List[Id] =
+    lazy val declares: AnyRef => List[Id] =
         attr {
             case DeclarationStatement(decl) => declares(decl)
             case Declaration(_, init) => init.flatMap(declares)
@@ -21,7 +21,7 @@ trait UsedDefinedDeclaredVariables {
         }
 
     // returns all defined Ids independent of their annotation
-    val defines: AnyRef => List[Id] =
+    lazy val defines: AnyRef => List[Id] =
         attr {
             case AssignExpr(target: Id, _, source) => List(target)
             case DeclarationStatement(d) => defines(d)
@@ -42,7 +42,7 @@ trait UsedDefinedDeclaredVariables {
 
 
     // returns all used Ids independent of their annotation
-    val uses: AnyRef => List[Id] =
+    lazy val uses: AnyRef => List[Id] =
         attr {
             case ForStatement(expr1, expr2, expr3, _) => uses(expr1) ++ uses(expr2) ++ uses(expr3)
             case ReturnStatement(Some(x)) => uses(x)
@@ -76,13 +76,8 @@ trait UsedDefinedDeclaredVariables {
 
         }
 
-    val usesField: AnyRef => List[(Id, List[Id])] =
-        attr {
-            case x =>
-                println("missed: " + x)
-                List()
-        }
 
+    // Returns all the parent structs of an field
     private val parents: AnyRef => List[Id] =
         attr {
             case PostfixExpr(p, s) => parents(p) ++ parents(s)
@@ -92,10 +87,10 @@ trait UsedDefinedDeclaredVariables {
         }
 
     /**
-      * Returns the defined field and its struct parents
-      * e.g. x.y.z => List(Id(z), List(Id(x), Id(y))
+      * Returns all defined fields and its struct parents
+      * e.g. x.y.z = foo => List(Id(z), List(Id(x), Id(y))
       */
-    val definesField: AnyRef => List[(Id, List[Id])] =
+    lazy val definesField: AnyRef => List[(Id, List[Id])] =
         attr {
             case AssignExpr(p: PostfixExpr, _, _) => definesField(p)
             case DeclarationStatement(d) => definesField(d)
@@ -111,7 +106,42 @@ trait UsedDefinedDeclaredVariables {
             case _ => List()
         }
 
-    val assignsVariables: AnyRef => List[(Id,List[Id])] =
+    /**
+      * Returns all used fields and its struct parents
+      * e.g. foo = x.y.z => List(Id(z), List(Id(x), Id(y))
+      */
+    lazy val usesField: AnyRef => List[(Id, List[Id])] =
+        attr {
+            case ForStatement(expr1, expr2, expr3, _) => usesField(expr1) ++ usesField(expr2) ++ usesField(expr3)
+            case ReturnStatement(Some(x)) => usesField(x)
+            case WhileStatement(expr, _) => usesField(expr)
+            case DeclarationStatement(d) => usesField(d)
+            case Declaration(_, init) => init.flatMap(usesField)
+            case InitDeclaratorI(_, _, Some(i)) => usesField(i)
+            case NestedNamedDeclarator(_, nestedDecl, _, _) => usesField(nestedDecl)
+            case Initializer(_, expr) => usesField(expr)
+            case FunctionCall(params) => params.exprs.map(_.entry).flatMap(usesField)
+            case PostfixExpr(_: Id, f: FunctionCall) => usesField(f)
+            case PostfixExpr(p, PointerPostfixSuffix(_, i: Id)) => List((i, parents(p)))
+            case UnaryExpr(_, ex) => usesField(ex)
+            case SizeOfExprU(expr) => usesField(expr)
+            case CastExpr(_, expr) => usesField(expr)
+            case UnaryOpExpr(kind, castExpr) => usesField(castExpr)
+            case NAryExpr(ex, others) => usesField(ex) ++ others.flatMap(usesField)
+            case NArySubExpr(_, ex) => usesField(ex)
+            case ConditionalExpr(condition, _, _) => usesField(condition)
+            case ExprStatement(expr) => usesField(expr)
+            case ExprList(exprs) => exprs.flatMap(usesField)
+            case AssignExpr(target, op, source) => usesField(source) ++ (if (op == "=") List() else usesField(target))
+            case Opt(_, entry) => usesField(entry.asInstanceOf[AnyRef])
+            case Some(entry) => usesField(entry.asInstanceOf[AnyRef])
+            case i : Id => List()
+            case x =>
+                Console.err.println("missed expr: " + x)
+                List()
+        }
+
+    lazy val assignsVariables: AnyRef => List[(Id,List[Id])] =
         attr {
             case AssignExpr(PostfixExpr(target : Id, _), _ , source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
             case AssignExpr(target: Id, _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()

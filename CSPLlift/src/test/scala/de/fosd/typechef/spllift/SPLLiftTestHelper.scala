@@ -29,7 +29,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
     private val testfileDir = "testfiles/"
 
-    def defaultTest(filename: String, isSink: Reach => Boolean) = {
+    def defaultTestInit(filename: String, isSink: Reach => Boolean) = {
         val tunit = parseTUnitFromFile(filename)
 
         val cInterCFG = new CInterCFG(tunit)
@@ -43,6 +43,31 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
         (tunit, problem, solution, sinks)
     }
+
+    def defaultSingleSinkTest(filename: String, sinkStmt : Statement, expectedReaches : List[(FeatureExpr, List[Opt[Id]])]) : Boolean = {
+        def isSink(r: Reach): Boolean = {
+            r.to.entry match {
+                case `sinkStmt` => true
+                case _ => false
+            }
+        }
+
+        val (tunit, _, _, sinks) = defaultTestInit(filename, isSink)
+
+        var successful = true
+
+        successful = successful && sinks.size == 1 // only one sink location should be found
+
+        val sink = sinks.head
+
+        successful = successful && (sink._1 match {
+            case `sinkStmt` => true // correct sink statement should be found
+            case _ => false
+        })
+
+        successful && allReachesMatch(sink._2, expectedReaches)
+    }
+
 
     def parseTUnitFromFile(filename: String): TranslationUnit = {
         val inStream: InputStream = getClass.getResourceAsStream("/" + testfileDir + filename)
