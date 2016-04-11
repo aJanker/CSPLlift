@@ -136,6 +136,8 @@ trait UsedDefinedDeclaredVariables {
             case Opt(_, entry) => usesField(entry.asInstanceOf[AnyRef])
             case Some(entry) => usesField(entry.asInstanceOf[AnyRef])
             case i : Id => List()
+            case i : InitDeclaratorI => List()
+            case c : Constant => List()
             case x =>
                 Console.err.println("missed expr: " + x)
                 List()

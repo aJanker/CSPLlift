@@ -7,7 +7,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.ifdsproblem.Reach
 import org.junit.Test
 
-class PseudoVisitingSystemFunctionCall extends SPLLiftTestHelper {
+class PseudoVisitingSystemFunctionCallTest extends SPLLiftTestHelper {
 
     @Test def testMulitpleSourcesReachingSystemCall() = {
         def isSink(r: Reach): Boolean = {

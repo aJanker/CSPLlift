@@ -65,8 +65,6 @@ class StructsTest extends SPLLiftTestHelper {
 
         println(PrettyPrinter.print(tunit))
 
-        println(Taint.prettyPrintSinks(sinks))
-
         println(tunit)
 
         successful should be(true)

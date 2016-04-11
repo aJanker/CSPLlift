@@ -104,7 +104,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit
     }
 
-    def getAllKnownTranslationunits: List[TranslationUnit] = envToTUnit.values.toList
+    def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
 
     def getTunitForEnv(env: ASTEnv) = envToTUnit.get(env)
 

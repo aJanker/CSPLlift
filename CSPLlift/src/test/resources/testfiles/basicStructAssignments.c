@@ -28,5 +28,11 @@ int main()
 
     my2 = p1.x; // Test for Reach
 
+    struct punkt pp;
+
+    pp.innerp.x = my2;
+
+    sink = my2;
+
     return sink;
 }

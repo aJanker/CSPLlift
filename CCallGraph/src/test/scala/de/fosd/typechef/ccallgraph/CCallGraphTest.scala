@@ -175,6 +175,17 @@ class CCallGraphTest extends TestHelper {
 
   }
 
+  @Test def test_simple_call_graph() {
+    val ast = loadAST("simple_function_pointer_call.c")
+
+    val c: CCallGraph = new CCallGraph()
+    c.calculatePointerEquivalenceRelation(ast)
+    c.showPointerEquivalenceClasses()
+    println(ast)
+    c.showCallGraph()
+
+  }
+
   @Test def test_variational_code() {
     val ast = loadAST("test_variational_code.c")
 
@@ -192,6 +203,8 @@ class CCallGraphTest extends TestHelper {
 
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
+    c.showPointerEquivalenceClasses()
+    c.showCallGraph()
     c.extractCallGraph()
 
     val expectedNodes = ConditionalSet(Map(

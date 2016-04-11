@@ -260,7 +260,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
             override def getNormalFlowFunction(curr: AST, succ: AST): FlowFunction[InformationFlow] = {
                 def default(flowFact: InformationFlow) = GEN(flowFact)
                 new InfoFlowFunction(curr, succ) {
-
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
                         var res = KILL
 
@@ -330,10 +329,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                                 // TODO Scoping
                                 val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition))
                                 res = GEN(facts)
-                            case r: Reach => res = KILL
+                            case r: Reach => res = default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
                             case _ => res = default(flowFact)
 
                         }
+
                         res
                     }
                 }

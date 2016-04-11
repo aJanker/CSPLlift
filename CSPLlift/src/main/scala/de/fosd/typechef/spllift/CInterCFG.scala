@@ -138,8 +138,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns the set of all nodes that are neither call nor start nodes.
       */
     override def allNonCallStartNodes(): util.Set[AST] = {
-        // TODO beware only nodes from start tunit.
-        val allNonCallStartNodes = filterAllASTElems[Statement](CInterCFGElementsCacheEnv.startTUnit).filterNot(stmt => isCallStmt(stmt) || isStartPoint(stmt))
+        def nonCallStartNode(node : AST) = !(isCallStmt(node) || isStartPoint(node))
+        val allNonCallStartNodes = CInterCFGElementsCacheEnv.getAllKnownTUnits flatMap { filterAllASTElems[Statement](_) filter nonCallStartNode }
         asJavaIdentitySet(allNonCallStartNodes)
     }
 
@@ -152,7 +152,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         throw new UnsupportedOperationException("oops, isFallThroughSuccessor is not supported!")
     // TODO Check function purpose
 
-    // TODO undocumented function call to cifg from spllift -> gets current condition
+    // undocumented function call to cifg from spllift -> gets current condition
     def getConstraint(node: AST): Constraint[String] = {
         val featureExpr: BDDFeatureExpr = nodeToEnv(node).featureExpr(node).asInstanceOf[BDDFeatureExpr]
         Constraint.make(featureExpr)

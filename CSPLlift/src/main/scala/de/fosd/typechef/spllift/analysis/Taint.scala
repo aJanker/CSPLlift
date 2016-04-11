@@ -3,8 +3,8 @@ package de.fosd.typechef.spllift.analysis
 import java.io.{StringWriter, Writer}
 import java.util
 
-import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
+import de.fosd.typechef.conditional.{One, Opt}
+import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, Reach, Source}
 import soot.spl.ifds.Constraint
 
@@ -23,7 +23,11 @@ object Taint {
     def prettyPrintSinks(sinks: List[(AST, List[(Constraint[_], Reach)])], writer: Writer): Writer =
         sinks.foldLeft(writer) {
             (writer, sink) => {
-                writer.append("Sink at:\t" + PrettyPrinter.print(sink._1) + "\tin:\t" + sink._1.getPositionFrom + "\n")
+                sink._1 match {
+                    case f: ForStatement => writer.append("Sink at:\t" + PrettyPrinter.print(f.copy(s = One(EmptyStatement()))) + "\tin:\t" + sink._1.getPositionFrom + "\n")
+                    case x => writer.append("Sink at:\t" + PrettyPrinter.print(x) + "\tin:\t" + sink._1.getPositionFrom + "\n")
+                }
+
                 sink._2.foreach { ssink => writer.append("CFGcondition " + ssink._1 + ":\t" + ssink._2.toText + "\n") }
                 writer.append("\n")
             }
@@ -47,7 +51,7 @@ object Taint {
                 case (lm, x@(r: Reach, c: Constraint[T])) if isMatch(r) =>
                     val key = r.to.entry
                     val swap = x.asInstanceOf[(Reach, Constraint[T])].swap
-                    if (lm.contains(key)) lm + (key -> (swap :: lm.get(key).get)) else lm + (key -> List(swap))
+                    if (lm.contains(key)) lm + (key -> (swap :: lm.get(key).get).distinct) else lm + (key -> List(swap).distinct)
                 case (lm, _) => lm
             }
         }.toList
