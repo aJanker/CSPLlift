@@ -1,8 +1,11 @@
+#include <stdlib.h>
+#include <stdio.h>
+
 int cipher1(int i) {
-       int res;
-       int x;
-       res = i + x;
-       return res;
+   int res;
+   int x;
+   res = i + x;
+   return res;
 };
 
 int cipher2(int j) {
@@ -18,17 +21,14 @@ void cipher_init(struct cipher_ctx *c, int (*f)(int)) {
     return;
 }
 
-void cipher_do(struct cipher_ctx *c, int value) {
-        int result;
-
-        result = (*c->cipherfun)(value);
-
-        return;
+int cipher_do(struct cipher_ctx *c, int value) {
+    int result;
+    result = (*c->cipherfun)(value);
+    return result;
 }
 
 int main() {
-    struct cipher_ctx c_init;
-    struct cipher_ctx* c;
+    struct cipher_ctx *c = malloc(sizeof(struct cipher_ctx));
 
 #ifdef A
     cipher_init(c, &cipher1);
@@ -37,8 +37,9 @@ int main() {
 #endif
 
     int secret = 666;
+    int sink = cipher_do(c, secret);
 
-    cipher_do(c, secret);
+    printf("%i\n", sink);
 
     return 0;
 }
