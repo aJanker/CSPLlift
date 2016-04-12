@@ -330,8 +330,39 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                                 val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition))
                                 res = GEN(facts)
                             case r: Reach => res = default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
-                            case _ => res = default(flowFact)
+                            case _ => res = {
+                                //println("default")
+                                default(flowFact)
+                            }
 
+                        }
+
+                        if (curr.equals(ExprStatement(AssignExpr(Id("p2"),"=",Id("p1")))))
+                        {
+                            println(PrettyPrinter.print(curr))
+                            println(curr)
+                            println(succ)
+
+                            println(flowFact)
+
+                            println(currAssignments)
+                            println(currDefines)
+                            println(currUses)
+                            println("Structs:")
+                            println(currStructFieldDefines)
+                            println(currStructFieldUses)
+                            currDefines.foreach(define => {
+                                val cTypes = succVarEnv.varEnv.lookupType(define.name)
+                                println(cTypes)
+                                cTypes.foreach(x => println(isStructOrUnion(x)))
+                            })
+                            currUses.foreach(use => {
+                                val cTypes = succVarEnv.varEnv.lookupType(use.name)
+                                println(cTypes)
+                                cTypes.foreach(x => println(isStructOrUnion(x)))
+                            })
+                            println(res)
+                            println()
                         }
 
                         res

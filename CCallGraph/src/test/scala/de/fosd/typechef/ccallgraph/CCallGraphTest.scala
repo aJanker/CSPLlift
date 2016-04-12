@@ -132,6 +132,8 @@ class CCallGraphTest extends TestHelper {
 
     val c: CCallGraph = new CCallGraph()
     c.calculatePointerEquivalenceRelation(ast)
+
+    c.showPointerEquivalenceClasses()
     c.extractCallGraph()
     c.showCallGraph()
 
@@ -228,6 +230,7 @@ class CCallGraphTest extends TestHelper {
     val c: CCallGraph = new CCallGraph()
 
     c.calculatePointerEquivalenceRelation(ast)
+    c.showPointerEquivalenceClasses()
     c.extractCallGraph()
 
     val expectedNodes = ConditionalSet(Map(

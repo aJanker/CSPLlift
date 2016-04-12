@@ -24,6 +24,8 @@ void free_fun(struct obstack *h, void *f) {
 
 int main() {
     struct obstack h;
+    struct obstack* c;
     chunck_fun(&h, &xmalloc);
-    free_fun(&h, &xfree);
+    free_fun(c, &xfree);
+    (*c->freefun)();
 }

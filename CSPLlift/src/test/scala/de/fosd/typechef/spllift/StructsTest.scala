@@ -61,7 +61,7 @@ class StructsTest extends SPLLiftTestHelper {
     @Test def simpleStructFields() = {
         var successful = true
 
-        val (tunit, _, _, sinks) = defaultTestInit("struct1.c", allSinks)
+        val (tunit, _, _, sinks) = defaultTestInit("structToStruct.c", allSinks)
 
         println(PrettyPrinter.print(tunit))
 

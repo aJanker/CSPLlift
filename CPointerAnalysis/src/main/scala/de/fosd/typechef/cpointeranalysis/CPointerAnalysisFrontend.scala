@@ -36,9 +36,9 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
 
     refineFieldValues(context) // TODO Validate
 
-    findMain(tUnit, currentFile)
+    //findMain(tUnit, currentFile)
 
-    localContextCache.put(currentFile, context)
+    //localContextCache.put(currentFile, context)
 
     context
   }
