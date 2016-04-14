@@ -1,10 +1,16 @@
-#include <stdlib.h>
-#include <stdio.h>
+//#include <stdlib.h>
+//#include <stdio.h>
 
 int cipher1(int i) {
    int res;
-   int x;
+   int x = 1000;
+
+#ifdef B
    res = i + x;
+#else
+   res = x;
+#endif
+
    return res;
 };
 
@@ -29,6 +35,8 @@ int cipher_do(struct cipher_ctx *c, int value) {
 
 int main() {
     struct cipher_ctx *c = malloc(sizeof(struct cipher_ctx));
+
+    int test = (*c->cipherfun)(value);
 
 #ifdef A
     cipher_init(c, &cipher1);

@@ -4,7 +4,7 @@ import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter}
-import de.fosd.typechef.cpointeranalysis.{CPointerAnalysisFrontend, DefaultOpenSSLPointerAnalysisOptions, LinkedObjectNames}
+import de.fosd.typechef.cpointeranalysis.LinkedObjectNames
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
@@ -188,7 +188,7 @@ object Frontend extends EnforceTreeHelper {
 
                     if (opt.pointerLinking) LinkedObjectNames.load(paOptions.linkedObjectNames)
 
-                    val pa = new CPointerAnalysisFrontend(paOptions, fullFM)
+                    val pa = new CPointerEQAnalysis(paOptions, fullFM)
                     val pointerContext = pa.calculateInitialPointerEquivalenceRelation(ast, opt.getFile)
 
                     if (opt.savePointerContext) pointerContext.save()

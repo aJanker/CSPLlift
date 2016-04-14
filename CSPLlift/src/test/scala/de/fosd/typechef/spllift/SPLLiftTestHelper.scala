@@ -75,7 +75,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         if (inStream == null)
             throw new FileNotFoundException("Input file not found!")
 
-        val tunit: TranslationUnit = parseFile(inStream, testfileDir, filename)
+        val tunit: TranslationUnit = parseFile(inStream, filename, testfileDir)
         assert(tunit != null, "AST is null")
         prepareAST(tunit)
     }

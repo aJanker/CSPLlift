@@ -1,7 +1,7 @@
 package de.fosd.typechef.conditional
 
 import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
+import de.fosd.typechef.featureexpr.FeatureExprFactory.False
 
 /**
  * maintains a map
@@ -61,6 +61,8 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) extends Serial
     def toPlainSetWithConditionals() : Set[(A, FeatureExpr)] = {
         entries.toSet
     }
+
+    def toOptList() : List[Opt[A]] = entries.map(entry => Opt(entry._2, entry._1)).toList
 }
 
 object ConditionalSet {

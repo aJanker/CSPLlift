@@ -17,14 +17,14 @@ import scala.collection.mutable
   * Pointer Analysis for TypeChef. This is implementation is adapted by the CCallGraph Impl by
   * By Andreas Janker on 27/10/15.
   */
-class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
+class CPointerAnalysisFrontend(linkingInterface : Option[String] = None,
                                featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty,
                                DEBUG: Boolean = false) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
   val localContextCache: mutable.HashMap[String, CPointerAnalysisContext] = new mutable.HashMap[String, CPointerAnalysisContext]()
 
   val linking =
-    if (Files.exists(Paths.get(options.linkingInterface))) Some(new CLinking(options.linkingInterface))
+    if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
     else None
 
   def calculateInitialPointerEquivalenceRelation(tUnit: TranslationUnit, currentFile: String) = {
@@ -36,34 +36,13 @@ class CPointerAnalysisFrontend(options: CPointerAnalysisOptions,
 
     refineFieldValues(context) // TODO Validate
 
-    //findMain(tUnit, currentFile)
-
-    //localContextCache.put(currentFile, context)
-
     context
-  }
-
-  // Check first if we found a main function as a future entry point
-  private def findMain(tUnit: TranslationUnit, file : String) =
-    if (filterAllASTElems[FunctionDef](tUnit).exists(_.getName.equalsIgnoreCase("main"))) updateMainList(options.mainListPath, file)
-
-  private def updateMainList(fileWithMain: String, fileToAdd: String) = {
-    val update = {
-      if (scala.tools.nsc.io.File(fileWithMain).exists) {
-        val source = scala.io.Source.fromFile(fileWithMain)
-        val mains = try source.getLines.toList finally source.close()
-
-        !mains.par.exists(fileToAdd.equalsIgnoreCase)
-      } else true
-    }
-
-    if (update) scala.tools.nsc.io.File(fileWithMain).appendAll(fileToAdd + "\n")
   }
 
   private def refineFieldValues(context: CPointerAnalysisContext) = {
     val paramWithFields = context.functionDefParameters.values.flatMap(_.flatMap(findObjectNameFieldReferences(_, context)))
 
-    // TODO Clean matching.
+    // TODO Clean matching. + Documentation
     paramWithFields.foreach(param => {
       context.find(param._1) match {
         case None =>

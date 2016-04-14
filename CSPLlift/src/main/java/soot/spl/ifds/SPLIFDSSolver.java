@@ -1,5 +1,6 @@
 package soot.spl.ifds;
 
+import de.fosd.typechef.conditional.Opt;
 import de.fosd.typechef.parser.c.AST;
 import de.fosd.typechef.parser.c.FunctionDef;
 import de.fosd.typechef.spllift.CInterCFG;
@@ -13,34 +14,34 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class SPLIFDSSolver<D> extends IDESolver<AST, D, FunctionDef, Constraint<String>, CInterCFG> {
+public class SPLIFDSSolver<D> extends IDESolver<AST, D, Opt<FunctionDef>, Constraint<String>, CInterCFG> {
 	private static CInterCFG interCfg;
 
-	public SPLIFDSSolver(final IFDSTabulationProblem<AST, D, FunctionDef, CInterCFG> ifdsProblem, final FeatureModelContext fmContext, final boolean useFMInEdgeComputations) {
-		super(new DefaultIDETabulationProblem<AST, D, FunctionDef, Constraint<String>, CInterCFG>(ifdsProblem.interproceduralCFG()) {
+	public SPLIFDSSolver(final IFDSTabulationProblem<AST, D, Opt<FunctionDef>, CInterCFG> ifdsProblem, final FeatureModelContext fmContext, final boolean useFMInEdgeComputations) {
+		super(new DefaultIDETabulationProblem<AST, D, Opt<FunctionDef>, Constraint<String>, CInterCFG>(ifdsProblem.interproceduralCFG()) {
 
 			@Override
 			public Map<AST, Set<D>> initialSeeds() {
 				return ifdsProblem.initialSeeds();
 			}
-			class IFDSEdgeFunctions implements EdgeFunctions<AST,D,FunctionDef,Constraint<String>> {
-				private final FlowFunctions<AST, D, FunctionDef> zeroedFlowFunctions;
+			class IFDSEdgeFunctions implements EdgeFunctions<AST,D,Opt<FunctionDef>,Constraint<String>> {
+				private final FlowFunctions<AST, D, Opt<FunctionDef>> zeroedFlowFunctions;
 				private final CInterCFG icfg;
 
 				public IFDSEdgeFunctions(CInterCFG icfg) {
 					this.icfg = icfg;
-					zeroedFlowFunctions = new ZeroedFlowFunctions<AST, D, FunctionDef>(ifdsProblem.flowFunctions(),ifdsProblem.zeroValue());
+					zeroedFlowFunctions = new ZeroedFlowFunctions<AST, D, Opt<FunctionDef>>(ifdsProblem.flowFunctions(),ifdsProblem.zeroValue());
 				}
 
 				public EdgeFunction<Constraint<String>> getNormalEdgeFunction(AST currStmt, D currNode, AST succStmt, D succNode) {
 					return buildFlowFunction(currStmt, succStmt, currNode, succNode, zeroedFlowFunctions.getNormalFlowFunction(currStmt, succStmt), false);
 				}
 			
-				public EdgeFunction<Constraint<String>> getCallEdgeFunction(AST callStmt, D srcNode, FunctionDef destinationMethod,D destNode) {
-					return buildFlowFunction(callStmt, destinationMethod, srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(callStmt, destinationMethod), true);
+				public EdgeFunction<Constraint<String>> getCallEdgeFunction(AST callStmt, D srcNode, Opt<FunctionDef> destinationMethod,D destNode) {
+					return buildFlowFunction(callStmt, destinationMethod.entry(), srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(callStmt, destinationMethod), true);
 				}
 			
-				public EdgeFunction<Constraint<String>> getReturnEdgeFunction(AST callSite, FunctionDef calleeMethod, AST exitStmt,D exitNode, AST returnSite,D retNode) {
+				public EdgeFunction<Constraint<String>> getReturnEdgeFunction(AST callSite, Opt<FunctionDef> calleeMethod, AST exitStmt,D exitNode, AST returnSite,D retNode) {
 					return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite), false);
 				}
 			
@@ -116,13 +117,13 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, FunctionDef, Constraint<
 			}
 
 			@Override
-			protected EdgeFunctions<AST, D, FunctionDef, Constraint<String>> createEdgeFunctionsFactory() {
+			protected EdgeFunctions<AST, D, Opt<FunctionDef>, Constraint<String>> createEdgeFunctionsFactory() {
 				return new IFDSEdgeFunctions(interproceduralCFG());
 			}
 
 			@Override
-			protected FlowFunctions<AST, D, FunctionDef> createFlowFunctionsFactory() {
-				return new FlowFunctions<AST, D, FunctionDef>() {
+			protected FlowFunctions<AST, D, Opt<FunctionDef>> createFlowFunctionsFactory() {
+				return new FlowFunctions<AST, D, Opt<FunctionDef>>() {
 
 					@Override
 					public FlowFunction<D> getNormalFlowFunction(AST curr,
@@ -138,13 +139,13 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, FunctionDef, Constraint<
 
 					@Override
 					public FlowFunction<D> getCallFlowFunction(AST callStmt,
-															   FunctionDef destinationMethod) {
+															   Opt<FunctionDef> destinationMethod) {
 						return ifdsProblem.flowFunctions().getCallFlowFunction(callStmt, destinationMethod);
 					}
 
 					@Override
 					public FlowFunction<D> getReturnFlowFunction(AST callSite,
-																 FunctionDef calleeMethod, AST exitStmt,
+																 Opt<FunctionDef> calleeMethod, AST exitStmt,
 																 AST returnSite) {
 						return ifdsProblem.flowFunctions().getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite);
 					}

@@ -680,7 +680,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
             else
                 val.put(nHashN, nHashD, l);
         }
-        logger.debug("VALUE: {} {} {} {}", l, nHashN, nHashD,  icfg.getMethodOf(nHashN));
+        logger.debug("VALUE: {} {} {} {}", l, nHashD, nHashN,  icfg.getMethodOf(nHashN));
     }
 
     private EdgeFunction<V> jumpFunction(PathEdge<N, D> edge) {

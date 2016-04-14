@@ -15,13 +15,18 @@ import soot.spl.ifds.Constraint
 import scala.collection.JavaConverters._
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions)
-    extends InterproceduralCFG[AST, FunctionDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
+    extends InterproceduralCFG[AST, Opt[FunctionDef]] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
-    private val CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
+    override val cInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
-    val entryFunctions = filterAllASTElems[FunctionDef](CInterCFGElementsCacheEnv.startTUnit).filter(fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase))
+    val entryFunctions =
+        filterAllASTElems[FunctionDef](cInterCFGElementsCacheEnv.startTUnit) filter {
+            fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase)
+        } map {
+            fdef => Opt(nodeToEnv(fdef).featureExpr(fdef), fdef)
+        }
 
     def getFeatureModel = fm
 
@@ -32,11 +37,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       *
       * @param node The node for which to get the parent method
       */
-    override def getMethodOf(node: AST): FunctionDef =
-        findPriorASTElem[FunctionDef](node, nodeToEnv(node)) match {
-            case Some(f: FunctionDef) => f
+    override def getMethodOf(node: AST): Opt[FunctionDef] = {
+        val env = nodeToEnv(node)
+        findPriorASTElem[FunctionDef](node, env) match {
+            case Some(f: FunctionDef) => Opt(env.featureExpr(f), f)
             case _ => throw new NoSuchElementException("No prior function found for node: " + node)
         }
+    }
 
     /**
       * Returns whether succ is a branch target of stmt.
@@ -47,9 +54,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns all caller statements/nodes of a given method.
       */
-    override def getCallersOf(m: FunctionDef): util.Set[AST] =
+    override def getCallersOf(m: Opt[FunctionDef]): util.Set[AST] =
         throw new UnsupportedOperationException("HIT TODO FUNCTION!")
-        // TODO
+    // TODO
 
     /**
       * Returns all statements to which a call could return.
@@ -63,13 +70,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns all callee methods for a given call.
       */
-    override def getCalleesOfCallAt(call: AST): util.Set[FunctionDef] = {
-        if (!isCallStmt(call)) return java.util.Collections.emptySet[FunctionDef]
+    override def getCalleesOfCallAt(call: AST): util.Set[Opt[FunctionDef]] = {
+        if (!isCallStmt(call)) return java.util.Collections.emptySet[Opt[FunctionDef]]
 
         val calleeNames = getCalleeNames(call)
         val callees = calleeNames.flatMap(findCallees(_, nodeToTUnit(call)))
 
-        asJavaIdentitySet(callees.map(_.entry).reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
+        asJavaIdentitySet(callees.reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
     }
 
     /**
@@ -90,8 +97,20 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns all start points of a given method. There may be
       * more than one start point in case of a backward analysis.
       */
-    override def getStartPointsOf(fDef: FunctionDef): util.Set[AST] =
-        asJavaIdentitySet(getSuccsOf(fDef))
+    override def getStartPointsOf(fDef: Opt[FunctionDef]): util.Set[AST] =
+        asJavaIdentitySet(getSuccsOf(fDef.entry))
+
+    /**
+      * Returns if for a given pointer expression a corresponding function definition exists
+      */
+    private def hasDestination(pointer: Expr): Boolean = {
+        val timeStart = System.currentTimeMillis();
+        val calc = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(pointer, this).get.objectNames
+        println(System.currentTimeMillis() - timeStart)
+
+        println(calc.toOptList())
+        true
+    }
 
     /**
       * Returns <code>true</code> if the given statement is a call site.
@@ -99,7 +118,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def isCallStmt(stmt: AST): Boolean =
         filterAllASTElems[PostfixExpr](stmt).exists {
             case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, stmt)
-            case PostfixExpr(uncovered, FunctionCall(_)) => throw new IllegalArgumentException("Do not know rule for: " + uncovered)
+            case PostfixExpr(pointer, FunctionCall(_)) => hasDestination(pointer)
             case _ => false
         }
 
@@ -128,18 +147,17 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns all call sites within a given method.
       */
-    override def getCallsFromWithin(method: FunctionDef): util.Set[AST] = {
-        val callsWithIn = filterAllASTElems[PostfixExpr](method.stmt.innerStatements).filter(isCallStmt)
+    override def getCallsFromWithin(method: Opt[FunctionDef]): util.Set[AST] = {
+        val callsWithIn = filterAllASTElems[PostfixExpr](method.entry.stmt.innerStatements).filter(isCallStmt)
         asJavaIdentitySet(callsWithIn)
     }
-
 
     /**
       * Returns the set of all nodes that are neither call nor start nodes.
       */
     override def allNonCallStartNodes(): util.Set[AST] = {
-        def nonCallStartNode(node : AST) = !(isCallStmt(node) || isStartPoint(node))
-        val allNonCallStartNodes = CInterCFGElementsCacheEnv.getAllKnownTUnits flatMap { filterAllASTElems[Statement](_) filter nonCallStartNode }
+        def nonCallStartNode(node: AST) = !(isCallStmt(node) || isStartPoint(node))
+        val allNonCallStartNodes = cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode}
         asJavaIdentitySet(allNonCallStartNodes)
     }
 
@@ -160,7 +178,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
-            return List(CInterCFGElementsCacheEnv.PSEUDO_SYSTEM_FUNCTION_CALL)
+            return List(cInterCFGElementsCacheEnv.PSEUDO_SYSTEM_FUNCTION_CALL)
 
         val localDef = callTUnit.defs.flatMap {
             case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
@@ -168,7 +186,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => None
         }
 
-        val externalDef = getExternalDefinitions(name, CInterCFGElementsCacheEnv)
+        val externalDef = getExternalDefinitions(name)
         val result = externalDef ++ localDef
 
         if (result.isEmpty) Console.err.println("No function definiton found for " + name + "!")
@@ -176,7 +194,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         result
     }
 
-    private def isRecursive(fCallName: String, fCallStmt: AST) : Boolean = fCallName.equalsIgnoreCase(getMethodOf(fCallStmt).getName)
+    private def isRecursive(fCallName: String, fCallStmt: AST): Boolean = fCallName.equalsIgnoreCase(getMethodOf(fCallStmt).entry.getName)
 
     private def getCalleeNames(call: AST): List[Opt[String]] =
         filterAllASTElems[PostfixExpr](call).flatMap {
@@ -184,19 +202,19 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         }
 
     def nodeToEnv(node: AST): ASTEnv =
-        findEnv(node, CInterCFGElementsCacheEnv) match {
+        findEnv(node) match {
             case Some(env) => env
             case _ => throw new NoSuchElementException("No env found for node: " + node)
         }
 
     def nodeToTUnit(node: AST): TranslationUnit =
-        getTranslationUnit(node, CInterCFGElementsCacheEnv) match {
+        getTranslationUnit(node) match {
             case Some(tunit) => tunit
             case _ => throw new NoSuchElementException("No tunit found for node: " + node)
         }
 
     def nodeToTS(node: AST): CTypeSystemFrontend with CTypeCache with CDeclUse =
-        getTypeSystem(node, CInterCFGElementsCacheEnv) match {
+        getTypeSystem(node) match {
             case Some(ts) => ts
             case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
         }

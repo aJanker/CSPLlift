@@ -21,7 +21,7 @@ trait InformationFlowProblemOperations extends CInterCFGCommons {
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
 
-class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, FunctionDef, CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
+class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST, InformationFlow, Opt[FunctionDef], CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
 
     private var initialGlobalsFile: String = ""
 
@@ -32,7 +32,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
     override def initialSeeds(): util.Map[AST, util.Set[InformationFlow]] =
         interproceduralCFG.entryFunctions.foldLeft(new util.HashMap[AST, util.Set[InformationFlow]])((res, entry) => {
             interproceduralCFG.getStartPointsOf(entry).asScala.foreach(res.put(_, globalsAsInitialSeeds(entry)))
-            initialGlobalsFile = entry.getFile.getOrElse("")
+            initialGlobalsFile = entry.entry.getFile.getOrElse("")
             res
         })
 
@@ -63,10 +63,10 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def flowFunctions(): FlowFunctions[AST, InformationFlow, FunctionDef] = cachedFlowFunctions
+    override def flowFunctions(): FlowFunctions[AST, InformationFlow, Opt[FunctionDef]] = cachedFlowFunctions
 
-    private val cachedFlowFunctions: FlowFunctions[AST, InformationFlow, FunctionDef] =
-        new FlowFunctions[AST, InformationFlow, FunctionDef] {
+    private val cachedFlowFunctions: FlowFunctions[AST, InformationFlow, Opt[FunctionDef]] =
+        new FlowFunctions[AST, InformationFlow, Opt[FunctionDef]] {
 
             private var filesWithSeeds: List[String] = List() // check for double calls of initial seeds!
 
@@ -86,11 +86,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
               * @param destinationMethod
               * The concrete target method for which the flow is computed.
               */
-            override def getCallFlowFunction(callStmt: AST, destinationMethod: FunctionDef): FlowFunction[InformationFlow] = {
+            override def getCallFlowFunction(callStmt: AST, destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
                 val callEnv = interproceduralCFG.nodeToEnv(callStmt)
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
-                    && destinationMethod.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    && destinationMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallCallFlowFunction(callStmt, callEnv, interproceduralCFG)
 
 
@@ -121,12 +121,12 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                     mapCallParamToFDefParam(callParams.tail, fDefParams.tail, currRes ::: res)
                 }
 
-                val destinationEnv = interproceduralCFG().nodeToEnv(destinationMethod)
+                val destinationEnv = interproceduralCFG().nodeToEnv(destinationMethod.entry)
 
                 val fCallOpt = parentOpt(callStmt, callEnv)
                 val fCall = filterAllASTElems[FunctionCall](callStmt, callEnv).head // TODO Check if != 1
                 val callExprs = fCall.params.exprs
-                val fDefParams = destinationMethod.declarator.extensions
+                val fDefParams = destinationMethod.entry.declarator.extensions
                 val callParamToFDefParams = mapCallParamToFDefParam(callExprs, fDefParams)
 
                 new FlowFunction[InformationFlow] {
@@ -147,9 +147,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                                 }
 
                             case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s)
-                            case Zero if !initialSeedsExists(destinationMethod) =>
+                            case Zero if !initialSeedsExists(destinationMethod.entry) =>
                                 // Introduce Global Variables from linked file
-                                filesWithSeeds ::= destinationMethod.getFile.getOrElse("")
+                                filesWithSeeds ::= destinationMethod.entry.getFile.getOrElse("")
                                 ret = globalsAsInitialSeeds(destinationMethod)
                             case r: Reach => GEN(r)
                             case _ => KILL
@@ -188,7 +188,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
               * does not contain a caller for the method that is returned from.
               * @return
               */
-            override def getReturnFlowFunction(callSite: AST, calleeMethod: FunctionDef, exitStmt: AST, returnSite: AST): FlowFunction[InformationFlow] = {
+            override def getReturnFlowFunction(callSite: AST, calleeMethod: Opt[FunctionDef], exitStmt: AST, returnSite: AST): FlowFunction[InformationFlow] = {
+
+                val flowCondition = calleeMethod.condition
 
                 def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
                     val fCall = filterASTElems[FunctionCall](callSite)
@@ -202,7 +204,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                 }
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
-                    && calleeMethod.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    && calleeMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallReturnFlow
 
                 val exitOpt = parentOpt(exitStmt, interproceduralCFG.nodeToEnv(exitStmt))
@@ -212,10 +214,10 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                         var res = KILL
 
                         flowFact match {
-                            case r: Reach => res = GEN(r)
+                            case r: Reach => res = GEN(r.copy(to = r.to.copy(r.to.condition.and(flowCondition))))
 
                             case s@VarSource(sId, _, _, global) if useIsSatisfiable(sId) =>
-                                val reachCondition = sId.condition.and(currOpt.condition).and(exitOpt.condition)
+                                val reachCondition = sId.condition.and(currOpt.condition).and(exitOpt.condition).and(flowCondition)
                                 val reach = Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source generation
 
                                 val sources = currAssignments.flatMap {
@@ -238,7 +240,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                             case _ => res = default(flowFact) // Do default flow action
 
                         }
-
                         res
                     }
                 }
@@ -330,39 +331,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
                                 val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition))
                                 res = GEN(facts)
                             case r: Reach => res = default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
-                            case _ => res = {
-                                //println("default")
-                                default(flowFact)
-                            }
-
-                        }
-
-                        if (curr.equals(ExprStatement(AssignExpr(Id("p2"),"=",Id("p1")))))
-                        {
-                            println(PrettyPrinter.print(curr))
-                            println(curr)
-                            println(succ)
-
-                            println(flowFact)
-
-                            println(currAssignments)
-                            println(currDefines)
-                            println(currUses)
-                            println("Structs:")
-                            println(currStructFieldDefines)
-                            println(currStructFieldUses)
-                            currDefines.foreach(define => {
-                                val cTypes = succVarEnv.varEnv.lookupType(define.name)
-                                println(cTypes)
-                                cTypes.foreach(x => println(isStructOrUnion(x)))
-                            })
-                            currUses.foreach(use => {
-                                val cTypes = succVarEnv.varEnv.lookupType(use.name)
-                                println(cTypes)
-                                cTypes.foreach(x => println(isStructOrUnion(x)))
-                            })
-                            println(res)
-                            println()
+                            case _ => res = default(flowFact)
                         }
 
                         res
@@ -401,8 +370,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
             }
         }
 
-    private def globalsAsInitialSeeds(f: FunctionDef): util.Set[InformationFlow] = {
-        val globalVariables = interproceduralCFG.nodeToTUnit(f).defs.filterNot {
+    private def globalsAsInitialSeeds(f: Opt[FunctionDef]): util.Set[InformationFlow] = {
+        val globalVariables = interproceduralCFG.nodeToTUnit(f.entry).defs.filterNot {
             // Ignore function and typedef definitions
             case Opt(_, f: FunctionDef) => true //
             case Opt(_, d: Declaration) => d.declSpecs.exists {
@@ -417,7 +386,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[AST
 
             // Note: we ignore the actual file of the declaration as it may be declared in a header file.
             // As variables declared in header files may be included across several files, this way prevents matching errors.
-            if (decls.nonEmpty) decls.map(decl => VarSource(Opt(x.condition, decl), x, ListBuffer(), getFileName(f.getFile)))
+            if (decls.nonEmpty) decls.map(decl => VarSource(Opt(x.condition, decl), x, ListBuffer(), getFileName(f.entry.getFile)))
             else None
         })
 
