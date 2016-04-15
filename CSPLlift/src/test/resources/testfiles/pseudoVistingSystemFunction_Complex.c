@@ -8,6 +8,8 @@ void bar(int b) {
 }
 
 int foo(int p) {
+
+    int pseudosink = p;
 #ifdef A
     p = 0;
 #endif

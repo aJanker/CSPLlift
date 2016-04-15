@@ -4,7 +4,6 @@ import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter}
-import de.fosd.typechef.cpointeranalysis.LinkedObjectNames
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
@@ -175,29 +174,6 @@ object Frontend extends EnforceTreeHelper {
                         ts.debugInterface(interface, new File(opt.getDebugInterfaceFilename))
                 }
 
-                if (opt.pointerAnalysis) {
-                    println("#pointer analysis")
-                    stopWatch.start("pointerAnalysis")
-
-                    // TODO Optionshandling
-                    val paOptions = DefaultOpenSSLPointerAnalysisOptions
-
-                    val file = new File(paOptions.linkedObjectNames)
-                    println(file.getAbsolutePath)
-                    println(file.getCanonicalPath)
-
-                    if (opt.pointerLinking) LinkedObjectNames.load(paOptions.linkedObjectNames)
-
-                    val pa = new CPointerEQAnalysis(paOptions, fullFM)
-                    val pointerContext = pa.calculateInitialPointerEquivalenceRelation(ast, opt.getFile)
-
-                    if (opt.savePointerContext) pointerContext.save()
-                    if (opt.pointerLinking) LinkedObjectNames.save(paOptions.linkedObjectNames)
-
-
-                }
-
-
                 if (opt.dumpcg) {
                     println("#call graph")
                     stopWatch.start("dumpCG")
@@ -252,13 +228,8 @@ object Frontend extends EnforceTreeHelper {
                     stopWatch.start("none")
 
                     val allReaches = Taint.allReaches[String](solution)
-                    allReaches.foreach(sink => {
-                        println("Sink at:\t" + sink._1)
-                        sink._2.foreach(ssink => println("CFGcondition " + ssink._1 + ":\t" + ssink._2))
-                        println()
-                    })
-
-
+                    println("#static analysis with spllift - result")
+                    println(Taint.prettyPrintSinks(allReaches))
                 }
 
                 if (opt.staticanalyses) {

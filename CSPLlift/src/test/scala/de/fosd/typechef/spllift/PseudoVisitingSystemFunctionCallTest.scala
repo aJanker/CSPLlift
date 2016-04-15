@@ -19,6 +19,9 @@ class PseudoVisitingSystemFunctionCallTest extends SPLLiftTestHelper {
 
         var successful = true
 
+        val (_, _, _, sinks1) = defaultTestInit("pseudoVistingSystemFunction_Complex.c", allSinks)
+        println("filter")
+
         val (_, _, _, sinks) = defaultTestInit("pseudoVistingSystemFunction_Complex.c", isSink)
 
         successful = successful && sinks.size == 1 // only one sink location should be found

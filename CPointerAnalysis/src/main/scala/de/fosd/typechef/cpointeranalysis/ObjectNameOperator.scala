@@ -38,8 +38,9 @@ trait PointerContext extends Serializable {
 
   def extractFilenameS(str: String, default: String = "NOFILENAME"): String = {
     val regex = """^(([^/]+/)*)(([^/.]+)\..+)""".r
+    val filePrefix = "file "
     str match {
-      case regex(m1, m2, m3, m4) => m4.substring(5)
+      case regex(m1, m2, m3, m4) => if (m4.startsWith(filePrefix)) m4.substring(filePrefix.length) else m4
       case _ => default
     }
   }
