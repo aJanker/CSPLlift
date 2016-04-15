@@ -54,12 +54,9 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 					if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
 										
 					List<Opt<AST>> srcSuccs = interCfg.getSuccsOf(src);
-					if (srcSuccs.size() == 1) {
-						Opt<AST> head = srcSuccs.get(0);
-						if (head == successor) {
+					if (interCfg.isFallThroughSuccessor(src, successor)) {
 							// (src --> successor) is a fallThroughEdge (as src has only one successor), currently, this is the only case we can handle precisely 
 							return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
-						}
 					}
 					return conservativeBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
 				}

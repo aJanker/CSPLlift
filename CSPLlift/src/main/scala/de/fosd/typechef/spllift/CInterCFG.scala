@@ -174,11 +174,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     }
 
     // undocumented function call to cifg from spllift -> gets current condition or flow condition
-    def getConstraint(node: Opt[AST]): Constraint[String] = {
-        // Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
-        val fExpr = nodeToEnv(node).featureExpr(node.entry)
-        Constraint.make(fExpr.asInstanceOf[BDDFeatureExpr])
-    }
+    def getConstraint(node: Opt[AST]): Constraint[String] =
+        Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
+        // Constraint.make(nodeToEnv(node).featureExpr(node.entry).asInstanceOf[BDDFeatureExpr])
 
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
