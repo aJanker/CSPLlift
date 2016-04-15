@@ -1,11 +1,11 @@
 // This file issues an typeerror, but nevermind as we are still detecting printf as system function call.
 int secret = 666;
 
-  void bar(int b) {
-      secret = b;
+void bar(int b) {
+    secret = b;
 
-      return;
-  }
+    return;
+}
 
 int foo(int p) {
 #ifdef A
@@ -26,14 +26,17 @@ void main () {
 
     x = secret;
     y = 0;
+
 #ifdef C
     x = 0;
 #endif
+
 #ifdef D
 
-       y = foo(x);
+     y = foo(x);
 
 #endif
+
     returnSite = y;
 
     printf("%s\n", &returnSite);

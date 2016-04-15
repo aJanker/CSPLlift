@@ -643,7 +643,7 @@ private[sat] object FExprBuilder {
   */
 object True extends And(Set()) with DefaultPrint {
     override def toString = "True"
-    override def toTextExpr = "1"
+    override def toTextExpr = "True"
     override def debug_print(ind: Int) = indent(ind) + toTextExpr + "\n"
     override def isSatisfiable(fm: FeatureModel) = true
     override def evaluate(selectedFeatures: Set[String]) = true
@@ -653,7 +653,7 @@ object True extends And(Set()) with DefaultPrint {
 
 object False extends Or(Set()) with DefaultPrint {
     override def toString = "False"
-    override def toTextExpr = "0"
+    override def toTextExpr = "False"
     override def debug_print(ind: Int) = indent(ind) + toTextExpr + "\n"
     override def isSatisfiable(fm: FeatureModel) = false
     override def evaluate(selectedFeatures: Set[String]) = false

@@ -14,48 +14,48 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class SPLIFDSSolver<D> extends IDESolver<AST, D, Opt<FunctionDef>, Constraint<String>, CInterCFG> {
+public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, Constraint<String>, CInterCFG> {
 	private static CInterCFG interCfg;
 
-	public SPLIFDSSolver(final IFDSTabulationProblem<AST, D, Opt<FunctionDef>, CInterCFG> ifdsProblem, final FeatureModelContext fmContext, final boolean useFMInEdgeComputations) {
-		super(new DefaultIDETabulationProblem<AST, D, Opt<FunctionDef>, Constraint<String>, CInterCFG>(ifdsProblem.interproceduralCFG()) {
+	public SPLIFDSSolver(final IFDSTabulationProblem<Opt<AST>, D, Opt<FunctionDef>, CInterCFG> ifdsProblem, final FeatureModelContext fmContext, final boolean useFMInEdgeComputations) {
+		super(new DefaultIDETabulationProblem<Opt<AST>, D, Opt<FunctionDef>, Constraint<String>, CInterCFG>(ifdsProblem.interproceduralCFG()) {
 
 			@Override
-			public Map<AST, Set<D>> initialSeeds() {
+			public Map<Opt<AST>, Set<D>> initialSeeds() {
 				return ifdsProblem.initialSeeds();
 			}
-			class IFDSEdgeFunctions implements EdgeFunctions<AST,D,Opt<FunctionDef>,Constraint<String>> {
-				private final FlowFunctions<AST, D, Opt<FunctionDef>> zeroedFlowFunctions;
+			class IFDSEdgeFunctions implements EdgeFunctions<Opt<AST>,D,Opt<FunctionDef>,Constraint<String>> {
+				private final FlowFunctions<Opt<AST>, D, Opt<FunctionDef>> zeroedFlowFunctions;
 				private final CInterCFG icfg;
 
 				public IFDSEdgeFunctions(CInterCFG icfg) {
 					this.icfg = icfg;
-					zeroedFlowFunctions = new ZeroedFlowFunctions<AST, D, Opt<FunctionDef>>(ifdsProblem.flowFunctions(),ifdsProblem.zeroValue());
+					zeroedFlowFunctions = new ZeroedFlowFunctions<Opt<AST>, D, Opt<FunctionDef>>(ifdsProblem.flowFunctions(),ifdsProblem.zeroValue());
 				}
 
-				public EdgeFunction<Constraint<String>> getNormalEdgeFunction(AST currStmt, D currNode, AST succStmt, D succNode) {
+				public EdgeFunction<Constraint<String>> getNormalEdgeFunction(Opt<AST> currStmt, D currNode, Opt<AST> succStmt, D succNode) {
 					return buildFlowFunction(currStmt, succStmt, currNode, succNode, zeroedFlowFunctions.getNormalFlowFunction(currStmt, succStmt), false);
 				}
 			
-				public EdgeFunction<Constraint<String>> getCallEdgeFunction(AST callStmt, D srcNode, Opt<FunctionDef> destinationMethod,D destNode) {
-					return buildFlowFunction(callStmt, destinationMethod.entry(), srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(callStmt, destinationMethod), true);
+				public EdgeFunction<Constraint<String>> getCallEdgeFunction(Opt<AST> callStmt, D srcNode, Opt<FunctionDef> destinationMethod,D destNode) {
+					return buildFlowFunction(callStmt, destinationMethod.copy(destinationMethod.condition(), (AST) destinationMethod.entry()), srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(callStmt, destinationMethod), true);
 				}
 			
-				public EdgeFunction<Constraint<String>> getReturnEdgeFunction(AST callSite, Opt<FunctionDef> calleeMethod, AST exitStmt,D exitNode, AST returnSite,D retNode) {
+				public EdgeFunction<Constraint<String>> getReturnEdgeFunction(Opt<AST> callSite, Opt<FunctionDef> calleeMethod, Opt<AST> exitStmt,D exitNode, Opt<AST> returnSite,D retNode) {
 					return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite), false);
 				}
 			
-				public EdgeFunction<Constraint<String>> getCallToReturnEdgeFunction(AST callSite, D callNode, AST returnSite, D returnSideNode) {
+				public EdgeFunction<Constraint<String>> getCallToReturnEdgeFunction(Opt<AST> callSite, D callNode, Opt<AST> returnSite, D returnSideNode) {
 					return buildFlowFunction(callSite, returnSite, callNode, returnSideNode, zeroedFlowFunctions.getCallToReturnFlowFunction(callSite, returnSite), false);
 				}
-				private EdgeFunction<Constraint<String>> buildFlowFunction(AST src, AST successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
+				private EdgeFunction<Constraint<String>> buildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
 					boolean srcAnnotated = hasFeatureAnnotation(src);
 					boolean succAnnotated = hasFeatureAnnotation(successor);
 					if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
 										
-					List<AST> srcSuccs = interCfg.getSuccsOf(src);
+					List<Opt<AST>> srcSuccs = interCfg.getSuccsOf(src);
 					if (srcSuccs.size() == 1) {
-						AST head = srcSuccs.get(0);
+						Opt<AST> head = srcSuccs.get(0);
 						if (head == successor) {
 							// (src --> successor) is a fallThroughEdge (as src has only one successor), currently, this is the only case we can handle precisely 
 							return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
@@ -63,7 +63,7 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, Opt<FunctionDef>, Constr
 					}
 					return conservativeBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
 				}
-				private EdgeFunction<Constraint<String>> conservativeBuildFlowFunction(AST src, AST successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
+				private EdgeFunction<Constraint<String>> conservativeBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
 					//boolean srcAnnotated = hasFeatureAnnotation(src);
 					//boolean succAnnotated = hasFeatureAnnotation(successor);
 					//if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
@@ -72,7 +72,7 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, Opt<FunctionDef>, Constr
 					Constraint<String> lifted = pos.or(neg);
 					return new SPLFeatureFunction(lifted, fmContext);
 				}
-				private EdgeFunction<Constraint<String>> preciseBuildFlowFunction(AST src, AST successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
+				private EdgeFunction<Constraint<String>> preciseBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
 					boolean srcAnnotated = hasFeatureAnnotation(src);
 					boolean succAnnotated = hasFeatureAnnotation(successor);
 					//if (!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
@@ -117,19 +117,19 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, Opt<FunctionDef>, Constr
 			}
 
 			@Override
-			protected EdgeFunctions<AST, D, Opt<FunctionDef>, Constraint<String>> createEdgeFunctionsFactory() {
+			protected EdgeFunctions<Opt<AST>, D, Opt<FunctionDef>, Constraint<String>> createEdgeFunctionsFactory() {
 				return new IFDSEdgeFunctions(interproceduralCFG());
 			}
 
 			@Override
-			protected FlowFunctions<AST, D, Opt<FunctionDef>> createFlowFunctionsFactory() {
-				return new FlowFunctions<AST, D, Opt<FunctionDef>>() {
+			protected FlowFunctions<Opt<AST>, D, Opt<FunctionDef>> createFlowFunctionsFactory() {
+				return new FlowFunctions<Opt<AST>, D, Opt<FunctionDef>>() {
 
 					@Override
-					public FlowFunction<D> getNormalFlowFunction(AST curr,
-																 AST succ) {
+					public FlowFunction<D> getNormalFlowFunction(Opt<AST> curr,
+																 Opt<AST> succ) {
 						FlowFunction<D> original = ifdsProblem.flowFunctions().getNormalFlowFunction(curr, succ);
-						if(hasFeatureAnnotation(curr) /*&& interproceduralCFG().isFallThroughSuccessor(curr, succ)*/) { // m*
+						if(hasFeatureAnnotation(curr) && interproceduralCFG().isFallThroughSuccessor(curr, succ)) { // m*
 							return new WrappedFlowFunction<D>(original);
 						} else {
 							return original;
@@ -138,21 +138,21 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, Opt<FunctionDef>, Constr
 					}
 
 					@Override
-					public FlowFunction<D> getCallFlowFunction(AST callStmt,
+					public FlowFunction<D> getCallFlowFunction(Opt<AST> callStmt,
 															   Opt<FunctionDef> destinationMethod) {
 						return ifdsProblem.flowFunctions().getCallFlowFunction(callStmt, destinationMethod);
 					}
 
 					@Override
-					public FlowFunction<D> getReturnFlowFunction(AST callSite,
-																 Opt<FunctionDef> calleeMethod, AST exitStmt,
-																 AST returnSite) {
+					public FlowFunction<D> getReturnFlowFunction(Opt<AST> callSite,
+																 Opt<FunctionDef> calleeMethod, Opt<AST> exitStmt,
+																 Opt<AST> returnSite) {
 						return ifdsProblem.flowFunctions().getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite);
 					}
 
 					@Override
 					public FlowFunction<D> getCallToReturnFlowFunction(
-							AST callSite, AST returnSite) {
+							Opt<AST> callSite, Opt<AST> returnSite) {
 						FlowFunction<D> original = ifdsProblem.flowFunctions().getCallToReturnFlowFunction(callSite, returnSite);
 						if(hasFeatureAnnotation(callSite)) {
 							return new WrappedFlowFunction<D>(original);
@@ -173,7 +173,7 @@ public class SPLIFDSSolver<D> extends IDESolver<AST, D, Opt<FunctionDef>, Constr
 		interCfg = ifdsProblem.interproceduralCFG();
 	}
 	
-	public static final boolean hasFeatureAnnotation(AST stmt) {
+	public static final boolean hasFeatureAnnotation(Opt<AST> stmt) {
 		Constraint c = interCfg.getConstraint(stmt);
 		if (c == Constraint.trueValue()) return false;
 		if (c == Constraint.falseValue()) return true; // c

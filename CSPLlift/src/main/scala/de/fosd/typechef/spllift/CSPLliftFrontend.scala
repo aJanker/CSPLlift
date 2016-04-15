@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 
 object CSPLliftFrontend {
 
-    def solve[D](problem: IFDSTabulationProblem[AST, D, Opt[FunctionDef], CInterCFG], fmContext: FeatureModelContext = new FeatureModelContext()): List[util.Map[D, Constraint[String]]] = {
+    def solve[D](problem: IFDSTabulationProblem[Opt[AST], D, Opt[FunctionDef], CInterCFG], fmContext: FeatureModelContext = new FeatureModelContext()): List[util.Map[D, Constraint[String]]] = {
 
         val solver = new SPLIFDSSolver(problem, fmContext, false)
         solver.solve()

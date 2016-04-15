@@ -14,8 +14,8 @@ trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOpe
 
     val PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
 
-    def pseudoSystemFunctionCallCallFlowFunction(callStmt: AST, callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlow] with Object {def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow]} = {
-        val fCallOpt = parentOpt(callStmt, callEnv).asInstanceOf[Opt[AST]]
+    def pseudoSystemFunctionCallCallFlowFunction(callStmt: Opt[AST], callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlow] with Object {def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow]} = {
+        val fCallNode = Opt(callEnv.featureExpr(callStmt.entry), callStmt.entry)
         val fCall = filterAllASTElems[FunctionCall](callStmt, callEnv).head // TODO Check if != 1
         val callExprs = fCall.params
         val callUses = uses(callExprs)
@@ -29,7 +29,8 @@ trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOpe
             override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] =
                 flowFact match {
                     case s@VarSource(sId, _, _, global) if useIsSatisfiable(sId) =>
-                        val r = Reach(fCallOpt, s.name :: s.reachingSources.toList.map(_.name), List(s))
+                        val condition = sId.condition.and(fCallNode.condition)
+                        val r = Reach(fCallNode.copy(condition = condition), s.name :: s.reachingSources.toList.map(_.name), List(s))
                         if (global.isDefined) GEN(List(r, s)) else GEN(r)
                     case s : Source if s.globalFile.isDefined => GEN(s)
                     case _ => KILL

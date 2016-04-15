@@ -155,9 +155,9 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     }
 
 
-    def getPointerEquivalenceClass(pointer : Expr, cfg : CInterCFG) : Option[EquivalenceClass] = {
-        val eqRelation = cPointerEQAnalysis.calculateInitialPointerEquivalenceRelation(cfg.nodeToTUnit(pointer), getPlainFileName(pointer))
-        val lookup = buildEquivalenceClassLookup(pointer, cfg.getMethodOf(pointer).entry.getName)
+    def getPointerEquivalenceClass(pointer : Opt[Expr], cfg : CInterCFG) : Option[EquivalenceClass] = {
+        val eqRelation = cPointerEQAnalysis.calculateInitialPointerEquivalenceRelation(cfg.nodeToTUnit(pointer), getPlainFileName(pointer.entry))
+        val lookup = buildEquivalenceClassLookup(pointer.entry, cfg.getMethodOf(pointer).entry.getName)
         eqRelation.find(lookup)
     }
 

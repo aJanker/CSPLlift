@@ -31,20 +31,20 @@ class PseudoVisitingSystemFunctionCallTest extends SPLLiftTestHelper {
 
         var expectedReaches: List[(FeatureExpr, List[Opt[Id]])] = List()
 
-        // sink1 : True, (returSite, True), (y, True)
+        // sink1 : True, (returnSite, True), (y, True)
         expectedReaches ::=(True,  List(Opt(True, Id("returnSite")), Opt(True, Id("y"))))
 
         // sink2 : True (returnSite, B & D), (p, B & D), (x, true) (secret, true)
-        expectedReaches ::=(True, List(Opt(fb.and(fd), Id("returnSite")), Opt(fb.and(fd), Id("y")), Opt(fd, Id("p")), Opt(True, Id("x")), Opt(True, Id("secret"))))
+        expectedReaches ::=(fb.and(fd), List(Opt(fb.and(fd), Id("returnSite")), Opt(fb.and(fd), Id("y")), Opt(fd, Id("p")), Opt(True, Id("x")), Opt(True, Id("secret"))))
 
         // sink3 : True, (returnSite, A & B & D), (y, A & B & D), (p, A)
-        expectedReaches ::=(True, List(Opt(fa.and(fb.and(fd)), Id("returnSite")), Opt(fa.and(fb.and(fd)), Id("y")), Opt(fa, Id("p"))))
+        expectedReaches ::=(fa.and(fb.and(fd)), List(Opt(fa.and(fb.and(fd)), Id("returnSite")), Opt(fa.and(fb.and(fd)), Id("y")), Opt(fa, Id("p"))))
 
         // sink4: True, (returnSite, !B & D), (y, !B & D)
-        expectedReaches ::=(True, List(Opt(fb.not.and(fd), Id("returnSite")), Opt(fb.not.and(fd), Id("y"))))
+        expectedReaches ::=(fb.not.and(fd), List(Opt(fb.not.and(fd), Id("returnSite")), Opt(fb.not.and(fd), Id("y"))))
 
         // sink5: True, (returnSite, B & C & D), (y, B & C & D),  (p ,C & D), (x, C)
-        expectedReaches ::=(True, List(Opt(fb.and(fc).and(fd), Id("returnSite")), Opt(fb.and(fc).and(fd), Id("y")), Opt(fc.and(fd), Id("p")), Opt(fc, Id("x"))))
+        expectedReaches ::=(fb.and(fc).and(fd), List(Opt(fb.and(fc).and(fd), Id("returnSite")), Opt(fb.and(fc).and(fd), Id("y")), Opt(fc.and(fd), Id("p")), Opt(fc, Id("x"))))
 
         successful = successful && allReachesMatch(sink._2, expectedReaches)
 

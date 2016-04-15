@@ -1,14 +1,27 @@
+int loopfunction(int inner) {
+    int x = inner;
+    return x;
+}
+
+
 int main() {
     int foo, sink;
 
     foo = 1;
     int bound = 10;
     int z = 0;
+    int low = 1;
 
 #ifdef A
     int i;
 
-    for (i = 0; i < bound; i++) {
+    for (i =
+#ifdef B
+    loopfunction(low)
+#else
+     1
+#endif
+     ; i < bound; i++) {
         foo = z;
     }
 

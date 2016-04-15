@@ -8,7 +8,6 @@
 */
 
 int foo(int p) {
-    int flowSink = p;
 #ifdef A
     p = 0;
 #endif
