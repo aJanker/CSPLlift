@@ -104,12 +104,12 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns if for a given pointer expression a corresponding function definition exists
       */
     private def hasDestination(pointer: Expr): Boolean = {
-        val timeStart = System.currentTimeMillis();
+        val timeStart = System.currentTimeMillis()
         val calc = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames
-        println(System.currentTimeMillis() - timeStart)
+        /* println(System.currentTimeMillis() - timeStart)
 
-        println(calc.toOptList())
-        true
+        println(calc.toOptList()) */
+        false
     }
 
     /**
@@ -174,10 +174,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     }
 
     // undocumented function call to cifg from spllift -> gets current condition or flow condition
-    def getConstraint(node: Opt[AST]): Constraint[String] =
-        Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
-        // Constraint.make(nodeToEnv(node).featureExpr(node.entry).asInstanceOf[BDDFeatureExpr])
-
+    def getConstraint(node: Opt[AST]): Constraint[String] = Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
@@ -202,6 +199,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     private def getCalleeNames(call: Opt[AST]): List[Opt[String]] =
         filterAllASTElems[PostfixExpr](call).flatMap {
             case pf@PostfixExpr(Id(calleeName), FunctionCall(_)) => Some(Opt(nodeToEnv(pf).featureExpr(pf), calleeName))
+            case _ => None
         }
 
     def nodeToEnv(node: Opt[AST]): ASTEnv = nodeToEnv(node.entry)

@@ -26,10 +26,6 @@ class ConditionalGraphTest extends SPLLiftTestHelper {
         // sink4 : A&&!B, (sink = bound = foo = z = 0 (A&&!B)) // duplication of for -loop
         expectedReaches ::= (fa.and(fb.not()), List(Opt(fa.and(fb.not()), Id("bound")), Opt(fa.and(fb.not()), Id("foo")), Opt(True, Id("z"))))
 
-        val (tunit, _, _, sinks) = defaultTestInit("loop.c", allSinks)
-
-        println(PrettyPrinter.print(tunit))
-
         defaultSingleSinkTest("loop.c", sinkStmt, expectedReaches) should be(true)
     }
 }

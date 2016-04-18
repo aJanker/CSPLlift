@@ -68,7 +68,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
     private val cachedFlowFunctions: FlowFunctions[Opt[AST], InformationFlow, Opt[FunctionDef]] =
         new FlowFunctions[Opt[AST], InformationFlow, Opt[FunctionDef]] {
 
-            private var filesWithSeeds: List[String] = List() // check for double calls of initial seeds!
+            private var filesWithSeeds: List[String] = List(initialGlobalsFile) // check for double calls of initial seeds!
 
             private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
                 val destinationMethodFile = destinationMethod.getFile.getOrElse("")
@@ -93,32 +93,33 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     && destinationMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallCallFlowFunction(callStmt, callEnv, interproceduralCFG)
 
-
-                def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[DeclaratorExtension]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
-                    if (callParams.isEmpty && fDefParams.isEmpty) return res
-
-                    val currentCallParameter = callParams.head
-                    val currentFDefParameter = fDefParams.head.entry match {
-                        case DeclParameterDeclList(paramDecls) => paramDecls.flatMap {
-                            case Opt(ft, p: ParameterDeclarationD) => Some(Opt(ft, p.decl.getId))
-                            case _ => None
-                        }
-                        case missed =>
-                            throw new IllegalArgumentException("No rule defined for converting parameter to parameter mapping: " + missed)
+                def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[ParameterDeclarationD]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
+                    if (callParams.isEmpty && fDefParams.isEmpty) return {
+                        println("Result")
+                        println(res)
+                        res
                     }
 
-                    // TODO Variability Check
-                    // TODO Expr other than id
-                    // TODO outercall(innercall(variable))
-                    val currRes = currentFDefParameter.map(currFDefParam => {
-                        currentCallParameter.entry match {
-                            case i: Id => Opt(currentCallParameter.condition.and(currFDefParam.condition), (i, currFDefParam.entry))
-                            case missed =>
-                                throw new IllegalArgumentException("No rule defined for converting expression to parameter mapping: " + missed)
-                        }
-                    })
+                    val currentCallParameter = callParams.head
+                    val currentFDefParameter = fDefParams.head
+                    val currentParameterMatchCondition = currentCallParameter.condition.and(currentFDefParameter.condition)
 
-                    mapCallParamToFDefParam(callParams.tail, fDefParams.tail, currRes ::: res)
+                    val currRes =
+                        if (currentParameterMatchCondition.isSatisfiable(interproceduralCFG.getFeatureModel))
+                            currentCallParameter.entry match {
+                                case i: Id => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
+                                case PointerCreationExpr(i : Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
+                                case PointerDerefExpr(i: Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
+                                case missed => throw new IllegalArgumentException("No rule defined for converting expression to parameter mapping: " + missed)
+                            }
+                        else None
+
+                    if (currRes.isDefined)
+                        mapCallParamToFDefParam(callParams.tail, fDefParams.tail, currRes.get :: res)
+                    else if (callParams.size < fDefParams.size)
+                        mapCallParamToFDefParam(callParams, fDefParams.tail, res)
+                    else
+                        mapCallParamToFDefParam(callParams.tail, fDefParams, res)
                 }
 
                 val destinationEnv = interproceduralCFG().nodeToEnv(destinationMethod.entry)
@@ -126,7 +127,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 val fCallOpt = parentOpt(callStmt.entry, callEnv)
                 val fCall = filterAllASTElems[FunctionCall](callStmt.entry, callEnv).head // TODO Check if != 1
                 val callExprs = fCall.params.exprs
-                val fDefParams = destinationMethod.entry.declarator.extensions
+                val fDefParams = destinationMethod.entry.declarator.extensions.flatMap {
+                    case Opt(_, DeclParameterDeclList(l: List[Opt[ParameterDeclarationD]@unchecked])) => l
+                    case _ => None
+                }
+
                 val callParamToFDefParams = mapCallParamToFDefParam(callExprs, fDefParams)
 
                 new FlowFunction[InformationFlow] {
