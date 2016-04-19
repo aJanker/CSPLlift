@@ -36,15 +36,15 @@ int cipher_do(struct cipher_ctx *c, int value) {
 int main() {
     struct cipher_ctx *c = malloc(sizeof(struct cipher_ctx));
 
-    int test = (*c->cipherfun)(value);
-
 #ifdef A
     cipher_init(c, &cipher1);
 #else
     cipher_init(c, &cipher2);
 #endif
 
-    int secret = 666;
+    int secret;
+    secret = 666;
+
     int sink = cipher_do(c, secret);
 
     printf("%i\n", sink);

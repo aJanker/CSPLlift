@@ -68,14 +68,14 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         successful && allReachesMatch(sink._2, expectedReaches)
     }
 
-
     def parseTUnitFromFile(filename: String): TranslationUnit = {
         val inStream: InputStream = getClass.getResourceAsStream("/" + testfileDir + filename)
+        val includeDir = new File(getClass.getResource("/" + testfileDir + filename).getFile).getParent
 
         if (inStream == null)
             throw new FileNotFoundException("Input file not found!")
 
-        val tunit: TranslationUnit = parseFile(inStream, filename, testfileDir)
+        val tunit: TranslationUnit = parseFile(inStream, filename, includeDir)
         assert(tunit != null, "AST is null")
         prepareAST(tunit)
     }
