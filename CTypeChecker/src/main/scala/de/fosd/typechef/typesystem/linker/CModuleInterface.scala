@@ -18,9 +18,9 @@ class CModuleInterface(private val linkPath: String) {
   private val incompleteLinks = new mutable.ParHashSet[String]()
 
   interface.exports.foreach(fillCache)
-  interface.imports.foreach(expr =>
+  /*interface.imports.foreach(expr =>
     if (isNameKnown(expr.name)) fillCache(expr)
-    else incompleteLinks += expr.name)
+    else incompleteLinks += expr.name) */
 
   def isNameKnown(name: String) = idLinkExpCache.containsKey(name) || idLinkPosCache.containsKey(name)
 

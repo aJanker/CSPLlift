@@ -28,7 +28,6 @@ tokenstream.txt
 *.diffs
 *.macroDbg
 *.dbgSrc
-*.interface
 *.dbginterface
 .idea
 linux-2.6.33.3

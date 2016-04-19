@@ -17,7 +17,7 @@ import scala.collection.JavaConversions._
 
 trait CInterCFGElementsCache {
 
-    val cInterCFGElementsCacheEnv : CInterCFGElementsCacheEnv
+    val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv
 
     def findEnv(node: AST): Option[ASTEnv] =
         cInterCFGElementsCacheEnv.getEnvs.find {_.containsASTElem(node)}
@@ -45,30 +45,32 @@ trait CInterCFGElementsCache {
     def isNameLinked(name: Opt[String]): Boolean =
         cInterCFGElementsCacheEnv.isNameKnown(name)
 
-    def getExternalDefinitions(name: Opt[String]): List[Opt[FunctionDef]] =
-        cInterCFGElementsCacheEnv.getNameLocations(name).getOrElse(List()).foldLeft(List[Opt[FunctionDef]]())((res, path) => {
-            val tUnit =
-                cInterCFGElementsCacheEnv.getTunitForFile(path) match {
-                    case Some(t) => t
-                    case None => throw new FileNotFoundException(path)
-                }
+    def getExternalDefinitions(name: Opt[String]): List[Opt[FunctionDef]] = {
+            cInterCFGElementsCacheEnv.getNameLocations(name).getOrElse(List()).foldLeft(List[Opt[FunctionDef]]())((res, path) => {
+                val tUnit =
+                    cInterCFGElementsCacheEnv.getTunitForFile(path) match {
+                        case Some(t) => t
+                        case None => throw new FileNotFoundException(path)
+                    }
 
-            val foundDefs = tUnit.defs.flatMap {
-                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isTautology(/* TODO FM */) =>
-                    Some(Opt(ft, f))
-            }
-            res ::: foundDefs
-        })
+                val foundDefs = tUnit.defs.flatMap {
+                    case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isSatisfiable(/* TODO FM */) =>
+                        Some(Opt(ft, f))
+                    case _ => None
+                }
+                res ::: foundDefs
+            })
+        }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGOptions) extends EnforceTreeHelper with CInterCFGPseudoVistingSystemLibFunctions with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGOptions) extends EnforceTreeHelper with CInterCFGPseudoVistingSystemLibFunctions with CInterCFGCommons with PointerContext {
 
-    def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions) =
-        this(initialTUnit, fm, options.getModuleInterface, options)
+    def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = new DefaultCInterCFGOptions) =
+        this(initialTUnit, fm, options.getModuleInterfacePath, options)
 
     private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
     private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
-    private val fileToTUnit: util.IdentityHashMap[String, TranslationUnit] = new util.IdentityHashMap()
+    private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
 
     // TODO Caching And Refinements
     private val cPointerEQAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath)
@@ -87,7 +89,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit
     }
 
-    def add(_tunit: TranslationUnit) : TranslationUnit = {
+    def add(_tunit: TranslationUnit): TranslationUnit = {
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
         val pTunit = prepareAST(_tunit)
         val tunit = if (options.pseudoVisitingSystemLibFunctions) pTunit.copy(defs = PSEUDO_SYSTEM_FUNCTION_CALL :: pTunit.defs) else pTunit
@@ -130,9 +132,12 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 }
         }
 
-    def loadTUnit(filename: String): Option[TranslationUnit] =
+    def loadTUnit(inputfile: String): Option[TranslationUnit] = {
+        val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
+
         try {
-            val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename))) {
+            val (source, extension) = filename.splitAt(filename.lastIndexOf(".c"))
+            val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(source + ".ast"))) {
                 override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
             }
 
@@ -143,19 +148,20 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         } catch {
             case e: ObjectStreamException => System.err.println("failed loading serialized AST: " + e.getMessage); None
         }
+    }
 
-    def buildEquivalenceClassLookup(pointer : Expr, scope : String) : String = {
-        def genObjectName(expr : Expr) : String =
+    def buildEquivalenceClassLookup(pointer: Expr, scope: String): String = {
+        def genObjectName(expr: Expr): String =
             expr match {
                 case p: PostfixExpr => PrettyPrinter.print(p)
-                case PointerDerefExpr(pExpr) => ObjectNameOperator.PointerDereference +  "(" + genObjectName(pExpr) + ")"
+                case PointerDerefExpr(pExpr) => ObjectNameOperator.PointerDereference + "(" + genObjectName(pExpr) + ")"
             }
 
         getPlainFileName(pointer) + "§" + scope + "$" + genObjectName(pointer)
     }
 
 
-    def getPointerEquivalenceClass(pointer : Opt[Expr], cfg : CInterCFG) : Option[EquivalenceClass] = {
+    def getPointerEquivalenceClass(pointer: Opt[Expr], cfg: CInterCFG): Option[EquivalenceClass] = {
         val eqRelation = cPointerEQAnalysis.calculateInitialPointerEquivalenceRelation(cfg.nodeToTUnit(pointer), getPlainFileName(pointer.entry))
         val lookup = buildEquivalenceClassLookup(pointer.entry, cfg.getMethodOf(pointer).entry.getName)
         eqRelation.find(lookup)

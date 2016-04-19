@@ -14,7 +14,7 @@ import soot.spl.ifds.Constraint
 
 import scala.collection.JavaConverters._
 
-class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = DefaultCInterCFGOptions)
+class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = new DefaultCInterCFGOptions)
     extends InterproceduralCFG[Opt[AST], Opt[FunctionDef]] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
@@ -74,7 +74,22 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (!isCallStmt(call)) return java.util.Collections.emptySet[Opt[FunctionDef]]
 
         val calleeNames = getCalleeNames(call)
-        val callees = calleeNames.flatMap(findCallees(_, nodeToTUnit(call)))
+
+        val callees =
+            if (calleeNames.nonEmpty) calleeNames.flatMap(findCallees(_, nodeToTUnit(call)))
+            else {
+                filterAllASTElems[PostfixExpr](call).flatMap {
+                    case PostfixExpr(pointer, FunctionCall(_)) => {
+                        val names = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
+                        val found = names.flatMap(findCallees(_, nodeToTUnit(call)))
+                        println("PointerDST")
+                        println(names)
+                        println(found.reverse)
+                        found
+                    }
+                    case _ => None
+                }
+            }
 
         asJavaIdentitySet(callees.reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
     }
@@ -105,10 +120,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     private def hasDestination(pointer: Expr): Boolean = {
         val timeStart = System.currentTimeMillis()
-        val calc = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames
-        /* println(System.currentTimeMillis() - timeStart)
-
-        println(calc.toOptList()) */
+        val calc = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
         false
     }
 
@@ -182,7 +194,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         val localDef = callTUnit.defs.flatMap {
             case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
-                Some(Opt(ft, f))
+                Some(Opt(ft.and(name.condition), f))
             case _ => None
         }
 

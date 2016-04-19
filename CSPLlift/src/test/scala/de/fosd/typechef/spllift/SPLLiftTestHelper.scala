@@ -4,6 +4,7 @@ import java.io._
 import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.Taint
@@ -27,12 +28,12 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
     override val fx = FeatureExprFactory.createDefinedExternal("X")
     override val fy = FeatureExprFactory.createDefinedExternal("Y")
 
-    private val testfileDir = "testfiles/"
+    val testfileDir = "testfiles/"
 
-    def defaultTestInit(filename: String, isSink: Reach => Boolean) = {
+    def defaultTestInit(filename: String, isSink: Reach => Boolean, cModuleInterfacePath : Option[String] = None) = {
         val tunit = parseTUnitFromFile(filename)
 
-        val cInterCFG = new CInterCFG(tunit)
+        val cInterCFG = new CInterCFG(tunit, BDDFeatureModel.empty, new DefaultCInterCFGOptions(cModuleInterfacePath))
         val problem = new InformationFlowProblem(cInterCFG)
         val solution = CSPLliftFrontend.solve(problem)
 

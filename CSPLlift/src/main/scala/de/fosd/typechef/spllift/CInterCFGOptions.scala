@@ -7,15 +7,15 @@ package de.fosd.typechef.spllift
   */
 trait CInterCFGOptions {
 
-  def getModuleInterface: Option[String] // TODO Type
+  def getModuleInterfacePath: Option[String]
 
   def getGraphEntryFunctionNames: List[String] = List("main")
 
   def pseudoVisitingSystemLibFunctions : Boolean
 }
 
-object DefaultCInterCFGOptions extends CInterCFGOptions {
-  override def getModuleInterface: Option[String] = None
+class DefaultCInterCFGOptions(moduleInterfacePath : Option[String] = None) extends CInterCFGOptions {
+  override def getModuleInterfacePath: Option[String] = moduleInterfacePath
 
   override def pseudoVisitingSystemLibFunctions = true
 }

@@ -4,6 +4,7 @@ import java.util
 import java.util.Collections
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.{CInterCFG, CInterCFGCommons, CInterCFGPseudoVistingSystemLibFunctions}
@@ -77,6 +78,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 }
             }
 
+            private var flowConditionMap = Map[(Opt[AST], String), BDDFeatureExpr]()
+
             /**
               * Returns the flow function that computes the flow for a call statement.
               *
@@ -89,16 +92,14 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
             override def getCallFlowFunction(callStmt: Opt[AST], destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
                 val callEnv = interproceduralCFG.nodeToEnv(callStmt.entry)
 
+                flowConditionMap += ((callStmt, destinationMethod.entry.getName) -> destinationMethod.condition.asInstanceOf[BDDFeatureExpr])
+
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
                     && destinationMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallCallFlowFunction(callStmt, callEnv, interproceduralCFG)
 
                 def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[ParameterDeclarationD]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
-                    if (callParams.isEmpty && fDefParams.isEmpty) return {
-                        println("Result")
-                        println(res)
-                        res
-                    }
+                    if (callParams.isEmpty && fDefParams.isEmpty) return res
 
                     val currentCallParameter = callParams.head
                     val currentFDefParameter = fDefParams.head
@@ -125,7 +126,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 val destinationEnv = interproceduralCFG().nodeToEnv(destinationMethod.entry)
 
                 val fCallOpt = parentOpt(callStmt.entry, callEnv)
-                val fCall = filterAllASTElems[FunctionCall](callStmt.entry, callEnv).head // TODO Check if != 1
+                val fCall = filterAllASTElems[FunctionCall](callStmt.entry, callEnv).head
                 val callExprs = fCall.params.exprs
                 val fDefParams = destinationMethod.entry.declarator.extensions.flatMap {
                     case Opt(_, DeclParameterDeclList(l: List[Opt[ParameterDeclarationD]@unchecked])) => l
@@ -195,7 +196,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               */
             override def getReturnFlowFunction(callSite: Opt[AST], calleeMethod: Opt[FunctionDef], exitStmt: Opt[AST], returnSite: Opt[AST]): FlowFunction[InformationFlow] = {
 
-                val flowCondition = calleeMethod.condition
+                val flowCondition = calleeMethod.condition //.and(flowConditionMap.getOrElse((callSite, calleeMethod.entry.getName), BDDFeatureExprFactory.TrueB))
+
+                /*println(calleeMethod)
+                println(flowCondition)
+                println */
 
                 def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
                     val fCall = filterASTElems[FunctionCall](callSite)
@@ -400,7 +405,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
     private abstract class InfoFlowFunction(curr: Opt[AST], succ: Opt[AST], definedIds: Option[List[Id]] = None, usedIds: Option[List[Id]] = None, assignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InformationFlow] {
         // Lazy cache some repeatedly used variables
-        lazy val currASTEnv = interproceduralCFG.nodeToEnv(curr.entry)
+        val currASTEnv = interproceduralCFG.nodeToEnv(curr.entry)
         lazy val currOpt: Opt[AST] = parentOpt(curr.entry, currASTEnv).asInstanceOf[Opt[AST]]
         lazy val currTS = interproceduralCFG.nodeToTS(curr)
         lazy val succVarEnv = currTS.lookupEnv(succ.entry)
@@ -434,7 +439,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 case _ => false
             }
 
-        def isSatisfiable(inner: Id, outer: Opt[Id]): Boolean = isSatisfiable(Opt(currASTEnv.featureExpr(inner), inner), outer)
+        def isSatisfiable(inner: Id, outer: Opt[Id]): Boolean = isSatisfiable(Opt(interproceduralCFG.nodeToEnv(inner).featureExpr(inner), inner), outer)
+
         def isSatisfiable(inner: Opt[Id], outer: Opt[Id]): Boolean = inner.entry.name.equalsIgnoreCase(outer.entry.name) && inner.condition.and(outer.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
         def isImplication(inner: Id, outer: Opt[Id]): Boolean = isImplication(Opt(currASTEnv.featureExpr(inner), inner), outer)

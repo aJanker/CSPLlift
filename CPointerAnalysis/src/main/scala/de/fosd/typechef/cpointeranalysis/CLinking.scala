@@ -30,12 +30,6 @@ class CLinking(linkPath: String) {
   interface.exports.foreach(addToFileExportsTo)
   interface.imports.foreach(addToFileImportsFrom)
 
-  println(fileImportsFrom.size())
-  println(fileExportsTo.size())
-
-  println(fileExportsTo.get("file /scratch/janker/FOSD/extract/cRefactor-OpenSSLEvaluation1/openssl/crypto/pkcs7/pk7_doit.c"))
-  println(fileImportsFrom.get("file /scratch/janker/FOSD/extract/cRefactor-OpenSSLEvaluation1/openssl/crypto/pkcs7/pk7_doit.c"))
-
   private def addToFileExportsTo(exp: CSignature) = {
     // all references to files which import this method
     val importsIt = interface.imports.par.filter(_.name.equalsIgnoreCase(exp.name)).flatMap(_.pos.toList).toList
