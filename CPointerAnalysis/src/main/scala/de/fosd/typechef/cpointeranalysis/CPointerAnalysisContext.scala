@@ -244,11 +244,7 @@ trait ObjectNameContext extends PointerContext {
 
   def showAssignments() = println("*** Assignments: %s".format(objectNameAssignments))
 
-  def showExtractedObjectNames() = {
-    println(objectNames)
-  }
-
-  // def copy()
+  def showExtractedObjectNames() = println(objectNames)
 }
 
 trait FunctionContext extends PointerContext {

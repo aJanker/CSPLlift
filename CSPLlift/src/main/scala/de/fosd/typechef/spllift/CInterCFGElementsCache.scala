@@ -5,7 +5,7 @@ import java.util
 import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cpointeranalysis.{CPointerAnalysisFrontend, EquivalenceClass, ObjectNameOperator, PointerContext}
+import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
@@ -72,8 +72,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
 
-    // TODO Caching And Refinements
     private val cPointerEQAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath)
+    private var cPointerEqRelation : CPointerAnalysisContext = null
 
     private val cModuleInterface: Option[CModuleInterface] =
         cModuleInterfacePath match {
@@ -98,12 +98,21 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
         ts.checkAST()
 
-        envToTUnit.put(env, tunit)
-        envToTS.put(env, ts)
-        fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
+        updateCaches(tunit, env, ts)
+        updatePointerEquivalenceRelations
+
         tunit
     }
 
+    private def updateCaches(tunit: TranslationUnit, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {
+        envToTUnit.put(env, tunit)
+        envToTS.put(env, ts)
+        fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
+    }
+    private def updatePointerEquivalenceRelations = {
+        val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
+        cPointerEqRelation = cPointerEQAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
+    }
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
 
     def getTunitForEnv(env: ASTEnv) = envToTUnit.get(env)
@@ -162,9 +171,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
 
     def getPointerEquivalenceClass(pointer: Opt[Expr], cfg: CInterCFG): Option[EquivalenceClass] = {
-        val eqRelation = cPointerEQAnalysis.calculateInitialPointerEquivalenceRelation(cfg.nodeToTUnit(pointer), getPlainFileName(pointer.entry))
         val lookup = buildEquivalenceClassLookup(pointer.entry, cfg.getMethodOf(pointer).entry.getName)
-        eqRelation.find(lookup)
+        cPointerEqRelation.find(lookup)
     }
-
 }

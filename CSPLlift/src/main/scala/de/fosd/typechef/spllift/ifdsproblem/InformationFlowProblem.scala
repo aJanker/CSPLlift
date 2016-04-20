@@ -31,11 +31,12 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
       * We consider global variables as initial sources.
       */
     override def initialSeeds(): util.Map[Opt[AST], util.Set[InformationFlow]] =
-        interproceduralCFG.entryFunctions.foldLeft(new util.HashMap[Opt[AST], util.Set[InformationFlow]])((res, entry) => {
+        interproceduralCFG.getEntryFunctions.foldLeft(new util.HashMap[Opt[AST], util.Set[InformationFlow]])((res, entry) => {
             interproceduralCFG.getStartPointsOf(entry).asScala.foreach(res.put(_, globalsAsInitialSeeds(entry)))
             initialGlobalsFile = entry.entry.getFile.getOrElse("")
             res
         })
+
 
     /**
       * Returns the interprocedural control-flow graph which this problem is computed over.
@@ -90,7 +91,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: Opt[AST], destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
-                val callEnv = interproceduralCFG.nodeToEnv(callStmt.entry)
+                val callEnv = interproceduralCFG.getASTEnv(callStmt)
 
                 flowConditionMap += ((callStmt, destinationMethod.entry.getName) -> destinationMethod.condition.asInstanceOf[BDDFeatureExpr])
 
@@ -109,7 +110,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                         if (currentParameterMatchCondition.isSatisfiable(interproceduralCFG.getFeatureModel))
                             currentCallParameter.entry match {
                                 case i: Id => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
-                                case PointerCreationExpr(i : Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
+                                case PointerCreationExpr(i: Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
                                 case PointerDerefExpr(i: Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
                                 case missed => throw new IllegalArgumentException("No rule defined for converting expression to parameter mapping: " + missed)
                             }
@@ -123,7 +124,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                         mapCallParamToFDefParam(callParams.tail, fDefParams, res)
                 }
 
-                val destinationEnv = interproceduralCFG().nodeToEnv(destinationMethod.entry)
+                val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
 
                 val fCallOpt = parentOpt(callStmt.entry, callEnv)
                 val fCall = filterAllASTElems[FunctionCall](callStmt.entry, callEnv).head
@@ -217,7 +218,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     && calleeMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallReturnFlow
 
-                val exitOpt = parentOpt(exitStmt.entry, interproceduralCFG.nodeToEnv(exitStmt.entry))
+                val exitOpt = parentOpt(exitStmt.entry, interproceduralCFG.getASTEnv(exitStmt))
 
                 new InfoFlowFunction(callSite, returnSite, Some(defines(callSite)), Some(uses(exitStmt)), Some(assignsReturnVariablesTo(callSite.entry, exitStmt.entry))) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
@@ -381,7 +382,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
         }
 
     private def globalsAsInitialSeeds(f: Opt[FunctionDef]): util.Set[InformationFlow] = {
-        val globalVariables = interproceduralCFG.nodeToTUnit(f.entry).defs.filterNot {
+        val globalVariables = interproceduralCFG.getTUnit(f).defs.filterNot {
             // Ignore function and typedef definitions
             case Opt(_, f: FunctionDef) => true //
             case Opt(_, d: Declaration) => d.declSpecs.exists {
@@ -405,9 +406,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
     private abstract class InfoFlowFunction(curr: Opt[AST], succ: Opt[AST], definedIds: Option[List[Id]] = None, usedIds: Option[List[Id]] = None, assignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InformationFlow] {
         // Lazy cache some repeatedly used variables
-        val currASTEnv = interproceduralCFG.nodeToEnv(curr.entry)
+        val currASTEnv = interproceduralCFG.getASTEnv(curr)
         lazy val currOpt: Opt[AST] = parentOpt(curr.entry, currASTEnv).asInstanceOf[Opt[AST]]
-        lazy val currTS = interproceduralCFG.nodeToTS(curr)
+        lazy val currTS = interproceduralCFG.getTS(curr)
         lazy val succVarEnv = currTS.lookupEnv(succ.entry)
 
         lazy val currDefines = definedIds match {
@@ -439,7 +440,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 case _ => false
             }
 
-        def isSatisfiable(inner: Id, outer: Opt[Id]): Boolean = isSatisfiable(Opt(interproceduralCFG.nodeToEnv(inner).featureExpr(inner), inner), outer)
+        def isSatisfiable(inner: Id, outer: Opt[Id]): Boolean = isSatisfiable(Opt(interproceduralCFG.getASTEnv(Opt(FeatureExprFactory.bdd.True, inner)).featureExpr(inner), inner), outer)
 
         def isSatisfiable(inner: Opt[Id], outer: Opt[Id]): Boolean = inner.entry.name.equalsIgnoreCase(outer.entry.name) && inner.condition.and(outer.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
