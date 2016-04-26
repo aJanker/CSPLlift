@@ -3,6 +3,8 @@ package de.fosd.typechef.spllift.ifdsproblem
 import java.io.{StringWriter, Writer}
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.FeatureExpr
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 
 import scala.collection.mutable.ListBuffer
@@ -12,7 +14,7 @@ sealed trait InformationFlow extends Product with Cloneable {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
 }
 
-case object Zero extends InformationFlow
+case class Zero(condition : FeatureExpr = BDDFeatureExprFactory.TrueB) extends InformationFlow
 
 sealed abstract class Source(val name: Opt[Id], val stmt: Opt[_], val reachingSources: ListBuffer[Source] = ListBuffer(), val globalFile: Option[String] = None) extends InformationFlow {
     override def hashCode() = name.hashCode + stmt.hashCode() + globalFile.hashCode()

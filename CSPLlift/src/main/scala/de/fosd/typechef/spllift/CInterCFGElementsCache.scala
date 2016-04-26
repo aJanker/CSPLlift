@@ -55,7 +55,7 @@ trait CInterCFGElementsCache {
 
                 val foundDefs = tUnit.defs.flatMap {
                     case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isSatisfiable(/* TODO FM */) =>
-                        Some(Opt(ft, f))
+                        Some(Opt(ft.and(name.condition), f))
                     case _ => None
                 }
                 res ::: foundDefs

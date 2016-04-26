@@ -181,7 +181,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns if for a given pointer expression a corresponding function definition exists
       */
     private def hasDestination(pointer: Expr): Boolean = {
-        val timeStart = System.currentTimeMillis()
         val calc = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
         calc.nonEmpty
     }
@@ -213,7 +212,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isExitStmt(stmt: Opt[AST]): Boolean =
         succ(stmt.entry, getASTEnv(stmt)).exists {
-            case Opt(_, f: FunctionDef) => true //TODO Calls?
+            case Opt(_, f: FunctionDef) => true
             case _ => false
         }
 

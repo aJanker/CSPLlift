@@ -32,5 +32,5 @@ trait InformationFlowConfiguration extends SolverConfiguration {
     *
     * @see #zeroValue()
     */
-  override def autoAddZero(): Boolean = true
+  override def autoAddZero(): Boolean = false
 }

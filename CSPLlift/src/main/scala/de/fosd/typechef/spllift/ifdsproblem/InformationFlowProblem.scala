@@ -4,7 +4,6 @@ import java.util
 import java.util.Collections
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.{CInterCFG, CInterCFGCommons, CInterCFGPseudoVistingSystemLibFunctions}
@@ -25,6 +24,7 @@ trait InformationFlowProblemOperations extends CInterCFGCommons {
 class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt[AST], InformationFlow, Opt[FunctionDef], CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
 
     private var initialGlobalsFile: String = ""
+    private val zeroVal = Zero()
 
     /**
       * Returns initial seeds to be used for the analysis. This is a mapping of statements to initial analysis facts.
@@ -56,7 +56,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def zeroValue(): InformationFlow = Zero
+    override def zeroValue(): InformationFlow = zeroVal
 
     /**
       * Returns a set of flow functions. Those functions are used to compute data-flow facts
@@ -79,8 +79,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 }
             }
 
-            private var flowConditionMap = Map[(Opt[AST], String), BDDFeatureExpr]()
-
             /**
               * Returns the flow function that computes the flow for a call statement.
               *
@@ -92,8 +90,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               */
             override def getCallFlowFunction(callStmt: Opt[AST], destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
                 val callEnv = interproceduralCFG.getASTEnv(callStmt)
-
-                flowConditionMap += ((callStmt, destinationMethod.entry.getName) -> destinationMethod.condition.asInstanceOf[BDDFeatureExpr])
+                val flowCondition = destinationMethod.condition
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
                     && destinationMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
@@ -141,25 +138,26 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                         var ret = KILL
 
                         flowFact match {
-                            // TODO Struct and Pointer Sources
                             case s@VarSource(x, _, _, global) =>
                                 callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
                                     case Some(hit) =>
-                                        val condition = hit.condition.and(x.condition)
+                                        val condition = hit.condition.and(x.condition).and(flowCondition)
                                         val source = VarSource(Opt(condition, hit.entry._2), fCallOpt, ListBuffer(s) ++ s.reachingSources)
                                         val reach = Reach(Opt(condition, hit.entry._1), s.name :: s.reachingSources.toList.map(_.name), List(s))
-                                        ret = if (global.isDefined) GEN(List(source, s, reach)) else GEN(List(source, reach)) // New local Parameter
-                                    case None if global.isDefined => ret = GEN(s) // Global Variable
+                                        ret = if (global.isDefined) GEN(List(source, s.copy(name = s.name.and(flowCondition)), reach)) else GEN(List(source, reach)) // New local Parameter
+                                    case None if global.isDefined => ret = GEN(s.copy(name = s.name.and(flowCondition))) // Global Variable
                                     case None => ret = KILL // Local Variable from previous function
                                 }
 
-                            case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s)
-                            case Zero if !initialSeedsExists(destinationMethod.entry) =>
+                            case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s.copy(name = s.name.and(flowCondition)))
+                            case z: Zero if !initialSeedsExists(destinationMethod.entry) =>
                                 // Introduce Global Variables from linked file
                                 filesWithSeeds ::= destinationMethod.entry.getFile.getOrElse("")
-                                ret = globalsAsInitialSeeds(destinationMethod)
-                            case r: Reach => GEN(r)
-                            case _ => KILL
+                                //ret = globalsAsInitialSeeds(destinationMethod)
+                                ret = GEN(z.copy(condition = z.condition.and(flowCondition)))
+                            case z: Zero => ret = GEN(Zero(z.condition.and(flowCondition)))
+                            case r: Reach => ret = GEN(r)
+                            case _ => ret = KILL
                         }
 
                         ret
@@ -197,12 +195,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               */
             override def getReturnFlowFunction(callSite: Opt[AST], calleeMethod: Opt[FunctionDef], exitStmt: Opt[AST], returnSite: Opt[AST]): FlowFunction[InformationFlow] = {
 
-                val flowCondition = calleeMethod.condition //.and(flowConditionMap.getOrElse((callSite, calleeMethod.entry.getName), BDDFeatureExprFactory.TrueB))
-
-                /*println(calleeMethod)
-                println(flowCondition)
-                println */
-
+                val flowCondition = calleeMethod.condition
                 def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
                     val fCall = filterASTElems[FunctionCall](callSite)
                     assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOf(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
@@ -241,16 +234,17 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
                                 res = if (global.isDefined) GEN(sources ::: List(s, reach)) else GEN(sources ::: List(reach)) // Pass global variables back to original flow
 
-                            case Zero if currUses.isEmpty => // Return is something like return 0; -> we generate a new source
+                            case z: Zero if currUses.isEmpty => // Return is something like return 0; -> we generate a new source
                                 val sources = currAssignments.flatMap {
-                                    case (target, assignment) if assignment.isEmpty => genVarSource(target, reachCondition = currOpt.condition.and(exitOpt.condition)) // Apply only when assignment is really empty
+                                    case (target, assignment) if assignment.isEmpty => genVarSource(target, reachCondition = currOpt.condition.and(exitOpt.condition).and(z.condition)) // Apply only when assignment is really empty
                                     case _ => None
                                 }
                                 res = GEN(sources)
-
+                            case z: Zero => res = KILL
                             case _ => res = default(flowFact) // Do default flow action
 
                         }
+
                         res
                     }
                 }
@@ -320,7 +314,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
                                 res = GEN(s :: currRes)
 
-                            case Zero if currDefines.nonEmpty =>
+                            case z: Zero if currDefines.nonEmpty =>
 
                                 val facts: List[InformationFlow] = currDefines.flatMap(id =>
                                     succVarEnv.varEnv.lookupScope(id.name).toOptList.flatMap(scope =>
@@ -330,21 +324,21 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                             // is completly new introduced declaration without usage (e.g int x = 50;)
                                             val file = if ((scope.entry == 0) && scope.condition.isSatisfiable(interproceduralCFG.getFeatureModel)) getFileName(id.getFile) else None
 
-                                            def zeroStructSource(i: Id) = List(StructSource(Opt(currOpt.condition.and(scope.condition), id), None, currOpt, ListBuffer(), file))
-                                            def zeroVarSource(i: Id) = List(VarSource(Opt(currOpt.condition.and(scope.condition), id), currOpt, ListBuffer(), file))
+                                            def zeroStructSource(i: Id) = List(StructSource(Opt(currOpt.condition.and(scope.condition).and(z.condition), id), None, currOpt, ListBuffer(), file))
+                                            def zeroVarSource(i: Id) = List(VarSource(Opt(currOpt.condition.and(scope.condition), id).and(z.condition), currOpt, ListBuffer(), file))
 
                                             singleVisitOnSourceTypes(id, zeroStructSource, zeroVarSource)
                                         }))
-                                res = GEN(facts)
 
-                            case Zero if currStructFieldDefines.nonEmpty && currUses.isEmpty =>
+                                res = GEN(z :: facts)
+
+                            case z: Zero if currStructFieldDefines.nonEmpty && currUses.isEmpty =>
                                 // TODO Scoping
-                                val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition))
-                                res = GEN(facts)
+                                val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition.and(z.condition)))
+                                res = GEN(z :: facts)
                             case r: Reach => res = default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
                             case _ => res = default(flowFact)
                         }
-
                         res
                     }
                 }
