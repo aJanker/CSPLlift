@@ -12,7 +12,7 @@ import de.fosd.typechef.typesystem.linker.{CInterface, InterfaceWriter, SystemLi
 object CModuleInterfaceGenerator extends App with InterfaceWriter {
 
     val startDir = args(0)
-    val out: String = args(0) + "CModuleInterface.interface"
+    val out: String = args(0) + "/CModuleInterface.interface"
     val featureModel_DIMACS: String = if (args.length > 3) args(1) else " "
 
     private def getFileTree(f: File): Stream[File] =
@@ -32,6 +32,8 @@ object CModuleInterfaceGenerator extends App with InterfaceWriter {
     println("Linked interface is well-formed:\t" + finalInterface.isWellformed)
 
     writeInterface(finalInterface, new File(out))
+
+    println("Written to:\t" + new File(out).getAbsolutePath)
 
     private def linkInterfaces(l: List[CInterface]): CInterface =
         l.par.reduceLeft { (left, right) =>

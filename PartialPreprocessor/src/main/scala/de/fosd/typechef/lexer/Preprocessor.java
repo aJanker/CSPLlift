@@ -155,7 +155,6 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
     PreprocessorListener listener;
 
     private List<MacroConstraint> macroConstraints = new ArrayList<MacroConstraint>();
-    private Map<VirtualFile, FeatureExpr> includedFileMap;
 
     public Preprocessor(MacroFilter macroFilter, FeatureModel fm) {
         this.featureModel = fm;
@@ -177,7 +176,6 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
         this.warnings = EnumSet.noneOf(Warning.class);
         this.filesystem = new JavaFileSystem();
         this.listener = null;
-        this.includedFileMap = new HashMap<VirtualFile, FeatureExpr>();
     }
 
     public Preprocessor() {
@@ -1533,20 +1531,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
             return false;
         if (getFeature(Feature.DEBUG_VERBOSE))
             System.err.println("pp: including " + file);
-
-		// include the file only if we have NOT already included the file under a condition
-		// which contains also the current condition
-        FeatureExpr condition = this.includedFileMap.get(file);
-        FeatureExpr currentCondition = this.state.getFullPresenceCondition();
-
-        if (condition == null) {
-            sourceManager.push_source(file.getSource(), true);
-            this.includedFileMap.put(file, currentCondition);
-        } else if (currentCondition.andNot(condition).isSatisfiable()) {
-            sourceManager.push_source(file.getSource(), true);
-            this.includedFileMap.put(file, currentCondition.or(condition));
-        }
-
+        sourceManager.push_source(file.getSource(), true);
         return true;
     }
 
@@ -1612,9 +1597,9 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
 
     private Token parse_include(boolean next) throws IOException,
             LexerException {
-        LexerSource lexerSource = (LexerSource) sourceManager.getSource();
+        LexerSource lexer = (LexerSource) sourceManager.getSource();
         try {
-            lexerSource.setInclude(true);
+            lexer.setInclude(true);
             processing_include = true;
             Token tok = getNextNonwhiteToken();
 
@@ -1626,7 +1611,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
                 /*
                      * XXX Use the original text, not the value. Backslashes must
                      * not be treated as escapes here.
-                     * PG: the above is no more needed, because the lexerSource does
+                     * PG: the above is no more needed, because the lexer does
                      * not handle backslashes as escapes when processing includes.
                      */
                 buf.append((String) tok.getValue());
@@ -1697,7 +1682,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
             name = buf.toString();
             processing_include = false;
             /* Do the inclusion. */
-            include(lexerSource.getPath(), tok.getLine(), name,
+            include(sourceManager.getSource().getPath(), tok.getLine(), name,
                     quoted, next);
 
             /*
@@ -1710,7 +1695,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
             return tok;
         } finally {
             processing_include = false;
-            lexerSource.setInclude(false);
+            lexer.setInclude(false);
         }
     }
 
