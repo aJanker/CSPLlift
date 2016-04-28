@@ -155,6 +155,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
     PreprocessorListener listener;
 
     private List<MacroConstraint> macroConstraints = new ArrayList<MacroConstraint>();
+    private Map<String, FeatureExpr> includedPragmaOnceFiles;
 
     public Preprocessor(MacroFilter macroFilter, FeatureModel fm) {
         this.featureModel = fm;
@@ -176,6 +177,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
         this.warnings = EnumSet.noneOf(Warning.class);
         this.filesystem = new JavaFileSystem();
         this.listener = null;
+        this.includedPragmaOnceFiles = new HashMap<String, FeatureExpr>();
     }
 
     public Preprocessor() {
@@ -1531,7 +1533,22 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
             return false;
         if (getFeature(Feature.DEBUG_VERBOSE))
             System.err.println("pp: including " + file);
-        sourceManager.push_source(file.getSource(), true);
+
+        if (this.includedPragmaOnceFiles.containsKey(file.getPath())) {
+            // This file has already been included once with the preprocessor directive #pragma once
+            // We include the file only if we have NOT already included the file under a condition
+            // which contains also the current condition
+            FeatureExpr condition = this.includedPragmaOnceFiles.get(file.getPath());
+            FeatureExpr currentCondition = this.state.getFullPresenceCondition();
+
+            if (currentCondition.andNot(condition).isSatisfiable())
+                sourceManager.push_source(file.getSource(), true);
+
+        } else {
+            sourceManager.push_source(file.getSource(), true);
+        }
+
+
         return true;
     }
 
@@ -1597,9 +1614,9 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
 
     private Token parse_include(boolean next) throws IOException,
             LexerException {
-        LexerSource lexer = (LexerSource) sourceManager.getSource();
+        LexerSource lexerSource = (LexerSource) sourceManager.getSource();
         try {
-            lexer.setInclude(true);
+            lexerSource.setInclude(true);
             processing_include = true;
             Token tok = getNextNonwhiteToken();
 
@@ -1611,7 +1628,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
                 /*
                      * XXX Use the original text, not the value. Backslashes must
                      * not be treated as escapes here.
-                     * PG: the above is no more needed, because the lexer does
+                     * PG: the above is no more needed, because the lexerSource does
                      * not handle backslashes as escapes when processing includes.
                      */
                 buf.append((String) tok.getValue());
@@ -1682,7 +1699,7 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
             name = buf.toString();
             processing_include = false;
             /* Do the inclusion. */
-            include(sourceManager.getSource().getPath(), tok.getLine(), name,
+            include(lexerSource.getPath(), tok.getLine(), name,
                     quoted, next);
 
             /*
@@ -1695,15 +1712,27 @@ public class Preprocessor extends DebuggingPreprocessor implements Closeable, VA
             return tok;
         } finally {
             processing_include = false;
-            lexer.setInclude(false);
+            lexerSource.setInclude(false);
         }
     }
 
     protected void pragma(Token nameTok, List<Token> value) throws IOException,
             LexerException {
         String pragmaName = nameTok.getText();
-        if (!"pack".equals(pragmaName))
+
+        // found directive #pragma once -> add the current file with the current condition to a map containing all headers
+        // already included with the directive #pragma once to avoid duplicate header inclusion
+        if (pragmaName.equalsIgnoreCase("once"))
+            updateIncludedPragmaOnceFiles(sourceManager.getSource().getPath(), this.state.getFullPresenceCondition());
+        else if (!"pack".equals(pragmaName))
             warning(nameTok, "Unknown #" + "pragma: " + pragmaName);
+    }
+
+    private void updateIncludedPragmaOnceFiles(String path, FeatureExpr condition) {
+        if (this.includedPragmaOnceFiles.containsKey(path))
+            this.includedPragmaOnceFiles.put(path, condition.or(this.includedPragmaOnceFiles.get(path)));
+        else
+            this.includedPragmaOnceFiles.put(path, condition);
     }
 
     private Token parse_pragma() throws IOException, LexerException {
