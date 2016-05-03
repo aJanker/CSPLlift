@@ -10,7 +10,7 @@ import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
 import de.fosd.typechef.spllift.analysis.Taint
 import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblem}
-import de.fosd.typechef.spllift.{CInterCFG, CSPLliftFrontend}
+import de.fosd.typechef.spllift.{CInterCFG, CSPLliftFrontend, DefaultCInterCFGOptions}
 import de.fosd.typechef.typesystem._
 
 object Frontend extends EnforceTreeHelper {
@@ -149,21 +149,16 @@ object Frontend extends EnforceTreeHelper {
             }
 
             if (ast != null) {
-
                 // some dataflow analyses require typing information
                 val ts = new CTypeSystemFrontend(ast, fullFM, opt) with CTypeCache with CDeclUse
 
-
-                /** I did some experiments with the TypeChef FeatureModel of Linux, in case I need the routines again, they are saved here. */
-                //Debug_FeatureModelExperiments.experiment(fm_ts)
-
                 if (opt.typecheck || opt.writeInterface || opt.typechecksa) {
-
                     stopWatch.start("typechecking")
                     println("#type checking")
                     ts.checkAST(printResults = true)
                     ts.errors.map(errorXML.renderTypeError)
                 }
+
                 if (opt.writeInterface) {
                     stopWatch.start("interfaces")
                     val interface = ts.getInferredInterface().and(opt.getFilePresenceCondition)
@@ -220,7 +215,10 @@ object Frontend extends EnforceTreeHelper {
                     stopWatch.start("spllift")
 
                     val spllift = CSPLliftFrontend
-                    val cInterCFG = new CInterCFG(ast, fullFM /*options*/)
+                    val cInterCFGOptions =
+                        if (opt.getCLinkingInterfacePath != null) new DefaultCInterCFGOptions(Some(opt.getCLinkingInterfacePath))
+                        else new DefaultCInterCFGOptions
+                    val cInterCFG = new CInterCFG(ast, fullFM, cInterCFGOptions)
                     val problem  = new InformationFlowProblem(cInterCFG)
 
                     stopWatch.start("spllift_solve")

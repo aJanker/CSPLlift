@@ -14,6 +14,12 @@ trait InterfaceWriter {
         stream.close()
     }
 
+    def writeExportInterface(interface: CInterface, file: File) {
+        val stream = new FileWriter(file)
+        scala.xml.XML.write(stream, exportInterfaceToXML(interface), "UTF-8", true, null)
+        stream.close()
+    }
+
 
     def debugInterface(interface: CInterface, file: File) {
         val stream = new FileWriter(file)
@@ -48,6 +54,19 @@ trait InterfaceWriter {
         else new FeatureExprParser().parse(txt)
     }
 
+    def exportInterfaceToXML(int: CInterface): xml.Elem =
+        <interface>
+            <featuremodel>
+                {int.featureModel.toTextExpr}
+            </featuremodel>{int.importedFeatures.map(x => <feature>
+            {x}
+        </feature>)}{int.declaredFeatures.map(x => <newfeature>
+            {x}
+        </newfeature>)}{int.exports.map(x => <export>
+            {signatureToXML(x)}
+        </export>)}
+        </interface>
+
     def interfaceToXML(int: CInterface): xml.Elem =
         <interface>
             <featuremodel>
@@ -62,7 +81,6 @@ trait InterfaceWriter {
             {signatureToXML(x)}
         </export>)}
         </interface>
-
 
     def signatureToXML(sig: CSignature): xml.Elem =
         <sig>

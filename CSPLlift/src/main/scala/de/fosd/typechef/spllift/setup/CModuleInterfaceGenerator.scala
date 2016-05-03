@@ -27,23 +27,27 @@ object CModuleInterfaceGenerator extends App with InterfaceWriter {
 
     val interfaces = fileList.par.map(f => SystemLinker.linkStdLib(readInterface(f))).toList
 
+    println("Loaded interfaces")
+
     val finalInterface = linkInterfaces(interfaces) //.packWithOutElimination //.andFM(fm_constraints)
 
     println("Linked interface is well-formed:\t" + finalInterface.isWellformed)
 
-    writeInterface(finalInterface, new File(out))
+    writeExportInterface(finalInterface, new File(out))
 
     println("Written to:\t" + new File(out).getAbsolutePath)
 
     private def linkInterfaces(l: List[CInterface]): CInterface =
-        l.par.reduceLeft { (left, right) =>
+        l.reduceLeft { (left, right) =>
             val conflicts = left getConflicts right
 
             for (c <- conflicts; if !c._2.isTautology(fm)) yield println(c + " is not a tautology in feature model.")
 
-            if (!(left isCompatibleTo right)) {
+             if (!(left isCompatibleTo right)) {
                 println(conflicts + " is not compatible with feature model.")
-                left
-            } else left linkWithOutElimination right
+                // left
+            }
+
+            left debug_join right
         }
 }

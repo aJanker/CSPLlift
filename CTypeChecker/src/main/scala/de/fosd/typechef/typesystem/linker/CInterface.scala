@@ -1,11 +1,9 @@
 package de.fosd.typechef.typesystem.linker
 
-import de.fosd.typechef.featureexpr.FeatureExprFactory.{True, False}
-import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExprFactory, FeatureExpr}
-import de.fosd.typechef.typesystem._
 import de.fosd.typechef.error.Position
-import de.fosd.typechef.typesystem.CSigned
-import de.fosd.typechef.typesystem.CInt
+import de.fosd.typechef.featureexpr.FeatureExprFactory.{False, True}
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
+import de.fosd.typechef.typesystem.{CInt, CSigned, _}
 
 
 /**
@@ -239,7 +237,7 @@ case class CInterface(
             this.declaredFeatures ++ that.declaredFeatures,
             this.imports ++ that.imports,
             this.exports ++ that.exports
-        )
+        ).packWithOutElimination(LINK_NAMEONLY)
 
 
     /**
