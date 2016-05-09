@@ -5,6 +5,7 @@ import java.util
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.spllift.commons.CInterCFGCommons
 import de.fosd.typechef.spllift.ifdsproblem._
 import heros.FlowFunction
 

@@ -114,6 +114,7 @@ object Frontend extends EnforceTreeHelper {
             println("loading AST.")
             try {
             ast = loadSerializedAST(opt.getSerializedASTFilename)
+            println("stop")
             ast = prepareAST[TranslationUnit](ast)
             } catch {
                 case e: Throwable => println(e.toString);e.printStackTrace(); ast=null

@@ -6,7 +6,8 @@ import java.util.Collections
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.{CInterCFG, CInterCFGCommons, CInterCFGPseudoVistingSystemLibFunctions}
+import de.fosd.typechef.spllift.commons.CInterCFGCommons
+import de.fosd.typechef.spllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
 
@@ -109,7 +110,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                 case i: Id => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
                                 case PointerCreationExpr(i: Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
                                 case PointerDerefExpr(i: Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
-                                case missed => throw new IllegalArgumentException("No rule defined for converting expression to parameter mapping: " + missed)
+                                case c:  Constant => Option(Opt(currentParameterMatchCondition, (Id("constant"), currentFDefParameter.entry.decl.getId)))
+                                case s: SizeOfExprU => Option(Opt(currentParameterMatchCondition, (Id("sizeU"), currentFDefParameter.entry.decl.getId)))
+                                case missed => throw new IllegalArgumentException("No rule defined for converting expression to parameter mapping: " + missed + "\n" + callStmt)
                             }
                         else None
 

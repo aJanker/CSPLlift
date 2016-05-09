@@ -7,6 +7,7 @@ import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.spllift.commons.CInterCFGCommons
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
@@ -153,6 +154,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 }
             }
 
+        println("callees for: " + call)
+        callees.foreach(f => println(f.entry.getName + "\t" + f.entry.getFile + "\t" + f.condition))
         asJavaIdentitySet(callees.reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
     }
 

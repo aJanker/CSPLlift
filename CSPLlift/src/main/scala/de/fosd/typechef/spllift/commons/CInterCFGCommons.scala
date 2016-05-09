@@ -1,4 +1,4 @@
-package de.fosd.typechef.spllift
+package de.fosd.typechef.spllift.commons
 
 import java.util
 
@@ -7,7 +7,7 @@ import de.fosd.typechef.parser.c.{AST, ASTNavigation, ConditionalNavigation}
 
 import scala.collection.JavaConverters._
 
-trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation {
+trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation with TUnitRewriteRules {
 
     def getFileName(originalFilePath: Option[String]): Option[String] =
         originalFilePath match {

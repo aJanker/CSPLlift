@@ -25,17 +25,21 @@ object CModuleInterfaceGenerator extends App with InterfaceWriter {
         if (new File(featureModel_DIMACS).isFile) FeatureExprFactory.default.featureModelFactory.createFromDimacsFilePrefix(featureModel_DIMACS, "")
         else FeatureExprFactory.default.featureModelFactory.empty
 
-    val interfaces = fileList.par.map(f => SystemLinker.linkStdLib(readInterface(f))).toList
+    val interfaces = fileList.par.map(f => {
+        val interface = SystemLinker.linkStdLib(readInterface(f))
+        // interface.exports.map(sig => sig.copy(p))
+        interface
+    }).toList
 
-    println("Loaded interfaces")
+    println("#Loaded interfaces:\t" + interfaces.size)
 
     val finalInterface = linkInterfaces(interfaces) //.packWithOutElimination //.andFM(fm_constraints)
 
-    println("Linked interface is well-formed:\t" + finalInterface.isWellformed)
+    println("#Linked interface is well-formed:\t" + finalInterface.isWellformed)
 
     writeExportInterface(finalInterface, new File(out))
 
-    println("Written to:\t" + new File(out).getAbsolutePath)
+    println("#Linked interface written to:\t" + new File(out).getAbsolutePath)
 
     private def linkInterfaces(l: List[CInterface]): CInterface =
         l.reduceLeft { (left, right) =>
