@@ -7,7 +7,7 @@ import de.fosd.typechef.parser.c.{AST, ASTNavigation, ConditionalNavigation}
 
 import scala.collection.JavaConverters._
 
-trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation with TUnitRewriteRules {
+trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation with TUnitRewriteEngine {
 
     def getFileName(originalFilePath: Option[String]): Option[String] =
         originalFilePath match {

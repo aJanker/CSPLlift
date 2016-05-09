@@ -6,12 +6,12 @@ import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
+import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.commons.CInterCFGCommons
-import de.fosd.typechef.typesystem._
 import de.fosd.typechef.typesystem.linker.CModuleInterface
+import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 
 import scala.collection.JavaConversions._
 
@@ -82,138 +82,26 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             case _ => None
         }
 
-    val startTUnit = add(initialTUnit)
+    val startTUnit = addToCache(initialTUnit)
 
     override def prepareAST[T <: Product](t: T): T = {
-        var tunit = super.prepareAST(t).asInstanceOf[AST]
-        tunit = rewriteFunctionCallsInReturns(tunit)
-        println("insert")
-        println(PrettyPrinter.print(tunit))
-        rewriteNestedFunctionCalls(tunit).asInstanceOf[T]
-    }
-
-    /**
-      * Rewrites all function calls nested in return statements from:
-      *     return foo(x);
-      * to:
-      *     type tmp = foo(x);
-      *     return tmp;
-      */
-    private def rewriteFunctionCallsInReturns(tunit: AST): AST = {
-        val allReturnStatementsWithFunctionCall =
-            filterAllASTElems[ReturnStatement](tunit).filter {
-                filterAllASTElems[de.fosd.typechef.parser.c.FunctionCall](_).nonEmpty
-            }
-
-        if (allReturnStatementsWithFunctionCall.isEmpty) return tunit
-
-        var tmpCount = 0
-
-        val ts = new CTypeSystemFrontend(tunit.asInstanceOf[TranslationUnit], fm) with CTypeCache with CDeclUse
-        ts.checkASTSilent
-
-        def extractExprFromReturnStatement(r: Opt[ReturnStatement]): List[Opt[Statement]] = {
-            val tmpSpecifiers = getExprTypeSpecifiers(Opt(r.condition, r.entry.expr.get), ts)
-            val tmpName = "__SPLLIFT" + tmpCount
-            val tmpNameDeclarator = AtomicNamedDeclarator(List(), Id(tmpName), List())
-            val tmpInitializer = Some(Initializer(None, r.entry.expr.get))
-            val tmpInitDeclarator = List(Opt(r.condition, InitDeclaratorI(tmpNameDeclarator, List(), tmpInitializer)))
-
-            val tmpDeclartion = Opt(r.condition, DeclarationStatement(Declaration(tmpSpecifiers, tmpInitDeclarator)))
-
-            tmpCount += 1
-            List(tmpDeclartion, r.copy(entry = r.entry.copy(expr = Some(Id(tmpName)))))
-        }
-
-        allReturnStatementsWithFunctionCall.foldLeft(tunit) {
-            (currentTUnit, returnStatementWithFCall) => {
-                val env = CASTEnv.createASTEnv(currentTUnit)
-                returnStatementWithFCall match {
-                    case r@ReturnStatement(Some(expr)) => {
-                        val cc = findPriorASTElem[CompoundStatement](r, env)
-                        if (cc.isEmpty) return currentTUnit // return not part of a compound statement -> can not rewrite
-
-                        val parent = parentOpt(r, env).asInstanceOf[Opt[ReturnStatement]]
-                        val returnReplacement = extractExprFromReturnStatement(parent)
-                        val ccReplacement = replaceStmtWithStmtsListInCCStmt(cc.get, parent, returnReplacement)
-
-                        replace(currentTUnit, cc.get, ccReplacement)
-                    }
-                    case _ => currentTUnit
-                }
-            }
-        }
-    }
-
-    private def getExprTypeSpecifiers(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {
-        def aTypeToASTTypeSpecifier(a: AType, condition: FeatureExpr = FeatureExprFactory.True): List[Opt[TypeSpecifier]] =
-            a match {
-                case CSigned(b) => Opt(condition, SignedSpecifier()) :: basicTypeToASTTypeSpecifier(b, condition)
-                case CUnsigned(b) => Opt(condition, UnsignedSpecifier()) :: basicTypeToASTTypeSpecifier(b, condition)
-                case CSignUnspecified(b) => basicTypeToASTTypeSpecifier(b, condition)
-                case CBool() => List(Opt(condition, IntSpecifier()))
-                case CDouble() => List(Opt(condition, DoubleSpecifier()))
-                case CFloat() => List(Opt(condition, FloatSpecifier()))
-                case CLongDouble() => List(Opt(condition, LongSpecifier()), Opt(condition, DoubleSpecifier()))
-                case CPointer(t) => aTypeToASTTypeSpecifier(t, condition)
-                case CStruct(name, isUnion) => List(Opt(condition, StructOrUnionSpecifier(isUnion, Some(Id(name)), None, List(), List())))
-                case CVoid() | CZero() => List(Opt(condition, VoidSpecifier()))
-                case missed =>
-                    scala.Console.err.println("No atype definiton found for " + missed + "!")
-                    List(Opt(condition, VoidSpecifier()))
-            }
-
-        def basicTypeToASTTypeSpecifier(b: CBasicType, condition: FeatureExpr = FeatureExprFactory.True): List[Opt[TypeSpecifier]] =
-            b match {
-                case CChar() => List(Opt(condition, CharSpecifier()))
-                case CLongLong() => List(Opt(condition, LongSpecifier()), Opt(condition, LongSpecifier()))
-                case CLong() => List(Opt(condition, LongSpecifier()))
-                case CInt128() => List(Opt(condition, Int128Specifier()))
-                case CInt() => List(Opt(condition, IntSpecifier()))
-                case CShort() => List(Opt(condition, ShortSpecifier()))
-            }
-
-        ts.lookupExprType(expr.entry).toOptList.flatMap(t => aTypeToASTTypeSpecifier(t.entry.atype, t.condition.and(expr.condition)))
-    }
-
-    private def rewriteNestedFunctionCalls[T <: Product](tunit: T): T = {
-        val nestedFunctionCalls = getNestedFunctionCalls(tunit)
-
-        if (nestedFunctionCalls.isEmpty) return tunit
-
-        var tmpCounter = 0;
-
-        println(PrettyPrinter.print(tunit.asInstanceOf[TranslationUnit]))
-
-        val ts = new CTypeSystemFrontend(tunit.asInstanceOf[TranslationUnit], fm) with CTypeCache with CDeclUse
-        val env = CASTEnv.createASTEnv(tunit)
-        ts.checkASTSilent
-
-        nestedFunctionCalls.map(f => {
-            val nestedOptCalls = filterAllASTElems[PostfixExpr](f).reverse.map(parentOpt(_, env))
-            val optOfCall = parentOpt(f, env)
-            nestedOptCalls.foreach(l =>
-                println("dbg: " + getExprTypeSpecifiers(l.asInstanceOf[Opt[Expr]], ts) + " " + PrettyPrinter.print(l.entry.asInstanceOf[AST])))
-        })
+        var tunit = super.prepareAST(t.asInstanceOf[TranslationUnit])
+        tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
+        tunit = rewriteNestedFunctionCalls(tunit, fm)
 
         println(tunit)
 
-        tunit
+        println(PrettyPrinter.print(tunit))
 
-    }
-
-    private def getNestedFunctionCalls[T <: Product](tunit: T): List[de.fosd.typechef.parser.c.FunctionCall] = {
-        val fCalls = filterASTElems[de.fosd.typechef.parser.c.FunctionCall](tunit).filter(fCall => {
-            filterAllASTElems[de.fosd.typechef.parser.c.FunctionCall](fCall.params).nonEmpty
-        })
-
-        fCalls
-    }
-
-    def add(_tunit: TranslationUnit): TranslationUnit = {
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
-        val pTunit = prepareAST(_tunit)
-        val tunit = if (options.pseudoVisitingSystemLibFunctions) pTunit.copy(defs = PSEUDO_SYSTEM_FUNCTION_CALL :: pTunit.defs) else pTunit
+        tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit
+        tunit.asInstanceOf[T]
+    }
+
+    private def addToCache(_tunit: TranslationUnit): TranslationUnit = {
+        println("#inital tasks for new translation unit started... ")
+
+        val tunit = prepareAST(_tunit)
 
         val env = CASTEnv.createASTEnv(tunit)
         val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
@@ -221,6 +109,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         updateCaches(tunit, env, ts)
         updatePointerEquivalenceRelations
+
+        println("#inital tasks for new translation unit finished.")
 
         tunit
     }
@@ -277,9 +167,9 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             val tunit = fr.readObject().asInstanceOf[TranslationUnit]
             fr.close()
 
-            Some(add(tunit))
+            Some(addToCache(tunit))
         } catch {
-            case e: ObjectStreamException => System.err.println("failed loading serialized AST: " + e.getMessage); None
+            case e: ObjectStreamException => System.err.println("#failed loading serialized AST: " + e.getMessage); None
         }
     }
 

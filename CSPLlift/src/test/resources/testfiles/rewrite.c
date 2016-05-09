@@ -7,7 +7,6 @@ long foo(int i, long j) {
 }
 
 int bar(int z) {
-    int list = bar(z);
     return bar(z);
 }
 
@@ -15,7 +14,6 @@ int inner(int value) {
     int res = value + 1;
     return res;
 }
-
 
 int main() {
     int *point;
@@ -31,7 +29,7 @@ int main() {
     #ifdef A
     )
     #endif
-    , li);
+    , inner(mj));
 
     return 0;
 }
