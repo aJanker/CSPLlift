@@ -16,7 +16,7 @@ trait KiamaRewritingRules {
         r(t).getOrElse(t).asInstanceOf[T]
     }
 
-    def instertStmtListBeforeStmt(c: CompoundStatement, e: Opt[Statement], n: List[Opt[Statement]]): CompoundStatement = {
+    def insertStmtListBeforeStmt(c: CompoundStatement, e: Opt[Statement], n: List[Opt[Statement]]): CompoundStatement = {
         val r = oncetd(rule[Any] {
             case l: List[_] =>
                 l.flatMap(x =>
@@ -154,10 +154,13 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
             val cc = findPriorASTElem[CompoundStatement](r._1, env)
             val stmt = findPriorASTElem[Statement](r._1, env)
 
-            if (cc.isEmpty || stmt.isEmpty) return t // return not part of a compound statement -> can not rewrite
+            if (cc.isEmpty || stmt.isEmpty) {
+                Console.err.println("Warning: function rewrite rule may not by exhaustive for:\t" + r._1)
+                return t
+            } // return not part of a compound statement -> can not rewrite
 
             val parent = parentOpt(stmt.get, env).asInstanceOf[Opt[Statement]]
-            val ccReplacement = instertStmtListBeforeStmt(cc.get, parent, r._3)
+            val ccReplacement = insertStmtListBeforeStmt(cc.get, parent, r._3)
 
             val tmp = replace(t, cc.get, ccReplacement)
             replace(tmp, r._1, r._2)

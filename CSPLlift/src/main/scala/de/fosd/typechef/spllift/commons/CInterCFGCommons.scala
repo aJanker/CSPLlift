@@ -13,9 +13,9 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
         originalFilePath match {
             case None => None
             case Some(path) => Some(getPlainFileNameS(path))
-                /*if (path.contains(File.separatorChar))
-                    Some(path.substring(path.lastIndexOf(File.separatorChar), path.length).replace("/", ""))
-                else Some(path) */
+            /*if (path.contains(File.separatorChar))
+                Some(path.substring(path.lastIndexOf(File.separatorChar), path.length).replace("/", ""))
+            else Some(path) */
         }
 
     def getPlainFileName(ast: AST, default: String = "NOFILENAME_AST"): String = getPlainFileNameS(ast.getFile.getOrElse(default))
@@ -32,8 +32,8 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
     /*
      * Creates a java "IdentitySet" as normal java set implementation would remove equal but not identical objects like return statements
      */
-    def asJavaIdentitySet[T](c: Seq[_ <: T]) : java.util.Set[T] = asJavaIdentitySet(c.asJava)
-    def asJavaIdentitySet[T](c: util.Collection[_ <: T]) : java.util.Set[T] = {
+    def asJavaIdentitySet[T](c: Seq[_ <: T]): java.util.Set[T] = asJavaIdentitySet(c.asJava)
+    def asJavaIdentitySet[T](c: util.Collection[_ <: T]): java.util.Set[T] = {
         val res = java.util.Collections.newSetFromMap(new util.IdentityHashMap[T, java.lang.Boolean](c.size))
         res.addAll(c)
         res

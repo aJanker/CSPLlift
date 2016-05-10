@@ -9,7 +9,7 @@ import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.commons.CInterCFGCommons
+import de.fosd.typechef.spllift.commons.{CInterCFGCommons, StopWatch}
 import de.fosd.typechef.typesystem.linker.CModuleInterface
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 
@@ -89,28 +89,28 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
 
-        println(tunit)
-
-        println(PrettyPrinter.print(tunit))
-
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
         tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit
         tunit.asInstanceOf[T]
     }
 
     private def addToCache(_tunit: TranslationUnit): TranslationUnit = {
-        println("#inital tasks for new translation unit started... ")
+        println("#preparation tasks for newly loaded translation unit started... ")
 
-        val tunit = prepareAST(_tunit)
+        var tunit : TranslationUnit = _tunit
 
-        val env = CASTEnv.createASTEnv(tunit)
-        val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
-        ts.checkAST()
+        val (time, _) = StopWatch.measure({
+            tunit = prepareAST(_tunit)
 
-        updateCaches(tunit, env, ts)
-        updatePointerEquivalenceRelations
+            val env = CASTEnv.createASTEnv(tunit)
+            val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
+            ts.checkAST()
 
-        println("#inital tasks for new translation unit finished.")
+            updateCaches(tunit, env, ts)
+            updatePointerEquivalenceRelations
+        })
+
+        println("#preparation tasks for newly loaded translation unit finished in " + time + "ms")
 
         tunit
     }

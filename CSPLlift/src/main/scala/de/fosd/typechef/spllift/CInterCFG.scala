@@ -154,9 +154,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 }
             }
 
-        println("callees for: " + call)
-        callees.foreach(f => println(f.entry.getName + "\t" + f.entry.getFile + "\t" + f.condition))
-        asJavaIdentitySet(callees.reverse) // Reverse resulting callee list as inner functions are visited first (e.g. outerfunction(innerfunction(x));)
+        asJavaIdentitySet(callees.reverse)
     }
 
     /**

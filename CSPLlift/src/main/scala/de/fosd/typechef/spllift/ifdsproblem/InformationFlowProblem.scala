@@ -134,6 +134,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     case _ => None
                 }
 
+                println(callExprs)
                 val callParamToFDefParams = mapCallParamToFDefParam(callExprs, fDefParams)
 
                 new FlowFunction[InformationFlow] {
