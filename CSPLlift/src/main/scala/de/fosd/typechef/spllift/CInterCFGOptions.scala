@@ -11,6 +11,14 @@ trait CInterCFGOptions {
 
   def getGraphEntryFunctionNames: List[String] = List("main")
 
+  /*
+   * If enabled, now warnings for discovered type errors are shown.
+   */
+  def silentTypeCheck : Boolean = true
+
+  /*
+   * Sets the option if in our analysis system functions should be visited or ignored.
+   */
   def pseudoVisitingSystemLibFunctions : Boolean
 }
 

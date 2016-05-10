@@ -134,12 +134,17 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     case _ => None
                 }
 
-                def matchCallParamsToDefParams(callParams : List[Opt[Expr]], defParams : List[Opt[ParameterDeclarationD]]) = {
+                def matchCallParamsToDefParams[T,U](callParams : List[Opt[T]], defParams : List[Opt[U]]): List[(List[Opt[T]], List[Opt[U]])] = {
+                    val callPs = groupOptListVAware(callParams, interproceduralCFG.getFeatureModel)
+                    val defPs = groupOptListVAware(defParams, interproceduralCFG.getFeatureModel)
 
+                    if (callPs.size != defPs.size) {
+                        Console.err.println("Call and function parameter sizes does not match for: " + fCallOpt)
+                        List()
+                    } else callPs zip defPs
                 }
 
-                println(groupVAware(callExprs, interproceduralCFG.getFeatureModel))
-                println(groupVAware(fDefParams, interproceduralCFG.getFeatureModel))
+                println(matchCallParamsToDefParams(callExprs, fDefParams))
 
                 val callParamToFDefParams = mapCallParamToFDefParam(callExprs, fDefParams)
 

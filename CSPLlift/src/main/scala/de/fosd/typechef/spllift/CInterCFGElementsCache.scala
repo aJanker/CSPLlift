@@ -108,7 +108,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
 
             StopWatch.measure("typecheck", {
-                ts.checkAST()
+                ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
             updateCaches(tunit, env, ts)

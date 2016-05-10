@@ -1,4 +1,4 @@
-long foo(int i, long j) {
+int foo(int i, long j) {
     long result;
 
     result = i + j;
@@ -18,10 +18,10 @@ int inner(int value) {
 int main() {
     int *point;
     int mi = 5;
-    int mj = inner(2);
+    int mj = inner(2 + mi);
     long li = 10l;
 
-    long test = foo(
+    *point = foo(
     #ifdef A
     bar(
     #endif

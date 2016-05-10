@@ -41,27 +41,27 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
         res
     }
 
-    def groupVAware(l : List[Opt[_]], fm: FeatureModel) : List[List[Opt[_]]] = {
+    def groupOptListVAware[T](l : List[Opt[T]], fm: FeatureModel) : List[List[Opt[T]]] = {
         if (l.isEmpty) return List()
 
-        var pos : List[Opt[_]] = List(l.head)
-        var res: List[List[Opt[_]]] = List()
-        var combCtx: FeatureExpr = l.head.condition
+        var group : List[Opt[T]] = List(l.head)
+        var groups: List[List[Opt[T]]] = List()
+        var combinedCondition: FeatureExpr = l.head.condition
 
-        for (celem <- l.drop(1)) {
-            val selemfexp = combCtx.and(celem.condition)
+        for (curr <- l.drop(1)) {
+            val groupCondition = combinedCondition.and(curr.condition)
 
-            if (selemfexp.isContradiction(fm)) pos = celem :: pos
-            else if (selemfexp.isTautology(fm)) {
-                res = pos.reverse :: res
-                pos = List(celem)
-            } else pos = celem :: pos
+            if (groupCondition.isContradiction(fm)) group = curr :: group
+            else if (groupCondition.isTautology(fm)) {
+                groups = group.reverse :: groups
+                group = List(curr)
+            } else group = curr :: group
 
             // add current feature expression as it might influence the addition of selem for
             // the remaining elements of l
-            combCtx = combCtx.or(celem.condition)
+            combinedCondition = combinedCondition.or(curr.condition)
         }
 
-        (pos.reverse :: res).reverse
+        (group.reverse :: groups).reverse
     }
 }
