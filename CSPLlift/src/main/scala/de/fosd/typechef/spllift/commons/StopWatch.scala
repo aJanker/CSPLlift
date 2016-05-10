@@ -1,5 +1,6 @@
 package de.fosd.typechef.spllift.commons
 
+import java.io.{StringWriter, Writer}
 import java.lang.management.ManagementFactory
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
@@ -28,7 +29,7 @@ object StopWatch {
         (TimeUnit.NANOSECONDS.toMillis(t1 - t0), result)
     }
 
-    def measure[R](checkpoint : String, block: => R): (Long, R) = {
+    def measure[R](checkpoint: String, block: => R): (Long, R) = {
         val key = (genId(), checkpoint)
         val (time, result) = measure(block)
         times.put(key, time)
@@ -37,17 +38,23 @@ object StopWatch {
 
     def get(period: String): Long = times.asScala.find(_._1._2 equals period).map(_._2).getOrElse(-1)
 
-    override def toString = {
-        var res = "#stopwatch timings "
-        val swItems = times.asScala.toList.sortBy(_._1._1)
+    def getMeasurements: List[(String, Long)] = times.asScala.toList.sortBy(_._1._1).map(x => (x._1._2, x._2))
 
-        if (swItems.size > 0) {
-            res = res + "("
-            res = res + swItems.map(_._1._2).reduce(_ + ", " + _)
-            res = res + ")\n"
-            res = res + swItems.map(_._2.toString).reduce(_ + ";" + _)
+    def toCSV: String = toCSV(new StringWriter()).toString
+    def toCSV(writer: Writer, delimiter: String = ";"): Writer = {
+        val items = getMeasurements
+        if (items.nonEmpty) {
+            writer.append(items.map(_._1).mkString(delimiter))
+            writer.append("\n")
+            writer.append(items.map(_._2.toString).mkString(delimiter))
         }
-        res
+        writer
     }
 
+    override def toString = print(new StringWriter()).toString
+    def print(writer: Writer): Writer = {
+        val items = getMeasurements
+        if (items.nonEmpty) writer.append("#stopwatch timings:\n")
+        items.foldLeft(writer) { (w, i) => w.append("\n(" + i._1 + "\t" + i._2 + ")") }
+    }
 }

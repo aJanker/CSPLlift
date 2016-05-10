@@ -97,14 +97,19 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private def addToCache(_tunit: TranslationUnit): TranslationUnit = {
         println("#preparation tasks for newly loaded translation unit started... ")
 
-        var tunit : TranslationUnit = _tunit
+        var tunit: TranslationUnit = _tunit
 
-        val (time, _) = StopWatch.measure({
-            tunit = prepareAST(_tunit)
+        val (time, _) = StopWatch.measure("tunit_completePreparation", {
+            StopWatch.measure("tunit_rewriting", {
+                tunit = prepareAST(_tunit)
+            })
 
             val env = CASTEnv.createASTEnv(tunit)
             val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
-            ts.checkAST()
+
+            StopWatch.measure("typecheck", {
+                ts.checkAST()
+            })
 
             updateCaches(tunit, env, ts)
             updatePointerEquivalenceRelations
@@ -121,8 +126,10 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
     }
     private def updatePointerEquivalenceRelations = {
-        val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
-        cPointerEqRelation = cPointerEQAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
+        StopWatch.measure("pointsToAnalysis", {
+            val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
+            cPointerEqRelation = cPointerEQAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
+        })
     }
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
 
