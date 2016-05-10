@@ -40,7 +40,8 @@ object StopWatch {
 
     def getMeasurements: List[(String, Long)] = times.asScala.toList.sortBy(_._1._1).map(x => (x._1._2, x._2))
 
-    def toCSV: String = toCSV(new StringWriter()).toString
+    def toCSV: String = toCSV(";")
+    def toCSV(delimiter: String): String = toCSV(new StringWriter(), delimiter).toString
     def toCSV(writer: Writer, delimiter: String = ";"): Writer = {
         val items = getMeasurements
         if (items.nonEmpty) {
