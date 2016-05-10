@@ -18,7 +18,7 @@ int inner(int value) {
 int main() {
     int *point;
     int mi = 5;
-    int mj = 2;
+    int mj = inner(2);
     long li = 10l;
 
     long test = foo(

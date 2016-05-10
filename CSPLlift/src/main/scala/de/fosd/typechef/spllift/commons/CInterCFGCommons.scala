@@ -2,7 +2,9 @@ package de.fosd.typechef.spllift.commons
 
 import java.util
 
+import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.UsedDefinedDeclaredVariables
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{AST, ASTNavigation, ConditionalNavigation}
 
 import scala.collection.JavaConverters._
@@ -37,5 +39,29 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
         val res = java.util.Collections.newSetFromMap(new util.IdentityHashMap[T, java.lang.Boolean](c.size))
         res.addAll(c)
         res
+    }
+
+    def groupVAware(l : List[Opt[_]], fm: FeatureModel) : List[List[Opt[_]]] = {
+        if (l.isEmpty) return List()
+
+        var pos : List[Opt[_]] = List(l.head)
+        var res: List[List[Opt[_]]] = List()
+        var combCtx: FeatureExpr = l.head.condition
+
+        for (celem <- l.drop(1)) {
+            val selemfexp = combCtx.and(celem.condition)
+
+            if (selemfexp.isContradiction(fm)) pos = celem :: pos
+            else if (selemfexp.isTautology(fm)) {
+                res = pos.reverse :: res
+                pos = List(celem)
+            } else pos = celem :: pos
+
+            // add current feature expression as it might influence the addition of selem for
+            // the remaining elements of l
+            combCtx = combCtx.or(celem.condition)
+        }
+
+        (pos.reverse :: res).reverse
     }
 }

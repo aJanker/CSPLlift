@@ -112,7 +112,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             })
 
             updateCaches(tunit, env, ts)
-            updatePointerEquivalenceRelations
+            calculatePointerEquivalenceRelations
         })
 
         println("#preparation tasks for newly loaded translation unit finished in " + time + "ms")
@@ -125,7 +125,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         envToTS.put(env, ts)
         fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
     }
-    private def updatePointerEquivalenceRelations = {
+    private def calculatePointerEquivalenceRelations = {
         StopWatch.measure("pointsToAnalysis", {
             val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
             cPointerEqRelation = cPointerEQAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
