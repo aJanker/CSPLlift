@@ -14,7 +14,7 @@ object CSPLliftFrontend {
 
     def solve[D](problem: IFDSTabulationProblem[Opt[AST], D, Opt[FunctionDef], CInterCFG], fmContext: FeatureModelContext = new FeatureModelContext()): List[util.Map[D, Constraint[String]]] = {
 
-        val (_, solver) = StopWatch.measureUserTime("spllift_init", {new SPLIFDSSolver(problem, fmContext, false)})
+        val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fmContext, false)})
         StopWatch.measureWallTime("spllift_solve", {solver.solve()})
 
         solver.getAllResults.asScala.toList

@@ -156,13 +156,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 }
             }
 
-        /*if (callees.size == 1 && callees.head.entry.getName.equals("foo")) {
-            println(callees.head)
-            println(callees.head.hashCode())
-            println(System.identityHashCode(callees.head))
-            println("hit")
-        } */
-
         asJavaIdentitySet(callees.reverse)
     }
 

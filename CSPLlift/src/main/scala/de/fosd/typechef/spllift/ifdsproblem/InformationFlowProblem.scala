@@ -159,16 +159,13 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
                 val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
 
-                println(fCallParamsToFDefParams)
-
-
                 new InfoFlowFunction(callStmt, destinationMethod) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
-                            val dbg = flowFact match {
+                            flowFact match {
                                 case v@VarSource(x, _, _, global) =>
                                     val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam =>
                                         uses(callParamToDefParam._1).exists(
-                                            use => use.name.equalsIgnoreCase(x.entry.name) && isImplication(use, x)))
+                                            use => use.name.equalsIgnoreCase(x.entry.name) && isImplication(x, Opt(callEnv.featureExpr(use), use))))
 
                                     val res = callParamMatches.flatMap(callParamMatch => {
                                         callParamMatch._1.foldLeft(List[InformationFlow]())((genSrc, expr) => {
@@ -180,7 +177,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                             })
                                         })
                                     })
-
                                     if (callParamMatches.isEmpty && global.isDefined) GEN(v) else GEN(res)
                                 case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s.copy(name = s.name.and(flowCondition))) // TODO
                                 case z: Zero if !initialSeedsExists(destinationMethod.entry) =>
@@ -192,18 +188,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                 case r: Reach => KILL
                                 case _ => default
                             }
-                        val resdbg = dbg.asScala.toList.filter({
-                            case s@VarSource(id, _, _, _)  => true
-                            case _ => false
-                        })
-
-                        if (resdbg.nonEmpty) {
-
-                            println()
-                            println(resdbg)
-                            println("call")
-                        }
-                        dbg
                         }
 
                     // map all constants and add the current flow condition to the zero value for the next target computations
