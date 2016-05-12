@@ -61,8 +61,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
-    private var allNodes : List[Opt[AST]] = List()
-
     override val cInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
     override def getEntryFunctions =
@@ -147,11 +145,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             if (calleeNames.nonEmpty) calleeNames.flatMap(findCallees(_, getTUnit(call)))
             else {
                 filterAllASTElems[PostfixExpr](call).flatMap {
-                    case PostfixExpr(pointer, FunctionCall(_)) => {
+                    case PostfixExpr(pointer, FunctionCall(_)) =>
                         val names = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
                         val found = names.flatMap(findCallees(_, getTUnit(call)))
                         found
-                    }
                     case _ => None
                 }
             }
@@ -201,11 +198,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns the successor nodes.
       */
-    override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = {
-        val succs = getSuccsOfS(stmt)
-        allNodes :::= succs
-        getSuccsOfS(stmt).asJava
-    }
+    override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = getSuccsOfS(stmt).asJava
 
     private def getSuccsOfS(stmt: Opt[AST]): List[Opt[AST]] =
         succ(stmt.entry, getASTEnv(stmt)).filter {
@@ -240,9 +233,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             !(isCallStmt(node) || isStartPoint(node))
         }
         val allNonCallStartNodes = cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode}
-        val result = allNodes filter {node => nonCallStartNode(node.entry)}
-        println(result)
-        asJavaIdentitySet(result)
+        asJavaIdentitySet(allNonCallStartNodes.map(getPresenceNode))
     }
 
     /**
