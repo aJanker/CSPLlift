@@ -8,6 +8,7 @@ import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.Taint
+import de.fosd.typechef.spllift.commons.StopWatch
 import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
 import org.scalatest.Matchers
 import soot.spl.ifds.Constraint
@@ -31,16 +32,21 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
     val testfileDir = "testfiles/"
 
     def defaultTestInit(filename: String, isSink: Reach => Boolean, cModuleInterfacePath : Option[String] = None) = {
+        StopWatch.reset()
+
         val tunit = parseTUnitFromFile(filename)
 
         val cInterCFG = new CInterCFG(tunit, BDDFeatureModel.empty, new DefaultCInterCFGOptions(cModuleInterfacePath))
         val problem = new InformationFlowProblem(cInterCFG)
         val solution = CSPLliftFrontend.solve(problem)
 
+
         val sinks = Taint.findSinks[String](solution, isSink)
 
         // dbg print
         if (dbg) println(Taint.prettyPrintSinks(sinks))
+
+        println(StopWatch.toString)
 
         (tunit, problem, solution, sinks)
     }

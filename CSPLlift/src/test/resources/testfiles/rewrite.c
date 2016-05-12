@@ -15,13 +15,35 @@ int inner(int value) {
     return res;
 }
 
+int testing() {
+int value = 5;
+return value;}
+
 int main() {
-    int *point;
+    int point;
     int mi = 5;
-    int mj = inner(2 + mi);
+    int test = mi;
+
+
+    if (5 > 2) {
+          test = 2;
+      }
+
+    #ifdef A
+        test = 3;
+    #endif
+
+    int branch = test;
+
+    int bla2 = foo(mi, 2);
+    int bla = foo(mi, 5);
+
+    //int mj = foo(sizeof(point), mi);
     long li = 10l;
 
-    *point = foo(
+    int between = 2;
+
+    point = foo(
     #ifdef A
     bar(
     #endif
@@ -29,7 +51,16 @@ int main() {
     #ifdef A
     )
     #endif
-    , inner(mj));
+    , testing());
+
+#ifdef A
+    //int bla3 = inner(5);
+    #endif
+
+    int res2 = bla2;
+    int res = bla;
+
+    int last = between;
 
     return 0;
 }

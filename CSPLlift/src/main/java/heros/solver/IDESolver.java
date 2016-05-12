@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  */
 public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
 
-    public static CacheBuilder<Object, Object> DEFAULT_CACHE_BUILDER = CacheBuilder.newBuilder().concurrencyLevel(Runtime.getRuntime().availableProcessors()).initialCapacity(10000).softValues();
+    public static CacheBuilder<Object, Object> DEFAULT_CACHE_BUILDER = null;
 
     protected static final Logger logger = LoggerFactory.getLogger(IDESolver.class);
 
@@ -141,7 +141,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
      * @param edgeFunctionCacheBuilder A valid {@link CacheBuilder} or <code>null</code> if no caching is to be used for edge functions.
      */
     public IDESolver(IDETabulationProblem<N, D, M, V, I> tabulationProblem, @SuppressWarnings("rawtypes") CacheBuilder flowFunctionCacheBuilder, @SuppressWarnings("rawtypes") CacheBuilder edgeFunctionCacheBuilder) {
-        if (logger.isDebugEnabled()) {
+        if ((flowFunctionCacheBuilder != null) && (logger.isDebugEnabled())) {
             flowFunctionCacheBuilder = flowFunctionCacheBuilder.recordStats();
             edgeFunctionCacheBuilder = edgeFunctionCacheBuilder.recordStats();
         }

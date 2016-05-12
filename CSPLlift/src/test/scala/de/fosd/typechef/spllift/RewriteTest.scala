@@ -11,6 +11,7 @@ class RewriteTest extends SPLLiftTestHelper {
 
         val (tunit, _, _, sinks) = defaultTestInit("rewrite.c", allSinks)
 
+
         println(sinks)
 
         println(StopWatch.toCSV)

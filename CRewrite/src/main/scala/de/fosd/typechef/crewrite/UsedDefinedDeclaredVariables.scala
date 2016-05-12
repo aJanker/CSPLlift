@@ -72,6 +72,8 @@ trait UsedDefinedDeclaredVariables {
             case AssignExpr(target, op, source) => uses(source) ++ (if (op == "=") List() else uses(target))
             case Opt(_, entry) => uses(entry.asInstanceOf[AnyRef])
             case Some(entry) => uses(entry.asInstanceOf[AnyRef])
+            case ParameterDeclarationD(_, decl, _) => uses(decl)
+            case l: List[AnyRef@unchecked] => l.flatMap(uses)
             case x => List()
 
         }
