@@ -88,9 +88,10 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         var tunit = super.prepareAST(t.asInstanceOf[TranslationUnit])
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
+        copyPositions(t.asInstanceOf[TranslationUnit], tunit)
 
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
-        tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit
+        tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit
         tunit.asInstanceOf[T]
     }
 
@@ -99,17 +100,19 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         var tunit: TranslationUnit = _tunit
 
-        val (time, _) = StopWatch.measure("tunit_completePreparation", {
-            StopWatch.measure("tunit_rewriting", {
+        val (time, _) = StopWatch.measureUserTime("tunit_completePreparation", {
+            StopWatch.measureUserTime("tunit_rewriting", {
                 tunit = prepareAST(_tunit)
             })
 
             val env = CASTEnv.createASTEnv(tunit)
             val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
 
-            StopWatch.measure("typecheck", {
+            StopWatch.measureUserTime("typecheck", {
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
+
+            println(PrettyPrinter.print(tunit))
 
             updateCaches(tunit, env, ts)
             calculatePointerEquivalenceRelations
@@ -126,7 +129,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
     }
     private def calculatePointerEquivalenceRelations = {
-        StopWatch.measure("pointsToAnalysis", {
+        StopWatch.measureUserTime("pointsToAnalysis", {
             val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
             cPointerEqRelation = cPointerEQAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
         })
@@ -138,7 +141,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def getTSForEnv(env: ASTEnv) = envToTS.get(env)
 
     def getTunitForFile(file: String): Option[TranslationUnit] = {
-        val dbgFile = file.replace("/Users/andi/Dropbox", "/home/janker")
+        val dbgFile = file //.replace("/Users/andi/Dropbox", "/home/janker")
         if (fileToTUnit.containsKey(dbgFile)) Some(fileToTUnit.get(dbgFile))
         else loadTUnit(file)
     }

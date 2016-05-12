@@ -106,6 +106,11 @@ public class IFDSSolver<N,D,M,I extends InterproceduralCFG<N, M>> extends IDESol
 			public int numThreads() {
 				return ifdsProblem.numThreads();
 			}
+
+			@Override
+			public boolean cacheFlowFunctions() {
+				return ifdsProblem.cacheFlowFunctions();
+			}
 			
 			@Override
 			public boolean computeValues() {

@@ -47,4 +47,9 @@ public interface SolverConfiguration {
 	 */	
 	boolean computeValues();
 
+	/**
+	 * If true, then the solver will cache flow functions and edge functions.
+     */
+	boolean cacheFlowFunctions();
+
 }

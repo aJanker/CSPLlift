@@ -3,17 +3,12 @@ package de.fosd.typechef.spllift
 import java.util
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.commons.CInterCFGCommons
 import de.fosd.typechef.spllift.ifdsproblem._
 import heros.FlowFunction
 
 trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with CInterCFGCommons {
-
-    lazy val PSEUDO_SYSTEM_FUNCTION_CALL = Opt(True, FunctionDef(List(Opt(True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(True, ReturnStatement(None))))))
-
-    val PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
 
     def pseudoSystemFunctionCallCallFlowFunction(callStmt: Opt[AST], callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlow] with Object {def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow]} = {
         val fCallNode = Opt(callEnv.featureExpr(callStmt.entry), callStmt.entry)

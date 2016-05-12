@@ -52,10 +52,11 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
             val groupCondition = combinedCondition.and(curr.condition)
 
             if (groupCondition.isContradiction(fm)) group = curr :: group
-            else if (groupCondition.isTautology(fm)) {
+            else if (combinedCondition.implies(curr.condition).isTautology(fm)) {
                 groups = group.reverse :: groups
                 group = List(curr)
-            } else group = curr :: group
+            }
+            else group = curr :: group
 
             // add current feature expression as it might influence the addition of selem for
             // the remaining elements of l

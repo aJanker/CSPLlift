@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  */
 public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
 
-    public static CacheBuilder<Object, Object> DEFAULT_CACHE_BUILDER = null;
+    public static CacheBuilder<Object, Object> DEFAULT_CACHE_BUILDER = CacheBuilder.newBuilder().concurrencyLevel(Runtime.getRuntime().availableProcessors()).initialCapacity(10000).softValues();
 
     protected static final Logger logger = LoggerFactory.getLogger(IDESolver.class);
 
@@ -130,7 +130,8 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
      * The solver must then be started by calling {@link #solve()}.
      */
     public IDESolver(IDETabulationProblem<N, D, M, V, I> tabulationProblem) {
-        this(tabulationProblem, DEFAULT_CACHE_BUILDER, DEFAULT_CACHE_BUILDER);
+        //this(tabulationProblem, (tabulationProblem.cacheFlowFunctions() ? DEFAULT_CACHE_BUILDER : null), (tabulationProblem.cacheFlowFunctions() ? DEFAULT_CACHE_BUILDER : null));
+        this(tabulationProblem, null, null);
     }
 
     /**

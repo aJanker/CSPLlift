@@ -61,6 +61,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
+    private var allNodes : List[Opt[AST]] = List()
+
     override val cInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
     override def getEntryFunctions =
@@ -154,6 +156,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 }
             }
 
+        /*if (callees.size == 1 && callees.head.entry.getName.equals("foo")) {
+            println(callees.head)
+            println(callees.head.hashCode())
+            println(System.identityHashCode(callees.head))
+            println("hit")
+        } */
+
         asJavaIdentitySet(callees.reverse)
     }
 
@@ -199,7 +208,11 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns the successor nodes.
       */
-    override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = getSuccsOfS(stmt).asJava
+    override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = {
+        val succs = getSuccsOfS(stmt)
+        allNodes :::= succs
+        getSuccsOfS(stmt).asJava
+    }
 
     private def getSuccsOfS(stmt: Opt[AST]): List[Opt[AST]] =
         succ(stmt.entry, getASTEnv(stmt)).filter {
@@ -234,7 +247,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             !(isCallStmt(node) || isStartPoint(node))
         }
         val allNonCallStartNodes = cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode}
-        asJavaIdentitySet(allNonCallStartNodes.map(getPresenceNode))
+        val result = allNodes filter {node => nonCallStartNode(node.entry)}
+        println(result)
+        asJavaIdentitySet(result)
     }
 
     /**
@@ -249,7 +264,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
-            return List(cInterCFGElementsCacheEnv.PSEUDO_SYSTEM_FUNCTION_CALL)
+            return List(cInterCFGElementsCacheEnv.SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL)
 
         val localDef = callTUnit.defs.flatMap {
             case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>

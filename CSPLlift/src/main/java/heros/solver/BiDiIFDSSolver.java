@@ -332,6 +332,8 @@ public class BiDiIFDSSolver<N, D extends LinkedNode<D>, M, I extends Interproced
 			return delegate.computeValues();
 		}
 
+		public boolean cacheFlowFunctions() { return delegate.cacheFlowFunctions(); }
+
 		public I interproceduralCFG() {
 			return delegate.interproceduralCFG();
 		}

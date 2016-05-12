@@ -4,6 +4,7 @@ import java.util
 import java.util.Collections
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.commons.CInterCFGCommons
@@ -14,7 +15,17 @@ import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-trait InformationFlowProblemOperations extends CInterCFGCommons {
+trait SPLLiftConstants {
+
+    lazy val SPLLIFT_CONSTANT_VALUE = "SPLLIFT_CONSTANT_VALUE"
+
+    lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
+
+    lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
+
+}
+
+trait InformationFlowProblemOperations extends CInterCFGCommons with SPLLiftConstants {
     def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
     def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
@@ -90,11 +101,16 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: Opt[AST], destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
-                val callEnv = interproceduralCFG.getASTEnv(callStmt)
+
+                val default = KILL
                 val flowCondition = destinationMethod.condition
 
+                lazy val callEnv = interproceduralCFG.getASTEnv(callStmt)
+                lazy val fCallOpt = parentOpt(callStmt.entry, callEnv)
+                lazy val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
+
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
-                    && destinationMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    && destinationMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallCallFlowFunction(callStmt, callEnv, interproceduralCFG)
 
                 def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[ParameterDeclarationD]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
@@ -110,7 +126,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                 case i: Id => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
                                 case PointerCreationExpr(i: Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
                                 case PointerDerefExpr(i: Id) => Option(Opt(currentParameterMatchCondition, (i, currentFDefParameter.entry.decl.getId)))
-                                case c:  Constant => Option(Opt(currentParameterMatchCondition, (Id("constant"), currentFDefParameter.entry.decl.getId)))
+                                case c: Constant => Option(Opt(currentParameterMatchCondition, (Id("constant"), currentFDefParameter.entry.decl.getId)))
                                 case s: SizeOfExprU => Option(Opt(currentParameterMatchCondition, (Id("sizeU"), currentFDefParameter.entry.decl.getId)))
                                 case missed => throw new IllegalArgumentException("No rule defined for converting expression to parameter mapping: " + missed + "\n" + callStmt)
                             }
@@ -124,32 +140,96 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                         mapCallParamToFDefParam(callParams.tail, fDefParams, res)
                 }
 
-                val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
-
-                val fCallOpt = parentOpt(callStmt.entry, callEnv)
-                val fCall = filterAllASTElems[FunctionCall](callStmt.entry, callEnv).head
-                val callExprs = fCall.params.exprs
+                val fCall = filterASTElems[FunctionCall](callStmt.entry).head
+                val fCallExprs = fCall.params.exprs
                 val fDefParams = destinationMethod.entry.declarator.extensions.flatMap {
                     case Opt(_, DeclParameterDeclList(l: List[Opt[ParameterDeclarationD]@unchecked])) => l
                     case _ => None
                 }
 
-                def matchCallParamsToDefParams[T,U](callParams : List[Opt[T]], defParams : List[Opt[U]]): List[(List[Opt[T]], List[Opt[U]])] = {
+                def matchCallParamsToDefParams[T, U](callParams: List[Opt[T]], defParams: List[Opt[U]]): List[(List[Opt[T]], List[Opt[U]])] = {
                     val callPs = groupOptListVAware(callParams, interproceduralCFG.getFeatureModel)
                     val defPs = groupOptListVAware(defParams, interproceduralCFG.getFeatureModel)
 
-                    if (callPs.size != defPs.size) {
+                    if (callPs.size != defPs.size)
                         Console.err.println("Call and function parameter sizes does not match for: " + fCallOpt)
-                        List()
-                    } else callPs zip defPs
+
+                    callPs zip defPs
                 }
 
-                println(matchCallParamsToDefParams(callExprs, fDefParams))
+                val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
 
-                val callParamToFDefParams = mapCallParamToFDefParam(callExprs, fDefParams)
+                println(fCallParamsToFDefParams)
 
-                new FlowFunction[InformationFlow] {
+
+                new InfoFlowFunction(callStmt, destinationMethod) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
+                            val dbg = flowFact match {
+                                case v@VarSource(x, _, _, global) =>
+                                    val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam =>
+                                        uses(callParamToDefParam._1).exists(
+                                            use => use.name.equalsIgnoreCase(x.entry.name) && isImplication(use, x)))
+
+                                    val res = callParamMatches.flatMap(callParamMatch => {
+                                        callParamMatch._1.foldLeft(List[InformationFlow]())((genSrc, expr) => {
+                                            callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
+                                                val condition = pDef.condition.and(flowCondition).and(expr.condition)
+                                                val source = VarSource(Opt(condition, pDef.entry.decl.getId), fCallOpt, ListBuffer(v) ++ v.reachingSources)
+                                                val reach = Reach(Opt(condition, pDef.entry.decl.getId), v.name :: v.reachingSources.toList.map(_.name), List(v))
+                                                reach :: source :: genSrc
+                                            })
+                                        })
+                                    })
+
+                                    if (callParamMatches.isEmpty && global.isDefined) GEN(v) else GEN(res)
+                                case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s.copy(name = s.name.and(flowCondition))) // TODO
+                                case z: Zero if !initialSeedsExists(destinationMethod.entry) =>
+                                    // Introduce Global Variables from linked file
+                                    filesWithSeeds ::= destinationMethod.entry.getFile.getOrElse("")
+                                    val globals = globalsAsInitialSeedsL(destinationMethod)
+                                    GEN(globals ::: defaultZero(z))
+                                case z: Zero => GEN(defaultZero(z))
+                                case r: Reach => KILL
+                                case _ => default
+                            }
+                        val resdbg = dbg.asScala.toList.filter({
+                            case s@VarSource(id, _, _, _)  => true
+                            case _ => false
+                        })
+
+                        if (resdbg.nonEmpty) {
+
+                            println()
+                            println(resdbg)
+                            println("call")
+                        }
+                        dbg
+                        }
+
+                    // map all constants and add the current flow condition to the zero value for the next target computations
+                    def defaultZero(z: Zero): List[InformationFlow] = {
+                        def getConstantExprFromCallParams(paramsMatchList: (List[Opt[Expr]], List[Opt[ParameterDeclarationD]])): Boolean =
+                            filterAllASTElems[Constant](paramsMatchList._1).exists(parentOpt(_, callEnv) match {
+                                case o@Opt(_, _: Constant) => true
+                                case _ => false
+                            })
+
+                        def callParamConstantsToFDefParams(constToDef: (List[Opt[Expr]], List[Opt[ParameterDeclarationD]])): List[InformationFlow] =
+                            constToDef._1.foldLeft(List[InformationFlow]())((sources, const) => callConstantToDefParams(constToDef, sources, const))
+
+                        def callConstantToDefParams(constToDef: (List[Opt[Expr]], List[Opt[ParameterDeclarationD]]), sources: List[InformationFlow], const: Opt[Expr]): List[InformationFlow] =
+                            constToDef._2.foldLeft(sources)((s, fDef) => s ::: genVarSource(fDef.entry.decl.getId, Some(VarSource(Opt(const.condition, Id(SPLLIFT_CONSTANT_VALUE)), const)), flowCondition))
+
+                        val paramsWithConstants = fCallParamsToFDefParams.filter(getConstantExprFromCallParams)
+
+                        val constantParameterSources = paramsWithConstants.flatMap(callParamConstantsToFDefParams)
+
+                        z.copy(condition = z.condition.and(flowCondition)) :: constantParameterSources
+                    }
+
+                    def computeTarget(flowFact: InformationFlow): util.Set[InformationFlow] = {
+                        computeTarget(flowFact)
+                        val callParamToFDefParams = mapCallParamToFDefParam(fCallExprs, fDefParams)
                         var ret = KILL
 
                         flowFact match {
@@ -172,7 +252,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                 ret = GEN(z.copy(condition = z.condition.and(flowCondition)))
                             case z: Zero => ret = GEN(Zero(z.condition.and(flowCondition)))
                             case r: Reach => ret = GEN(r)
-                            case _ => ret = KILL
+                            case _ => ret = default
                         }
 
                         ret
@@ -209,7 +289,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               * @return
               */
             override def getReturnFlowFunction(callSite: Opt[AST], calleeMethod: Opt[FunctionDef], exitStmt: Opt[AST], returnSite: Opt[AST]): FlowFunction[InformationFlow] = {
-
                 val flowCondition = calleeMethod.condition
                 def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
                     val fCall = filterASTElems[FunctionCall](callSite)
@@ -223,7 +302,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 }
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
-                    && calleeMethod.entry.getName.equalsIgnoreCase(PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    && calleeMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallReturnFlow
 
                 val exitOpt = parentOpt(exitStmt.entry, interproceduralCFG.getASTEnv(exitStmt))
@@ -246,7 +325,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                             case _ => None
                                         }
                                 }
-
                                 res = if (global.isDefined) GEN(sources ::: List(s, reach)) else GEN(sources ::: List(reach)) // Pass global variables back to original flow
 
                             case z: Zero if currUses.isEmpty => // Return is something like return 0; -> we generate a new source
@@ -257,14 +335,13 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                 res = GEN(sources)
                             case z: Zero => res = KILL
                             case _ => res = default(flowFact) // Do default flow action
-
                         }
+
+
 
                         res
                     }
                 }
-
-
             }
 
             /**
@@ -390,7 +467,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
             }
         }
 
-    private def globalsAsInitialSeeds(f: Opt[FunctionDef]): util.Set[InformationFlow] = {
+    private def globalsAsInitialSeeds(f: Opt[FunctionDef]): util.Set[InformationFlow] =  GEN(globalsAsInitialSeedsL(f) :+ zeroValue())
+    private def globalsAsInitialSeedsL(f: Opt[FunctionDef]) : List[InformationFlow] = {
         val globalVariables = interproceduralCFG.getTUnit(f).defs.filterNot {
             // Ignore function and typedef definitions
             case Opt(_, f: FunctionDef) => true //
@@ -410,12 +488,12 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
             else None
         })
 
-        GEN(globalInfoFlowFacts :+ zeroValue())
+        globalInfoFlowFacts
     }
 
     private abstract class InfoFlowFunction(curr: Opt[AST], succ: Opt[AST], definedIds: Option[List[Id]] = None, usedIds: Option[List[Id]] = None, assignments: Option[List[(Id, List[Id])]] = None) extends FlowFunction[InformationFlow] {
         // Lazy cache some repeatedly used variables
-        val currASTEnv = interproceduralCFG.getASTEnv(curr)
+        lazy val currASTEnv = interproceduralCFG.getASTEnv(curr)
         lazy val currOpt: Opt[AST] = parentOpt(curr.entry, currASTEnv).asInstanceOf[Opt[AST]]
         lazy val currTS = interproceduralCFG.getTS(curr)
         lazy val succVarEnv = currTS.lookupEnv(succ.entry)
@@ -439,9 +517,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
         lazy val currStructFieldUses = usesField(curr)
 
-        private var varSourceCache = Map[Opt[Id], List[Source]]()
+        private lazy val varSourceCache = new scala.collection.mutable.HashMap[Opt[Id], List[Source]]()
 
-        private var structSourceCache = Map[Opt[Id], List[StructSource]]()
+        private lazy val structSourceCache = new scala.collection.mutable.HashMap[Opt[Id], List[StructSource]]()
 
         def isStructOrUnion(cType: CType): Boolean =
             cType.atype match {
@@ -483,7 +561,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
         }
 
         def genVarSource(target: Id, reachingSource: Option[Source] = None, reachCondition: FeatureExpr = FeatureExprFactory.True): List[Source] = {
-            val targetCondition = currASTEnv.featureExpr(target).and(reachCondition)
+            val targetEnv = interproceduralCFG.getASTEnv(Opt(FeatureExprFactory.True, target))
+            val targetCondition = targetEnv.featureExpr(target).and(reachCondition)
             val targetOpt = Opt(targetCondition, target)
 
             varSourceCache.get(targetOpt) match {
@@ -508,7 +587,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     genSources
 
                 case Some(genSource) => // Update already existing targets
-                    if (reachingSource.isDefined) genSource.foreach(genS => genS.reachingSources.+=(reachingSource.get) ++ reachingSource.get.reachingSources) // Update new reaching sources
+                    val res = if (reachingSource.isDefined) genSource.map(genS => {
+                        genS.reachingSources.+=(reachingSource.get) ++ reachingSource.get.reachingSources
+                        genS
+                    }) else genSource// Update new reaching sources
+                    //List()
                     List()
             }
         }

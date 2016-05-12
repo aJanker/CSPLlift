@@ -14,6 +14,7 @@ sealed trait InformationFlow extends Product with Cloneable {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
 }
 
+
 case class Zero(condition : FeatureExpr = BDDFeatureExprFactory.TrueB) extends InformationFlow
 
 sealed abstract class Source(val name: Opt[Id], val stmt: Opt[_], val reachingSources: ListBuffer[Source] = ListBuffer(), val globalFile: Option[String] = None) extends InformationFlow {
