@@ -7,7 +7,7 @@ import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.commons.CInterCFGCommons
+import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningCache}
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
@@ -181,7 +181,14 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns if for a given pointer expression a corresponding function definition exists
       */
     private def hasDestination(pointer: Expr): Boolean = {
-        val calc = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
+        val eqClass = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this)
+        if (eqClass.isEmpty) {
+            WarningCache.add("No destination found for: " + pointer + " @ " + pointer.getPositionFrom)
+            WarningCache.add(PrettyPrinter.print(pointer))
+            WarningCache.add("")
+            return false
+        }
+        val calc = eqClass.get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
         calc.nonEmpty
     }
 
@@ -259,7 +266,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val externalDef = getExternalDefinitions(name)
         val result = externalDef ++ localDef
 
-        if (result.isEmpty) Console.err.println("No function definiton found for " + name + "!")
+        if (result.isEmpty) WarningCache.add("No function definiton found for " + name + "!")
 
         result
     }

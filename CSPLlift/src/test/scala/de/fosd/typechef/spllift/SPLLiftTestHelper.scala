@@ -3,12 +3,12 @@ package de.fosd.typechef.spllift
 import java.io._
 import java.util.zip.GZIPInputStream
 
+import de.fosd.typechef.StopWatch
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.Taint
-import de.fosd.typechef.spllift.commons.StopWatch
 import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
 import org.scalatest.Matchers
 import soot.spl.ifds.Constraint

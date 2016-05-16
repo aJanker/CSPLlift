@@ -10,26 +10,29 @@ int bar(int z) {
     return bar(z);
 }
 
-int inner(int value) {
-    int res = value + 1;
+int inner(int ivalue) {
+    int res = ivalue + 1;
     return res;
 }
 
 int testing() {
-    int value = 5;
-    return value;
+    int tvalue = 5;
+    return tvalue;
 }
 
 int main() {
 
  int mi = 66;
+ int mj = 22;
+  int i = foo(mi, mj);
+  int j = foo(mi, mj);
 
  int point = foo(
 
      #ifdef A
      bar(
      #endif
-     inner(mi)
+     inner(i + j)
      #ifdef A
      )
      #endif

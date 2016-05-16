@@ -4,12 +4,13 @@ import java.io._
 import java.util
 import java.util.zip.GZIPInputStream
 
+import de.fosd.typechef.StopWatch
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.commons.{CInterCFGCommons, StopWatch}
+import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningCache}
 import de.fosd.typechef.typesystem.linker.CModuleInterface
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 
@@ -112,8 +113,6 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
-            println(PrettyPrinter.print(tunit))
-
             updateCaches(tunit, env, ts)
             calculatePointerEquivalenceRelations
         })
@@ -141,7 +140,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def getTSForEnv(env: ASTEnv) = envToTS.get(env)
 
     def getTunitForFile(file: String): Option[TranslationUnit] = {
-        val dbgFile = file //.replace("/Users/andi/Dropbox", "/home/janker")
+        val dbgFile = file.replace("/Users/andi/Dropbox", "/home/janker")
         if (fileToTUnit.containsKey(dbgFile)) Some(fileToTUnit.get(dbgFile))
         else loadTUnit(file)
     }
@@ -196,6 +195,10 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     def getPointerEquivalenceClass(pointer: Opt[Expr], cfg: CInterCFG): Option[EquivalenceClass] = {
         val lookup = buildEquivalenceClassLookup(pointer.entry, cfg.getMethodOf(pointer).entry.getName)
-        cPointerEqRelation.find(lookup)
+        val result = cPointerEqRelation.find(lookup)
+
+        if (result.isEmpty) WarningCache.add("No pointer relation found for lookup: " + pointer)
+
+        result
     }
 }

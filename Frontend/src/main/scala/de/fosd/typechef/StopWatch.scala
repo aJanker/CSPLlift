@@ -1,4 +1,4 @@
-package de.fosd.typechef.spllift.commons
+package de.fosd.typechef
 
 import java.io.{StringWriter, Writer}
 import java.lang.management.ManagementFactory

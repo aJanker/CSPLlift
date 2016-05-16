@@ -1,6 +1,6 @@
 package de.fosd.typechef.spllift
 
-import de.fosd.typechef.spllift.commons.StopWatch
+import de.fosd.typechef.StopWatch
 import org.junit.Test
 
 class RewriteTest extends SPLLiftTestHelper {

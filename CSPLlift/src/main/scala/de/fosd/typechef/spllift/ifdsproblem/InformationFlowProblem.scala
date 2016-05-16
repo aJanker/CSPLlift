@@ -7,7 +7,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.commons.CInterCFGCommons
+import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningCache}
 import de.fosd.typechef.spllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
@@ -151,8 +151,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     val callPs = groupOptListVAware(callParams, interproceduralCFG.getFeatureModel)
                     val defPs = groupOptListVAware(defParams, interproceduralCFG.getFeatureModel)
 
-                    if (callPs.size != defPs.size)
-                        Console.err.println("Call and function parameter sizes does not match for: " + fCallOpt)
+                    if (callPs.size != defPs.size) {
+                            WarningCache.add("Call and function parameter sizes does not match for: " + fCallOpt)
+                            WarningCache.add(callPs.toString)
+                            WarningCache.add(defPs.toString)
+                        }
 
                     callPs zip defPs
                 }
@@ -480,8 +483,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
         lazy val currASTEnv = interproceduralCFG.getASTEnv(curr)
         lazy val currOpt: Opt[AST] = parentOpt(curr.entry, currASTEnv).asInstanceOf[Opt[AST]]
         lazy val currTS = interproceduralCFG.getTS(curr)
-        lazy val succVarEnv = currTS.lookupEnv(succ.entry)
 
+        lazy val succVarEnv =  succ.entry match {
+                case f : FunctionDef => interproceduralCFG.getTS(succ).lookupEnv(f.stmt.innerStatements.headOption.getOrElse(currOpt).entry)
+                case _ => currTS.lookupEnv(succ.entry)
+            }
         lazy val currDefines = definedIds match {
             case None => defines(curr)
             case Some(x) => x
@@ -538,7 +544,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                 case Some(declFile) => getFileName(id.entry.getFile).getOrElse("").equalsIgnoreCase(declFile)
             }
 
-            eqDeclFile && currTS.lookupEnv(succ.entry).varEnv.lookupScope(id.entry.name).toOptList.exists {
+            eqDeclFile && succVarEnv.varEnv.lookupScope(id.entry.name).toOptList.exists {
                 case o@Opt(cond, 0) => id.condition.and(cond).isSatisfiable(interproceduralCFG.getFeatureModel)
                 case _ => false
             }
@@ -552,7 +558,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
             varSourceCache.get(targetOpt) match {
                 case None => // New source -> add to cache map
                     val buffer = if (reachingSource.isDefined) ListBuffer[Source](reachingSource.get) ++ reachingSource.get.reachingSources else ListBuffer[Source]()
-                    val genSources = currTS.lookupEnv(succ.entry).varEnv.lookupScope(target.name).toOptList.flatMap(scope => {
+                    val genSources = succVarEnv.varEnv.lookupScope(target.name).toOptList.flatMap(scope => {
 
                         val scopeCondition = targetCondition.and(scope.condition)
                         val currCondition = if (reachingSource.isDefined) scopeCondition.and(reachingSource.get.name.condition) else scopeCondition
