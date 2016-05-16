@@ -15,7 +15,7 @@ object WarningCache {
 
     def size() : Int = warningsMap.size
 
-    def issuedWarnings() : Int = warningsMap.par.reduceLeft((l, r) => l._2 + r._2)
+    def issuedWarnings() : Int = warningsMap.par.values.sum
 
     override def toString : String = print(new StringWriter()).toString
 
