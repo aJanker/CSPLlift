@@ -140,9 +140,9 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def getTSForEnv(env: ASTEnv) = envToTS.get(env)
 
     def getTunitForFile(file: String): Option[TranslationUnit] = {
-        val dbgFile = file //.replace("/Users/andi/Dropbox", "/home/janker")
+        val dbgFile = file.replace("/Users/andi/Dropbox", "/home/janker")
         if (fileToTUnit.containsKey(dbgFile)) Some(fileToTUnit.get(dbgFile))
-        else loadTUnit(file)
+        else loadTUnit(dbgFile)
     }
 
     def getEnvs: List[ASTEnv] = envToTUnit.keySet.toList
