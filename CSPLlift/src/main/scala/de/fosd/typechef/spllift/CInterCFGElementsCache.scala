@@ -4,7 +4,7 @@ import java.io._
 import java.util
 import java.util.zip.GZIPInputStream
 
-import de.fosd.typechef.StopWatch
+import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.featureexpr.FeatureModel

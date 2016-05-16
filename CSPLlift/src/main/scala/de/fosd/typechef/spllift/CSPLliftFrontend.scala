@@ -2,7 +2,7 @@ package de.fosd.typechef.spllift
 
 import java.util
 
-import de.fosd.typechef.StopWatch
+import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.commons.WarningCache
