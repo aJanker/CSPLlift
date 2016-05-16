@@ -273,8 +273,10 @@ object Frontend extends EnforceTreeHelper {
         }
         stopWatch.start("done")
         errorXML.write()
-        if (opt.recordTiming)
+        if (opt.recordTiming) {
             println(stopWatch)
+            println(StopWatch.toCSV)
+        }
 
     }
 
