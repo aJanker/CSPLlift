@@ -4,6 +4,7 @@ import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter}
+import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
@@ -213,22 +214,21 @@ object Frontend extends EnforceTreeHelper {
 
                 if (opt.spllift) {
                     println("#static analysis with spllift")
-                    stopWatch.start("spllift")
+                    val (_, solution) = StopWatch.measureUserTime("spllift", {
+                        val spllift = CSPLliftFrontend
+                        val cInterCFGOptions =
+                            if (opt.getCLinkingInterfacePath != null) new DefaultCInterCFGOptions(Some(opt.getCLinkingInterfacePath))
+                            else new DefaultCInterCFGOptions
+                        val cInterCFG = new CInterCFG(ast, fullFM, cInterCFGOptions)
+                        val problem = new InformationFlowProblem(cInterCFG)
+                        spllift.solve[InformationFlow](problem)
 
-                    val spllift = CSPLliftFrontend
-                    val cInterCFGOptions =
-                        if (opt.getCLinkingInterfacePath != null) new DefaultCInterCFGOptions(Some(opt.getCLinkingInterfacePath))
-                        else new DefaultCInterCFGOptions
-                    val cInterCFG = new CInterCFG(ast, fullFM, cInterCFGOptions)
-                    val problem  = new InformationFlowProblem(cInterCFG)
-
-                    stopWatch.start("spllift_solve")
-                    val solution = spllift.solve[InformationFlow](problem)
-                    stopWatch.start("none")
+                    })
 
                     val allReaches = Taint.allReaches[String](solution)
                     println("#static analysis with spllift - result")
                     println(Taint.prettyPrintSinks(allReaches))
+
                 }
 
                 if (opt.staticanalyses) {

@@ -19,6 +19,6 @@ object WarningCache {
 
     override def toString : String = print(new StringWriter()).toString
 
-    def print(writer : Writer) : Writer = warningsMap.foldLeft(writer)((w, warning) => w.append(warning._1 + "\t" + warning._2))
+    def print(writer : Writer) : Writer = warningsMap.foldLeft(writer)((w, warning) => w.append(warning._1 + "\t" + warning._2+ "\n\n"))
 
 }
