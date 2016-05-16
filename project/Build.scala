@@ -182,6 +182,12 @@ object TypeChef extends Build {
     settings = buildSettings
   ) dependsOn (featureexpr)
 
+  lazy val commons = Project(
+    "Commons",
+    file("Commons"),
+    settings = buildSettings
+  )
+
   lazy val errorlib = Project(
     "ErrorLib",
     file("ErrorLib"),
@@ -213,7 +219,7 @@ object TypeChef extends Build {
     "Frontend",
     file("Frontend"),
     settings = buildSettings ++ VersionGen.settings
-  ) dependsOn(featureexpr, jcpp, cparser % "test->test;compile->compile", ctypechecker, conditionallib, crewrite, javaparser, errorlib, ccallgraph, cpointeranalysis, cspllift)
+  ) dependsOn(featureexpr, jcpp, cparser % "test->test;compile->compile", ctypechecker, conditionallib, crewrite, javaparser, errorlib, ccallgraph, cpointeranalysis, cspllift, commons)
 
   lazy val ctypechecker = Project(
     "CTypeChecker",
@@ -244,7 +250,7 @@ object TypeChef extends Build {
     settings = buildSettings ++
         Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
 
-  ) dependsOn(cparser % "test->test;compile->compile", ctypechecker, conditionallib, errorlib, crewrite, cpointeranalysis, frontend)
+  ) dependsOn(cparser % "test->test;compile->compile", ctypechecker, conditionallib, errorlib, crewrite, cpointeranalysis, commons)
 
   lazy val javaparser = Project(
     "JavaParser",
