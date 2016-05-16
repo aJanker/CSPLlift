@@ -154,7 +154,7 @@ object TypeChef extends Build {
     "TypeChef",
     file("."),
     settings = buildSettings
-  ) aggregate(
+  ) aggregate(commons,
     featureexpr,
     conditionallib,
     parserexp,
