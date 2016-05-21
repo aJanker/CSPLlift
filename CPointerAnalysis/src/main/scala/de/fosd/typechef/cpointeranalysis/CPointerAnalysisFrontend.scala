@@ -120,25 +120,25 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
     }
 
     private def extractInterproceduralFCallToFParamAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
-        def mergeWithFieldIfPossible(paramField: ObjectName, eqParamField: ObjectName) =
-            if (ObjectNameOperator.getField(eqParamField).equalsIgnoreCase(ObjectNameOperator.getField(paramField)))
-                context.addObjectNameAssignment((eqParamField, paramField), context.getObjectNames.get(eqParamField).and(context.getObjectNames.get(paramField)))
+        def mergeWithFieldIfPossible(paramField: Opt[ObjectName], eqParamField: Opt[ObjectName]) =
+            if (ObjectNameOperator.getField(eqParamField.entry).equalsIgnoreCase(ObjectNameOperator.getField(paramField.entry)))
+                context.addObjectNameAssignment((eqParamField.entry, paramField.entry), eqParamField.condition.and(paramField.condition))
 
-        def mergeParameterWithEqClassFields(parameter: (ObjectName, List[ObjectName]), objectNameReferences: (ObjectName, List[ObjectName])) =
+        def mergeParameterWithEqClassFields(parameter: (Opt[ObjectName], List[Opt[ObjectName]]), objectNameReferences: (Opt[ObjectName], List[Opt[ObjectName]])) =
             parameter._2 foreach (paramField =>
                 objectNameReferences._2 foreach (
                     reference => mergeWithFieldIfPossible(paramField, reference)))
 
         val visitedEqClasses = new mutable.HashSet[EquivalenceClass]()
-        val objectNames = context.getObjectNames.toPlainSet()
-        val paramWithFields = context.functionDefParameters.values flatMap (_ flatMap (findObjectNameFieldReferences(_, objectNames)))
+        val conditionalObjectNames = context.getObjectNames.toOptList()
+        val paramWithFields = context.functionDefParameters.values flatMap (_ flatMap (findObjectNameFieldReferences(_, conditionalObjectNames)))
 
         paramWithFields foreach (parameter =>
-            context.find(parameter._1) foreach (eqParameterClass => {
+            context.find(parameter._1.entry) foreach (eqParameterClass => {
                 if (!visitedEqClasses.contains(eqParameterClass)) {
                     visitedEqClasses += eqParameterClass
-                    eqParameterClass.objectNames.toPlainSet() foreach (eqParam =>
-                        findObjectNameFieldReferences(eqParam, objectNames) match {
+                    eqParameterClass.objectNames.toOptList() foreach (eqParam =>
+                        findObjectNameFieldReferences(eqParam, conditionalObjectNames) match {
                             case Some(objectNameReferences) => mergeParameterWithEqClassFields(parameter, objectNameReferences)
                             case _ =>
                         })
@@ -148,16 +148,16 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         context
     }
 
-    private def findObjectNameFieldReferences(value: String, objectNames: Set[ObjectName]): Option[(ObjectName, List[ObjectName])] = {
+
+    private def findObjectNameFieldReferences(value: Opt[ObjectName], objectNames: List[Opt[ObjectName]]): Option[(Opt[ObjectName], List[Opt[ObjectName]])] = {
         val references = objectNames.par.filter(name =>
-            ObjectNameOperator.removeFields(name) match {
-                case Some(s) => !value.equalsIgnoreCase(name) && value.equalsIgnoreCase(s)
+            ObjectNameOperator.removeFields(name.entry) match {
+                case Some(s) => !value.entry.equalsIgnoreCase(name.entry) && value.entry.equalsIgnoreCase(s)
                 case _ => false
             })
         if (references.isEmpty) None else Some((value, references.toList))
     }
 
-    private def findObjectNameFieldReferences(value: Opt[ObjectName], objectNames: Set[ObjectName]): Option[(ObjectName, List[ObjectName])] = findObjectNameFieldReferences(value.entry, objectNames)
 
     private def getExternalParamsFuncDef(function: String, context: CPointerAnalysisContext): List[Opt[ObjectName]] = {
         def findInInterface(interface: CLinking): List[Opt[context.ObjectName]] = {
