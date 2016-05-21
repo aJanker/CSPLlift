@@ -54,6 +54,8 @@ class ConditionalSet[A](private val entries: Map[A, FeatureExpr]) extends Serial
     override def hashCode = entries.hashCode
     override def toString = entries.toString
 
+    def size(): Int = entries.size
+
     def toPlainSet(): Set[A] = {
         entries.keys.toSet
     }

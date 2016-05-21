@@ -10,53 +10,129 @@ import de.fosd.typechef.typesystem.CFunction
 import de.fosd.typechef.typesystem.linker.CSignature
 
 import scala.collection.immutable.Map
+import scala.collection.mutable
 
 
 /**
-  * Pointer Analysis for TypeChef. This is implementation is adapted by the CCallGraph Impl by
-  * By Andreas Janker on 27/10/15.
+  * Pointer Analysis for TypeChef. This is implementation is adapted from the CCallGraph Implementation of TypeChef by Gabriel Ferreira
+  * Improved by Andreas Janker
   */
 class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                                featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty,
                                DEBUG: Boolean = false) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
-    val linking =
+    lazy val linking =
         if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
         else None
 
     def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, currentFile: String): CPointerAnalysisContext = {
-
         val context = extractObjectNames(tUnit, currentFile)
 
-        extractAssignments(context)
+        extractIntraproceduralAssignments(context)
         context.solve()
 
-        refineFieldValues(context)
+        extractInterproceduralFCallToFParamAssignments(context)
+        context.solve()
+
+        extractInterproceduralPointerToPointerAssignments(context)
+        context.solve()
+    }
+
+    private def extractInterproceduralPointerToPointerAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
+        val StructFieldPointerDereferencePattern = ("([\\w]+" + ObjectNameOperator.StructPointerAccess.toString + "[\\w]+)").r
+
+        def isStructFieldPointerDereference(name: ObjectName): Boolean =
+            unscopeName(name) match {
+                case StructFieldPointerDereferencePattern(c) => true
+                case _ => false
+            }
+
+        def getFieldPointerDereferenceParent(parent: ObjectName): String = {
+            val method = unscopeFileAndMethod(parent)
+            val name = "(" + unscopeName(parent) + ")"
+            method + "$" + name
+        }
+
+        def getFieldPointerDereferenceAccesses(parent: ObjectName, objectNames: List[Opt[ObjectName]]) = {
+            val query = getFieldPointerDereferenceParent(parent)
+            objectNames.par.filter(_.entry.contains(query)).toList
+        }
+
+        def compareFieldsAndAddAssignments(fieldToCompare : Opt[ObjectName], parentOfFields: String, allObjectNames: List[Opt[ObjectName]], parentFieldAccesses : List[Opt[ObjectName]]) = {
+                val otherFieldAccesses = getFieldPointerDereferenceAccesses(fieldToCompare.entry, allObjectNames)
+
+                if (otherFieldAccesses.nonEmpty) {
+                    val otherParentOfFields = getFieldPointerDereferenceParent(fieldToCompare.entry)
+
+                    parentFieldAccesses.foreach(field => {
+                        val fieldName = field.entry.replace(parentOfFields, "")
+
+                        otherFieldAccesses.foreach(otherField => {
+                            val otherFieldName = otherField.entry.replace(otherParentOfFields, "")
+
+                            if (otherFieldName.equalsIgnoreCase(fieldName))
+                                context.addObjectNameAssignment((field.entry, otherField.entry), field.condition.and(otherField.condition))
+                        })
+                    })
+                }
+            }
+
+        def extractAssignmentsFromMatchingFields(eqClassObjectNames: List[Opt[ObjectName]], allObjectNames: List[Opt[ObjectName]]) =
+            eqClassObjectNames.foldLeft(eqClassObjectNames)((eqClassNames, name) => {
+                val remainingNamesFromEqClass = eqClassNames.tail
+                val parentFieldAccesses = getFieldPointerDereferenceAccesses(name.entry, allObjectNames)
+
+                if (parentFieldAccesses.nonEmpty) {
+                    val parentOfFields = getFieldPointerDereferenceParent(name.entry)
+                    remainingNamesFromEqClass.foreach(compareFieldsAndAddAssignments(_, parentOfFields, allObjectNames, parentFieldAccesses))
+                }
+
+                remainingNamesFromEqClass
+            })
+
+
+        var visitedEqClasses = new mutable.HashSet[EquivalenceClass]()
+        val plainObjectNames = context.getObjectNames.toPlainSet()
+        val conditionalObjectNames = context.getObjectNames.toOptList()
+        val objectNamesWithStructFieldPointerDereference = plainObjectNames.par.filter(isStructFieldPointerDereference)
+
+        for (name <- objectNamesWithStructFieldPointerDereference.seq) {
+            val equivalenceClass = context.find(name).get
+            val size = equivalenceClass.objectNames.size()
+
+            if ((size > 1) && !visitedEqClasses.contains(equivalenceClass)) {
+                // cache already visited equivalence classes to reduce runtime
+                visitedEqClasses.+=(equivalenceClass)
+
+                val eqClassObjectNames = equivalenceClass.objectNames.toOptList()
+
+                extractAssignmentsFromMatchingFields(eqClassObjectNames, conditionalObjectNames)
+            }
+        }
 
         context
     }
 
-    def mergePointerEquivalenceRelation(context1: CPointerAnalysisContext, context2: CPointerAnalysisContext): CPointerAnalysisContext = {
-        context1
-    }
+    private def extractInterproceduralFCallToFParamAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
+        def mergeWithFieldIfPossible(paramField: ObjectName, eqParamField: ObjectName) =
+            if (ObjectNameOperator.getField(eqParamField).equalsIgnoreCase(ObjectNameOperator.getField(paramField)))
+                context.addObjectNameAssignment((eqParamField, paramField), context.getObjectNames.get(eqParamField).and(context.getObjectNames.get(paramField)))
 
-    private def refineFieldValues(context: CPointerAnalysisContext) = {
-        val paramWithFields = context.functionDefParameters.values.flatMap(_.flatMap(findObjectNameFieldReferences(_, context)))
+        def mergeParameterWithEqClassFields(parameter: (ObjectName, List[ObjectName]), objectNameReferences: (ObjectName, List[ObjectName])) =
+            parameter._2 foreach (paramField =>
+                objectNameReferences._2 foreach (
+                    reference => mergeWithFieldIfPossible(paramField, reference)))
 
-        // TODO Clean matching. + Documentation
-        paramWithFields.foreach(param => {
-            context.find(param._1) match {
-                case None =>
-                case eq => eq.get.objectNames.toPlainSet().foreach(eqParam => {
-                    val eqFields = findObjectNameFieldReferences(eqParam, context)
-                    if (eqFields.isDefined) param._2.foreach(paramField => eqFields.get._2.foreach(eqField =>
-                        if (ObjectNameOperator.getField(eqField).equalsIgnoreCase(ObjectNameOperator.getField(paramField)))
-                            context.addObjectNameAssignment((eqField, paramField), context.getObjectNames.get(eqField).and(context.getObjectNames.get(paramField)))
-                    ))
-                })
-            }
-        })
-        context.solve()
+        val paramWithFields = context.functionDefParameters.values flatMap (_ flatMap (findObjectNameFieldReferences(_, context)))
+
+        paramWithFields foreach (parameter =>
+            context.find(parameter._1) foreach (eqParameterClass =>
+                eqParameterClass.objectNames.toPlainSet() foreach (eqParam =>
+                    findObjectNameFieldReferences(eqParam, context) match {
+                        case Some(objectNameReferences) => mergeParameterWithEqClassFields(parameter, objectNameReferences)
+                        case _ =>
+                    })))
+
         context
     }
 
@@ -104,8 +180,6 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
     private def addAssignmentsFromFunctionCallParameters(context: CPointerAnalysisContext): CPointerAnalysisContext = {
         for ((function, listParams) <- context.functionCallParameters) {
-            // TODO Fix wrong explodes
-            // TODO Do returns
             val externalFuncDef = getExternalParamsFuncDef(function, context)
             val listParamsFuncDef: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(context.functionDefParameters.getOrElse(function, externalFuncDef))
             val listParamsFuncCal: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(listParams)
@@ -137,11 +211,11 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         // replace function call by the all return values
         assignmentsPartition._2.toPlainSetWithConditionals().foreach({ case (assign, featExpr) =>
             if (assign._1 contains ObjectNameOperator.FunctionCall.toString) {
-                context.functionDefReturns.getOrElse(ObjectNameOperator.unscope(assign._1.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
+                context.functionDefReturns.getOrElse(ObjectNameOperator.unscopeName(assign._1.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
                     x => normalizedAssignments +=((x._1, assign._2), featExpr and x._2)
                 })
             } else if (assign._2 contains ObjectNameOperator.FunctionCall.toString) {
-                context.functionDefReturns.getOrElse(ObjectNameOperator.unscope(assign._2.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
+                context.functionDefReturns.getOrElse(ObjectNameOperator.unscopeName(assign._2.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
                     x => normalizedAssignments +=((x._1, assign._1), featExpr and x._2)
                 })
             }
@@ -851,7 +925,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
     }
 
     // extract program assignments (function call parameters and return values)
-    private def extractAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
+    private def extractIntraproceduralAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
         val fCallContext = addAssignmentsFromFunctionCallParameters(context)
         val rValueContext = addAssignmentsFromFunctionCallReturnValues(fCallContext)
         rValueContext

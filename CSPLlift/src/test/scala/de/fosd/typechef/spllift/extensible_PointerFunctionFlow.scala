@@ -20,4 +20,13 @@ class extensible_PointerFunctionFlow extends SPLLiftTestHelper {
         successful should be(true)
 
     }
+
+    @Test def defaultFlows2() = {
+        var successful = true
+
+        val (tunit, _, _, sinks) = defaultTestInit("extensible_PointerFunctionFlow.c", allSinks)
+
+        successful should be(true)
+
+    }
 }

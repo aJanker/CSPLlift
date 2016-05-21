@@ -2,11 +2,10 @@ struct enc {
     int **fun;
 };
 
-int cipher1(int i) {
-       int res;
-       res = i * i;
-       return res;
+struct fun2 {
+    int (*cipherfun2)(int);
 };
+
 
 int cipher2(int j) {
     int res;
@@ -16,26 +15,27 @@ int cipher2(int j) {
 
 struct cipher_ctx{
     struct enc *enc;
+    struct fun2 *f2;
     struct enc *(*fun)(int);
     int (*cipherfun)(int);
 };
 
-void bar_fun(struct cipher_ctx *c, int (*f)(int)) {
-    c->fun = (struct enc *(*)(int)) f;
- }
+
 
 void foo_fun(struct cipher_ctx *c, int (*f)(int)) {
     c->cipherfun = (int (*)(int)) f;
+    c->f2->cipherfun2 = (int (*)(int)) f;
 }
 
 int main() {
-    struct cipher_ctx c_init;
     struct cipher_ctx* c;
 
-    bar_fun(c, &cipher1);
     foo_fun(c, &cipher2);
 
     int secret = 666;
 
-    int sink = (*c->cipherfun)(secret);
+    int sink = c->cipherfun(secret);
+    int sink2 = c->f2->cipherfun2(secret);
+
+    return 0;
 }

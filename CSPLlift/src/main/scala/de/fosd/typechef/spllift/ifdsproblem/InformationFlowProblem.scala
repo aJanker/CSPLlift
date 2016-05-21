@@ -7,7 +7,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningCache}
+import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.spllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
@@ -152,9 +152,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     val defPs = groupOptListVAware(defParams, interproceduralCFG.getFeatureModel)
 
                     if (callPs.size != defPs.size) {
-                            WarningCache.add("Call and function parameter sizes does not match for: " + fCallOpt)
-                            WarningCache.add(callPs.toString)
-                            WarningCache.add(defPs.toString)
+                            WarningsCache.add("Call and function parameter sizes does not match for: " + fCallOpt
+                                + "\n" + callPs.toString + "\n" + defPs.toString)
                         }
 
                     callPs zip defPs

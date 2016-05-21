@@ -7,7 +7,7 @@ import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningCache}
+import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
@@ -61,7 +61,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
-    override val cInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
+    override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
     override def getEntryFunctions =
         filterAllASTElems[FunctionDef](cInterCFGElementsCacheEnv.startTUnit) filter {
@@ -140,20 +140,19 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (!isCallStmt(call)) return java.util.Collections.emptySet[Opt[FunctionDef]]
 
         val calleeNames = getCalleeNames(call)
+        val tunit = getTUnit(call)
 
         val callees =
-            if (calleeNames.nonEmpty) calleeNames.flatMap(findCallees(_, getTUnit(call)))
-            else {
-                filterAllASTElems[PostfixExpr](call).flatMap {
-                    case PostfixExpr(pointer, FunctionCall(_)) =>
-                        val names = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this).get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
-                        val found = names.flatMap(findCallees(_, getTUnit(call)))
-                        found
-                    case _ => None
-                }
+            if (calleeNames.nonEmpty) calleeNames.flatMap(findCallees(_, tunit))
+            else filterAllASTElems[PostfixExpr](call).flatMap {
+                case PostfixExpr(pointer, FunctionCall(_)) => getFunctionPointerDestNames(pointer).flatMap(findCallees(_, tunit))
+                case _ => None
             }
 
-        asJavaIdentitySet(callees.reverse)
+        if (callees.isEmpty)
+            WarningsCache.add("No function destinations found for:\t" +  call)
+
+        asJavaIdentitySet(callees)
     }
 
     /**
@@ -181,15 +180,12 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns if for a given pointer expression a corresponding function definition exists
       */
     private def hasDestination(pointer: Expr): Boolean = {
-        val eqClass = cInterCFGElementsCacheEnv.getPointerEquivalenceClass(getPresenceNode(pointer), this)
-        if (eqClass.isEmpty) {
-            WarningCache.add("No destination found for: " + pointer + " @ " + pointer.getPositionFrom)
-            WarningCache.add(PrettyPrinter.print(pointer))
-            WarningCache.add("")
-            return false
-        }
-        val calc = eqClass.get.objectNames.toOptList().filter(_.entry.contains("GLOBAL")).map(dest => dest.copy(entry = dest.entry.split('$')(1)))
-        calc.nonEmpty
+        val destNames = getFunctionPointerDestNames(pointer)
+
+        if (destNames.isEmpty)
+            WarningsCache.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
+
+        destNames.nonEmpty
     }
 
     /**
@@ -266,7 +262,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val externalDef = getExternalDefinitions(name)
         val result = externalDef ++ localDef
 
-        if (result.isEmpty) WarningCache.add("No function definiton found for " + name + "!")
+        if (result.isEmpty)
+            WarningsCache.add("No function definiton found for " + name + "!")
 
         result
     }
@@ -281,4 +278,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private def getPresenceNode[T <: AST](node: T): Opt[T] = Opt(getASTEnv(node).featureExpr(node), node)
 
+    private def getFunctionPointerDestNames(pointer: Expr) : List[Opt[String]] ={
+        val pointerNode = getPresenceNode(pointer)
+        cInterCFGElementsCacheEnv.getFPointerDestDefsNames(pointerNode, getMethodOf(pointerNode).entry.getName)
+    }
 }

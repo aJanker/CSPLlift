@@ -10,7 +10,7 @@ import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningCache}
+import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.typesystem.linker.CModuleInterface
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 
@@ -74,8 +74,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
 
-    private val cPointerEQAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath)
-    private var cPointerEqRelation: CPointerAnalysisContext = null
+    private val cFunctionPointerAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath, fm)
+    private var cFunctionPointerEQRelation: CPointerAnalysisContext = null
 
     private val cModuleInterface: Option[CModuleInterface] =
         cModuleInterfacePath match {
@@ -130,7 +130,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private def calculatePointerEquivalenceRelations = {
         StopWatch.measureUserTime("pointsToAnalysis", {
             val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
-            cPointerEqRelation = cPointerEQAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
+            cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
         })
     }
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
@@ -167,38 +167,56 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
         println("#loading:\t" + filename)
 
-        try {
-            val (source, extension) = filename.splitAt(filename.lastIndexOf(".c"))
-            val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(source + ".ast"))) {
-                override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
-            }
-
-            val tunit = fr.readObject().asInstanceOf[TranslationUnit]
-            fr.close()
-
-            Some(addToCache(tunit))
-        } catch {
-            case e: ObjectStreamException => System.err.println("#failed loading serialized AST: " + e.getMessage); None
+        val (source, extension) = filename.splitAt(filename.lastIndexOf(".c"))
+        val inputStream = new ObjectInputStream(new GZIPInputStream(new FileInputStream(source + ".ast"))) {
+            override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
         }
+
+        val tunit = inputStream.readObject().asInstanceOf[TranslationUnit]
+        inputStream.close()
+
+        Some(addToCache(tunit))
     }
 
-    def buildEquivalenceClassLookup(pointer: Expr, scope: String): String = {
+    def getFPointerDestDefsNames(pointer: Opt[Expr], currFuncName: String) : List[Opt[String]] = {
+        def removeEquivalenceClassScope(eqString : Opt[String]) : Opt[String] = {
+            val nameOnly = eqString.entry.split('$')(1)
+            val pointerExprRemoved = nameOnly.replaceAll("&", "").replaceAll("\\*", "")
+            eqString.copy(entry = pointerExprRemoved)
+        }
+
+        val eqClass = getPointerEquivalenceClass(pointer, currFuncName)
+
+        val eqFunctionObjectNames = eqClass match {
+            case Some(equivalenceClass) => equivalenceClass.objectNames.toOptList().filter(_.entry.contains("§GLOBAL$"))
+            case _ => List()
+        }
+
+        eqFunctionObjectNames.map(removeEquivalenceClassScope)
+    }
+
+    private def buildEquivalenceClassLookupQuery(pointer: Expr, scope: String): String = {
         def genObjectName(expr: Expr): String =
             expr match {
+                case PostfixExpr(p: PostfixExpr, s) => "(" + genObjectName(p) + ")" +  PrettyPrinter.print(s)
+                case PointerDerefExpr(p) => genObjectName(p)
                 case p: PostfixExpr => PrettyPrinter.print(p)
-                case PointerDerefExpr(pExpr) => ObjectNameOperator.PointerDereference + "(" + genObjectName(pExpr) + ")"
+                case x =>
+                    WarningsCache.add("No equivalence class lookup query rule for:\t" + x)
+                    PrettyPrinter.print(x)
             }
 
         getPlainFileName(pointer) + "§" + scope + "$" + genObjectName(pointer)
     }
 
 
-    def getPointerEquivalenceClass(pointer: Opt[Expr], cfg: CInterCFG): Option[EquivalenceClass] = {
-        val lookup = buildEquivalenceClassLookup(pointer.entry, cfg.getMethodOf(pointer).entry.getName)
-        val result = cPointerEqRelation.find(lookup)
+    private def getPointerEquivalenceClass(pointer: Opt[Expr], currFuncName: String): Option[EquivalenceClass] = {
+        val eqQuery = buildEquivalenceClassLookupQuery(pointer.entry, currFuncName)
+        val eqRelation = cFunctionPointerEQRelation.find(eqQuery)
 
-        if (result.isEmpty) WarningCache.add("No pointer relation found for lookup: " + pointer)
+        if (eqRelation.isEmpty)
+            WarningsCache.add("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
-        result
+        eqRelation
     }
 }

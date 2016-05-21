@@ -23,11 +23,15 @@ trait PointerContext extends Serializable {
     }
   }
 
-  def unscope(scopedObjectName: String): String = {
+  def unscopeMethodName(scopedObjectName: String): String = scopedObjectName.substring(scopedObjectName.indexOf('§') + 1, scopedObjectName.indexOf('$'))
+
+  def unscopeName(scopedObjectName: String): String = {
     val unescopedObjectName = scopedObjectName.replaceFirst("[a-zA-Z0-9_]+?\\§[a-zA-Z0-9_]+?\\$", "")
     assert(!unescopedObjectName.contains("$"))
     unescopedObjectName
   }
+
+  def unscopeFileAndMethod(scopedObjectName: String) : String = scopedObjectName.split('$')(0)
 
   def parenthesize(objName: String) : String = {
     if (ObjectNameOperator.values.toList.map({ op => op.toString }).exists(objName.contains)) "(" + objName + ")"

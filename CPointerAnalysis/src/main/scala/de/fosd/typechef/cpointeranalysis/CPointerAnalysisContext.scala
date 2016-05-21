@@ -13,14 +13,16 @@ import scala.pickling.json._
 
 class CPointerAnalysisContext(file: String) extends PointerContext with ObjectNameContext with EquivalenceContext with FunctionContext {
 
-  def solve() = {
+  def solve() : CPointerAnalysisContext = {
     initEquivalenceClasses(this)
     createInitialPrefixSets()
 
     solveEquivalenceClasses(this)
+
+    this
   }
 
-  val eqClassFileEnding: String = ".eqc"
+  lazy val eqClassFileEnding: String = ".eqc"
 
   def save() = saveContext(this, file)
 
@@ -42,7 +44,7 @@ class CPointerAnalysisContext(file: String) extends PointerContext with ObjectNa
       fr.close()
       Some(context)
     } catch {
-      case e: ObjectStreamException => System.err.println("failed loading serialized AST: " + e.getMessage); None
+      case e: ObjectStreamException => System.err.println("failed loading serialized pointer context: " + e.getMessage); None
     }
   }
 }
@@ -74,6 +76,8 @@ trait EquivalenceContext extends PointerContext {
   def showPointerEquivalenceClasses() = equivalenceClasses.foreach(println)
 
   def initEquivalenceClasses(objectNameContext: ObjectNameContext): Unit = {
+    clearEquivalenceClasses
+
     val r = objectNameContext.getObjectNames.keys.foldLeft((getEquivalenceClassesMap, getEquivalenceClasses))((e, k) => {
       val ec = new EquivalenceClass(ConditionalSet(k, objectNameContext.getObjectNames.get(k)), ConditionalSet())
       (e._1 + (k -> ec), e._2 + ec)
@@ -81,6 +85,12 @@ trait EquivalenceContext extends PointerContext {
 
     equivalenceClassesMap = r._1
     equivalenceClasses = r._2
+  }
+
+  def clearEquivalenceClasses(): Unit = {
+    equivalenceClassesMap = Map[ObjectName, EquivalenceClass]()
+    equivalenceClasses = Set[EquivalenceClass]()
+    equivalenceClassesPrefixSets = Set[(ObjectName, ObjectName)]()
   }
 
   def createInitialPrefixSets(equivalenceClassesPrefixSets: Set[(ObjectName, ObjectName)] = equivalenceClassesPrefixSets, equivalenceClassesMap: Map[ObjectName, EquivalenceClass] = equivalenceClassesMap): Unit = {
@@ -99,8 +109,8 @@ trait EquivalenceContext extends PointerContext {
         val eqClassObjectOFeatExpr = eqClassObjectO.objectNames.get(o)
         val eqClassObjectO1FeatExpr = eqClassObjectO1.objectNames.get(o1)
 
-        val uo = unscope(o)
-        val uo1 = unscope(o1)
+        val uo = unscopeName(o)
+        val uo1 = unscopeName(o1)
 
         // pointer creation operator
         if ((uo.equals(applyOperator(ObjectNameOperator.PointerCreation.toString, uo1))) || uo.equals(applyOperator(ObjectNameOperator.PointerCreation.toString, parenthesize(uo1)))) {
