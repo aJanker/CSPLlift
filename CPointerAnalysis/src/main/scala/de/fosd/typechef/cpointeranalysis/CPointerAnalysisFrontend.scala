@@ -129,8 +129,8 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                 objectNameReferences._2 foreach (
                     reference => mergeWithFieldIfPossible(paramField, reference)))
 
-        val paramWithFields = context.functionDefParameters.values.par flatMap (_ flatMap (findObjectNameFieldReferences(_, context))) seq
         val objectNames = context.getObjectNames.toPlainSet()
+        val paramWithFields = context.functionDefParameters.values flatMap (_ flatMap (findObjectNameFieldReferences(_, objectNames)))
 
         paramWithFields foreach (parameter =>
             context.find(parameter._1) foreach (eqParameterClass =>
@@ -143,8 +143,8 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         context
     }
 
-    private def findObjectNameFieldReferences(value: String, context: Set[ObjectName]): Option[(ObjectName, List[ObjectName])] = {
-        val references = context.par.filter(name =>
+    private def findObjectNameFieldReferences(value: String, objectNames: Set[ObjectName]): Option[(ObjectName, List[ObjectName])] = {
+        val references = objectNames.par.filter(name =>
             ObjectNameOperator.removeFields(name) match {
                 case Some(s) => !value.equalsIgnoreCase(name) && value.equalsIgnoreCase(s)
                 case _ => false
@@ -152,7 +152,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         if (references.isEmpty) None else Some((value, references.toList))
     }
 
-    private def findObjectNameFieldReferences(value: Opt[ObjectName], context: ObjectNameContext): Option[(ObjectName, List[ObjectName])] = findObjectNameFieldReferences(value.entry, context)
+    private def findObjectNameFieldReferences(value: Opt[ObjectName], objectNames: Set[ObjectName]): Option[(ObjectName, List[ObjectName])] = findObjectNameFieldReferences(value.entry, objectNames)
 
     private def getExternalParamsFuncDef(function: String, context: CPointerAnalysisContext): List[Opt[ObjectName]] = {
         def findInInterface(interface: CLinking): List[Opt[context.ObjectName]] = {
