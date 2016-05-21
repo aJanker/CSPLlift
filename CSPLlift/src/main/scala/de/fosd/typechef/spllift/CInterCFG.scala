@@ -186,7 +186,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             {
 
                 WarningsCache.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
-                cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
+                WarningsCache.add(cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.pointerEquivalenceClassesToString())
             }
 
         destNames.nonEmpty

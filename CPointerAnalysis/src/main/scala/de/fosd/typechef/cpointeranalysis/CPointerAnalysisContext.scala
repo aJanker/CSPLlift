@@ -75,6 +75,8 @@ trait EquivalenceContext extends PointerContext {
 
   def showPointerEquivalenceClasses() = equivalenceClasses.foreach(println)
 
+  def pointerEquivalenceClassesToString() = equivalenceClasses.foldLeft(new StringWriter())((w,e) => w.append(e.toString + "\n")).toString
+
   def initEquivalenceClasses(objectNameContext: ObjectNameContext): Unit = {
     clearEquivalenceClasses
 
