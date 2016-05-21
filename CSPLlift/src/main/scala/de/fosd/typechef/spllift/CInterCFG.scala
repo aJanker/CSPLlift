@@ -183,7 +183,11 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val destNames = getFunctionPointerDestNames(pointer)
 
         if (destNames.isEmpty)
-            WarningsCache.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
+            {
+
+                WarningsCache.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
+                cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
+            }
 
         destNames.nonEmpty
     }

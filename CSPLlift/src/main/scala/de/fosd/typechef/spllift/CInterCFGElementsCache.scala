@@ -75,7 +75,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
 
     private val cFunctionPointerAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath, fm)
-    private var cFunctionPointerEQRelation: CPointerAnalysisContext = null
+    var cFunctionPointerEQRelation: CPointerAnalysisContext = null
 
     private val cModuleInterface: Option[CModuleInterface] =
         cModuleInterfacePath match {
