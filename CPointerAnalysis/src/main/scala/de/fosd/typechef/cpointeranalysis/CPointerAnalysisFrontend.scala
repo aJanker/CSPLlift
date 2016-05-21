@@ -129,7 +129,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                 objectNameReferences._2 foreach (
                     reference => mergeWithFieldIfPossible(paramField, reference)))
 
-        val paramWithFields = context.functionDefParameters.values flatMap (_ flatMap (findObjectNameFieldReferences(_, context)))
+        val paramWithFields = context.functionDefParameters.values.par flatMap (_ flatMap (findObjectNameFieldReferences(_, context))) seq
 
         paramWithFields foreach (parameter =>
             context.find(parameter._1) foreach (eqParameterClass =>
@@ -143,7 +143,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
     }
 
     private def findObjectNameFieldReferences(value: String, context: ObjectNameContext): Option[(ObjectName, List[ObjectName])] = {
-        val references = context.getObjectNames.toPlainSet().par.filter(name =>
+        val references = context.getObjectNames.toPlainSet().filter(name =>
             ObjectNameOperator.removeFields(name) match {
                 case Some(s) => !value.equalsIgnoreCase(name) && value.equalsIgnoreCase(s)
                 case _ => false
