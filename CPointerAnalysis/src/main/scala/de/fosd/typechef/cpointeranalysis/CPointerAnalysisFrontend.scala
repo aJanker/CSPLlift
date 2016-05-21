@@ -130,11 +130,12 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                     reference => mergeWithFieldIfPossible(paramField, reference)))
 
         val paramWithFields = context.functionDefParameters.values.par flatMap (_ flatMap (findObjectNameFieldReferences(_, context))) seq
+        val objectNames = context.getObjectNames.toPlainSet()
 
         paramWithFields foreach (parameter =>
             context.find(parameter._1) foreach (eqParameterClass =>
                 eqParameterClass.objectNames.toPlainSet() foreach (eqParam =>
-                    findObjectNameFieldReferences(eqParam, context) match {
+                    findObjectNameFieldReferences(eqParam, objectNames) match {
                         case Some(objectNameReferences) => mergeParameterWithEqClassFields(parameter, objectNameReferences)
                         case _ =>
                     })))
@@ -142,8 +143,8 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         context
     }
 
-    private def findObjectNameFieldReferences(value: String, context: ObjectNameContext): Option[(ObjectName, List[ObjectName])] = {
-        val references = context.getObjectNames.toPlainSet().filter(name =>
+    private def findObjectNameFieldReferences(value: String, context: Set[ObjectName]): Option[(ObjectName, List[ObjectName])] = {
+        val references = context.par.filter(name =>
             ObjectNameOperator.removeFields(name) match {
                 case Some(s) => !value.equalsIgnoreCase(name) && value.equalsIgnoreCase(s)
                 case _ => false
