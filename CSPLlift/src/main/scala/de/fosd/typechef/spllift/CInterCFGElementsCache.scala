@@ -101,7 +101,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         var tunit: TranslationUnit = _tunit
 
-        val (time, _) = StopWatch.measureUserTime("tunit_completePreparation", {
+        val (time, _) = StopWatch.measureWallTime("tunit_completePreparation", {
             StopWatch.measureUserTime("tunit_rewriting", {
                 println("#Rewriting AST...")
                 tunit = prepareAST(_tunit)
