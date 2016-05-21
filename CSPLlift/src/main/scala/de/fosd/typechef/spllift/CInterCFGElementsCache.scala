@@ -103,17 +103,20 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         val (time, _) = StopWatch.measureUserTime("tunit_completePreparation", {
             StopWatch.measureUserTime("tunit_rewriting", {
+                println("#Rewriting AST...")
                 tunit = prepareAST(_tunit)
             })
 
             val env = CASTEnv.createASTEnv(tunit)
             val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
 
+            println("#Typecheck")
             StopWatch.measureUserTime("typecheck", {
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
             updateCaches(tunit, env, ts)
+            println("#Calculating Pointer Equivalence Realations...")
             calculatePointerEquivalenceRelations
         })
 
