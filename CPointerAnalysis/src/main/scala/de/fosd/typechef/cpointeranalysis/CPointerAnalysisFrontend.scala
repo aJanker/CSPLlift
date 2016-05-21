@@ -124,6 +124,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
             if (ObjectNameOperator.getField(eqParamField.entry).equalsIgnoreCase(ObjectNameOperator.getField(paramField.entry)))
                 context.addObjectNameAssignment((eqParamField.entry, paramField.entry), eqParamField.condition.and(paramField.condition))
 
+
         def mergeParameterWithEqClassFields(parameter: (Opt[ObjectName], List[Opt[ObjectName]]), objectNameReferences: (Opt[ObjectName], List[Opt[ObjectName]])) =
             parameter._2 foreach (paramField =>
                 objectNameReferences._2 foreach (
@@ -135,7 +136,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
         paramWithFields foreach (parameter =>
             context.find(parameter._1.entry) foreach (eqParameterClass => {
-                if (!visitedEqClasses.contains(eqParameterClass)) {
+                if (!visitedEqClasses.contains(eqParameterClass) && eqParameterClass.objectNames.size > 1) {
                     visitedEqClasses += eqParameterClass
                     eqParameterClass.objectNames.toOptList() foreach (eqParam =>
                         findObjectNameFieldReferences(eqParam, conditionalObjectNames) match {
