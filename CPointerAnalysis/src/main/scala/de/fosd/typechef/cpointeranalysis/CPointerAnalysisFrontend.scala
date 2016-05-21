@@ -129,16 +129,21 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                 objectNameReferences._2 foreach (
                     reference => mergeWithFieldIfPossible(paramField, reference)))
 
+        val visitedEqClasses = new mutable.HashSet[EquivalenceClass]()
         val objectNames = context.getObjectNames.toPlainSet()
         val paramWithFields = context.functionDefParameters.values flatMap (_ flatMap (findObjectNameFieldReferences(_, objectNames)))
 
         paramWithFields foreach (parameter =>
-            context.find(parameter._1) foreach (eqParameterClass =>
-                eqParameterClass.objectNames.toPlainSet() foreach (eqParam =>
-                    findObjectNameFieldReferences(eqParam, objectNames) match {
-                        case Some(objectNameReferences) => mergeParameterWithEqClassFields(parameter, objectNameReferences)
-                        case _ =>
-                    })))
+            context.find(parameter._1) foreach (eqParameterClass => {
+                if (!visitedEqClasses.contains(eqParameterClass)) {
+                    visitedEqClasses += eqParameterClass
+                    eqParameterClass.objectNames.toPlainSet() foreach (eqParam =>
+                        findObjectNameFieldReferences(eqParam, objectNames) match {
+                            case Some(objectNameReferences) => mergeParameterWithEqClassFields(parameter, objectNameReferences)
+                            case _ =>
+                        })
+                }
+            }))
 
         context
     }
