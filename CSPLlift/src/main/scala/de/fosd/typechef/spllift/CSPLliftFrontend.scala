@@ -24,6 +24,11 @@ object CSPLliftFrontend {
             println("#TOTAL Warnings:\t" +  WarningsCache.issuedWarnings())
         }
 
+        println("eq-relations")
+
+        println(problem.interproceduralCFG().cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.pointerEquivalenceClassesToString())
+
+        println()
         solver.getAllResults.asScala.toList
 
     }
