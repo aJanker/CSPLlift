@@ -28,13 +28,19 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
     def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, currentFile: String): CPointerAnalysisContext = {
         val context = extractObjectNames(tUnit, currentFile)
 
+        println("#step1")
         extractIntraproceduralAssignments(context)
+        println("#solve")
         context.solve()
 
+        println("#step2")
         extractInterproceduralFCallToFParamAssignments(context)
+        println("#solve")
         context.solve()
 
+        println("#step3")
         extractInterproceduralPointerToPointerAssignments(context)
+        println("#solve")
         context.solve()
     }
 
