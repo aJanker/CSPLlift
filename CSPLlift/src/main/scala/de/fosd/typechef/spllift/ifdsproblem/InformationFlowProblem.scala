@@ -102,8 +102,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               */
             override def getCallFlowFunction(callStmt: Opt[AST], destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
 
-                println("Going from: " + interproceduralCFG.getMethodOf(callStmt).entry.getName)
-                println("To: " + destinationMethod.entry.getName)
+                /*println("Going from: " + interproceduralCFG.getMethodOf(callStmt).entry.getName)
+                println("To: " + destinationMethod.entry.getName) */
 
                 val default = KILL
                 val flowCondition = destinationMethod.condition
