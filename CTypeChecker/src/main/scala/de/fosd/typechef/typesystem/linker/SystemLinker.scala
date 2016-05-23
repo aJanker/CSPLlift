@@ -2515,7 +2515,8 @@ object SystemLinker {
     free
     malloc
     realloc
-     __builtin_va_start
+    __builtin_va_start
+    __builtin_va_end
         """.trim.split('\n').map(_.trim)
 
     //from other libraries, ignored for now (sys/String.h, sys/stat.h)
