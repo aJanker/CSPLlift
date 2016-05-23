@@ -20,16 +20,21 @@ struct cipher_ctx{
     int (*cipherfun)(int);
 };
 
-
+void init(struct cipher_ctx *ci, struct fun2 *di) {
+    ci->f2 = di;
+}
 
 void foo_fun(struct cipher_ctx *c, int (*f)(int)) {
     c->cipherfun = (int (*)(int)) f;
-    c->f2->cipherfun2 = (int (*)(int)) f;
 }
 
 int main() {
     struct cipher_ctx* c;
+    struct fun2* d;
 
+    d->cipherfun2 = &cipher2;
+
+    init(c, d);
     foo_fun(c, &cipher2);
 
     int secret = 666;

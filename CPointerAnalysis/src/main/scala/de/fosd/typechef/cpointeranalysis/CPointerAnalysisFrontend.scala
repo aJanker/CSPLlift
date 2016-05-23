@@ -28,137 +28,109 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
     def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, currentFile: String): CPointerAnalysisContext = {
         val context = extractObjectNames(tUnit, currentFile)
 
-        println("#step1")
         extractIntraproceduralAssignments(context)
-        println("#solve")
         context.solve()
 
-        println("#step2")
-        extractInterproceduralFCallToFParamAssignments(context)
-        println("#solve")
-        context.solve()
-
-        println("#step3")
-        extractInterproceduralPointerToPointerAssignments(context)
-        println("#solve")
+        extractInterproceduralFieldPointerAccesses(context)
         context.solve()
     }
 
-    private def extractInterproceduralPointerToPointerAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
-        val StructFieldPointerDereferencePattern = ("([\\w]+" + ObjectNameOperator.StructPointerAccess.toString + "[\\w]+)").r
+    private def extractInterproceduralFieldPointerAccesses(context: CPointerAnalysisContext): CPointerAnalysisContext = {
+        val cachedEqFieldReferences = new mutable.HashMap[Opt[ObjectName], List[Opt[ObjectName]]]()
+        val cachedEqParentFieldReferences = new mutable.HashMap[Opt[ObjectName], List[Opt[ObjectName]]]()
+        val conditionalObjectNames = context.getObjectNames.toOptList()
+        val eqClassesWithContent = context.getEquivalenceClasses.par.filter(_.getObjectNames.size() > 1).seq
+        val objectNamesWithStructFieldPointerDereference = conditionalObjectNames.par.filter(objectName => ObjectNameOperator.containsFieldPointerAccess(objectName.entry)).seq
 
-        def isStructFieldPointerDereference(name: ObjectName): Boolean =
-            unscopeName(name) match {
-                case StructFieldPointerDereferencePattern(c) => true
-                case _ => false
+        def getField(objectName: ObjectName): String = objectName.substring(objectName.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString) + ObjectNameOperator.StructPointerAccess.toString.length)
+
+        def isFieldAccessOf(parent: String, child: String): Boolean = {
+            val defaultStructPointerAccess = parent + ObjectNameOperator.StructPointerAccess.toString
+            lazy val nestedStructPointerAccess = "(" + parent + ObjectNameOperator.StructPointerAccess.toString
+            lazy val doubleNestedStructPointerAccess = "(" + parent + ")" + ObjectNameOperator.StructPointerAccess.toString
+
+            child.startsWith(defaultStructPointerAccess) || child.startsWith(nestedStructPointerAccess) || child.startsWith(doubleNestedStructPointerAccess)
+        }
+
+        def isFieldAccess(scope: String, name: String, access: Opt[ObjectName]): Boolean = {
+            val otherScope = unscopeFileAndMethod(access.entry)
+            val otherName = unscopeName(access.entry)
+
+            scope.equalsIgnoreCase(otherScope) && isFieldAccessOf(name, otherName)
+        }
+
+        def findFieldAccesses(query: Opt[ObjectName]): List[Opt[ObjectName]] = {
+            if (cachedEqFieldReferences.contains(query))
+                return cachedEqFieldReferences.getOrElse(query, List())
+
+            val scope = unscopeFileAndMethod(query.entry)
+            val name = unscopeName(query.entry)
+
+            val result = objectNamesWithStructFieldPointerDereference.par.filter(isFieldAccess(scope, name, _)).toList
+
+            cachedEqFieldReferences.+=((query, result))
+            result
+        }
+
+        def findParentFields(query: Opt[ObjectName]): List[Opt[ObjectName]] = {
+            if (cachedEqParentFieldReferences.contains(query))
+                return cachedEqParentFieldReferences.getOrElse(query, List())
+
+            val name = unscopeName(query.entry)
+
+            if (!name.contains(ObjectNameOperator.StructPointerAccess.toString))
+                return List()
+
+            val scope = unscopeFileAndMethod(query.entry)
+            val parent = scope + ObjectNameOperator.removeBracesFromStructPointerAccess(name.substring(0, name.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString)))
+
+            val parentEqClass = context.find(parent) match {
+                case Some(s) => s.getObjectNames.toOptList()
+                case _ => List()
             }
 
-        def getFieldPointerDereferenceParent(parent: ObjectName): String = {
-            val method = unscopeFileAndMethod(parent)
-            val name = "(" + unscopeName(parent) + ")"
-            method + "$" + name
+            val result = parentEqClass.flatMap(findFieldAccesses)
+
+            cachedEqParentFieldReferences.+=((query, result))
+            result
         }
 
-        def getFieldPointerDereferenceAccesses(parent: ObjectName, objectNames: List[Opt[ObjectName]]) = {
-            val query = getFieldPointerDereferenceParent(parent)
-            objectNames.par.filter(_.entry.contains(query)).toList
-        }
+        def mergeFieldPointerAccessesOfEqClassEquivalence(eqClass: EquivalenceClass) = {
+            val objectNames = eqClass.getObjectNames.toOptList()
 
-        def compareFieldsAndAddAssignments(fieldToCompare : Opt[ObjectName], parentOfFields: String, allObjectNames: List[Opt[ObjectName]], parentFieldAccesses : List[Opt[ObjectName]]) = {
-                val otherFieldAccesses = getFieldPointerDereferenceAccesses(fieldToCompare.entry, allObjectNames)
+            objectNames.foldLeft(objectNames)((workingNames, currEntry) => {
+                val remainingWorkingNames = workingNames.tail
 
-                if (otherFieldAccesses.nonEmpty) {
-                    val otherParentOfFields = getFieldPointerDereferenceParent(fieldToCompare.entry)
+                val referencedFields = findFieldAccesses(currEntry) ++ findParentFields(currEntry)
 
-                    parentFieldAccesses.foreach(field => {
-                        val fieldName = field.entry.replace(parentOfFields, "")
+                if (referencedFields.nonEmpty)
+                    remainingWorkingNames.foreach(otherEntry => {
+                        val otherReferencedFields = findFieldAccesses(otherEntry) ++ findParentFields(otherEntry)
 
-                        otherFieldAccesses.foreach(otherField => {
-                            val otherFieldName = otherField.entry.replace(otherParentOfFields, "")
+                        referencedFields.foreach(currField => {
+                            val currName = unscopeName(currField.entry)
+                            val currFieldName = getField(currName)
 
-                            if (otherFieldName.equalsIgnoreCase(fieldName))
-                                context.addObjectNameAssignment((field.entry, otherField.entry), field.condition.and(otherField.condition))
+                            otherReferencedFields.foreach(otherField => {
+                                val otherName = unscopeName(otherField.entry)
+                                val otherFieldName = getField(otherName)
+
+
+                                if (currFieldName.equalsIgnoreCase(otherFieldName))
+                                    context.addObjectNameAssignment((currField.entry, otherField.entry), currField.condition.and(otherField.condition))
+                            })
                         })
                     })
-                }
-            }
 
-        def extractAssignmentsFromMatchingFields(eqClassObjectNames: List[Opt[ObjectName]], allObjectNames: List[Opt[ObjectName]]) =
-            eqClassObjectNames.foldLeft(eqClassObjectNames)((eqClassNames, name) => {
-                val remainingNamesFromEqClass = eqClassNames.tail
-                val parentFieldAccesses = getFieldPointerDereferenceAccesses(name.entry, allObjectNames)
 
-                if (parentFieldAccesses.nonEmpty) {
-                    val parentOfFields = getFieldPointerDereferenceParent(name.entry)
-                    remainingNamesFromEqClass.foreach(compareFieldsAndAddAssignments(_, parentOfFields, allObjectNames, parentFieldAccesses))
-                }
-
-                remainingNamesFromEqClass
+                remainingWorkingNames
             })
-
-
-        var visitedEqClasses = new mutable.HashSet[EquivalenceClass]()
-        val plainObjectNames = context.getObjectNames.toPlainSet()
-        val conditionalObjectNames = context.getObjectNames.toOptList()
-        val objectNamesWithStructFieldPointerDereference = plainObjectNames.par.filter(isStructFieldPointerDereference)
-
-        for (name <- objectNamesWithStructFieldPointerDereference.seq) {
-            val equivalenceClass = context.find(name).get
-            val size = equivalenceClass.objectNames.size()
-
-            if ((size > 1) && !visitedEqClasses.contains(equivalenceClass)) {
-                // cache already visited equivalence classes to reduce runtime
-                visitedEqClasses.+=(equivalenceClass)
-
-                val eqClassObjectNames = equivalenceClass.objectNames.toOptList()
-
-                extractAssignmentsFromMatchingFields(eqClassObjectNames, conditionalObjectNames)
-            }
         }
 
-        context
-    }
-
-    private def extractInterproceduralFCallToFParamAssignments(context: CPointerAnalysisContext): CPointerAnalysisContext = {
-        def mergeWithFieldIfPossible(paramField: Opt[ObjectName], eqParamField: Opt[ObjectName]) =
-            if (ObjectNameOperator.getField(eqParamField.entry).equalsIgnoreCase(ObjectNameOperator.getField(paramField.entry)))
-                context.addObjectNameAssignment((eqParamField.entry, paramField.entry), eqParamField.condition.and(paramField.condition))
-
-
-        def mergeParameterWithEqClassFields(parameter: (Opt[ObjectName], List[Opt[ObjectName]]), objectNameReferences: (Opt[ObjectName], List[Opt[ObjectName]])) =
-            parameter._2 foreach (paramField =>
-                objectNameReferences._2 foreach (
-                    reference => mergeWithFieldIfPossible(paramField, reference)))
-
-        val visitedEqClasses = new mutable.HashSet[EquivalenceClass]()
-        val conditionalObjectNames = context.getObjectNames.toOptList()
-        val paramWithFields = context.functionDefParameters.values flatMap (_ flatMap (findObjectNameFieldReferences(_, conditionalObjectNames)))
-
-        paramWithFields foreach (parameter =>
-            context.find(parameter._1.entry) foreach (eqParameterClass => {
-                if (!visitedEqClasses.contains(eqParameterClass) && eqParameterClass.objectNames.size > 1) {
-                    visitedEqClasses += eqParameterClass
-                    eqParameterClass.objectNames.toOptList() foreach (eqParam =>
-                        findObjectNameFieldReferences(eqParam, conditionalObjectNames) match {
-                            case Some(objectNameReferences) => mergeParameterWithEqClassFields(parameter, objectNameReferences)
-                            case _ =>
-                        })
-                }
-            }))
+        eqClassesWithContent.foreach(mergeFieldPointerAccessesOfEqClassEquivalence)
 
         context
     }
-
-
-    private def findObjectNameFieldReferences(value: Opt[ObjectName], objectNames: List[Opt[ObjectName]]): Option[(Opt[ObjectName], List[Opt[ObjectName]])] = {
-        val references = objectNames.par.filter(name =>
-            ObjectNameOperator.removeFields(name.entry) match {
-                case Some(s) => !value.entry.equalsIgnoreCase(name.entry) && value.entry.equalsIgnoreCase(s)
-                case _ => false
-            })
-        if (references.isEmpty) None else Some((value, references.toList))
-    }
-
 
     private def getExternalParamsFuncDef(function: String, context: CPointerAnalysisContext): List[Opt[ObjectName]] = {
         def findInInterface(interface: CLinking): List[Opt[context.ObjectName]] = {
