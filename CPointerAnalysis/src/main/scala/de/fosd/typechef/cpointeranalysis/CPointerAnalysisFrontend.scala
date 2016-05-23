@@ -1,7 +1,5 @@
 package de.fosd.typechef.cpointeranalysis
 
-import java.nio.file.{Files, Paths}
-
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
@@ -21,9 +19,9 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                                featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty,
                                DEBUG: Boolean = false) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
-    lazy val linking =
-        if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
-        else None
+    lazy val linking : Option[CLinking] = None
+        /*if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
+        else None */
 
     def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, currentFile: String): CPointerAnalysisContext = {
         val context = extractObjectNames(tUnit, currentFile)
@@ -33,6 +31,10 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
         extractInterproceduralFieldPointerAccesses(context)
         context.solve()
+
+        context.showAssignments()
+
+        context
     }
 
     private def extractInterproceduralFieldPointerAccesses(context: CPointerAnalysisContext): CPointerAnalysisContext = {
@@ -188,7 +190,6 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
     // replace each auxiliary function call reference for its real return values
     private def addAssignmentsFromFunctionCallReturnValues(context: CPointerAnalysisContext): CPointerAnalysisContext = {
-        // TODO Global Linking
 
         val assignmentsPartition = context.getObjectNamesAssignments.partition({ a: ((String, String)) => !a._1.contains(ObjectNameOperator.FunctionCall.toString) && !a._2.contains(ObjectNameOperator.FunctionCall.toString) })
         var normalizedAssignments: ConditionalSet[Assignment] = assignmentsPartition._1

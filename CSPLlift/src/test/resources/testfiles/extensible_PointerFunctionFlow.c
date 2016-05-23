@@ -28,6 +28,25 @@ void foo_fun(struct cipher_ctx *c, int (*f)(int)) {
     c->cipherfun = (int (*)(int)) f;
 }
 
+void foo3(struct cipher_ctx *c) {
+    int foo_value = 222;
+    int sinkInFoo = c->f2->cipherfun2(foo_value);
+
+    return;
+}
+
+void foo2(struct cipher_ctx *c) {
+    foo3(c);
+
+    return;
+}
+
+void foo1(struct cipher_ctx *c) {
+    foo2(c);
+
+    return;
+}
+
 int main() {
     struct cipher_ctx* c;
     struct fun2* d;
@@ -36,6 +55,8 @@ int main() {
 
     init(c, d);
     foo_fun(c, &cipher2);
+
+    foo1(c);
 
     int secret = 666;
 

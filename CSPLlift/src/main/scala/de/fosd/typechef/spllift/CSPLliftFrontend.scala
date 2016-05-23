@@ -29,6 +29,12 @@ object CSPLliftFrontend {
         println(problem.interproceduralCFG().cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.pointerEquivalenceClassesToString())
 
         println()
+
+        println("eq-assignments")
+
+        problem.interproceduralCFG().cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.getObjectNamesAssignments.toOptList().foreach(x => println(x.entry))
+
+        println()
         solver.getAllResults.asScala.toList
 
     }
