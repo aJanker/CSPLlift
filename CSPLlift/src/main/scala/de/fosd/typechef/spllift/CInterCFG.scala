@@ -255,20 +255,30 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
             return List(cInterCFGElementsCacheEnv.SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL)
 
-        val localDef = callTUnit.defs.flatMap {
-            case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
-                Some(Opt(ft.and(name.condition), f))
-            case _ => None
+        def findCalleeInTunit(tunit : TranslationUnit) = {
+            tunit.defs.flatMap {
+                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
+                    Some(Opt(ft.and(name.condition), f))
+                case _ => None
+            }
         }
 
+        def findCalleeWithBruteForce() = {
+            WarningsCache.add("No function definiton found for " + name + "! - Trying brute force.")
+            val bruteForceResult = cInterCFGElementsCacheEnv.getAllKnownTUnits.par.flatMap(findCalleeInTunit).toList
+
+            if (bruteForceResult.isEmpty)
+                WarningsCache.add("No function definiton found for " + name + " with brute force!")
+
+            bruteForceResult
+        }
+
+        val localDef = findCalleeInTunit(callTUnit)
         val externalDef = getExternalDefinitions(name)
+
         val result = externalDef ++ localDef
 
-        if (result.isEmpty) {
-            WarningsCache.add("No function definiton found for " + name + "!")
-        }
-
-        result
+        if (result.nonEmpty) result else findCalleeWithBruteForce()
     }
 
     private def isRecursive(fCallName: String, fCallStmt: Opt[AST]): Boolean = fCallName.equalsIgnoreCase(getMethodOf(fCallStmt).entry.getName)
