@@ -43,7 +43,10 @@ object Taint {
           * Retrieves the original presence condition in the ast, not the dataflow condition
           */
         def getNodeWithASTFeature(x: Opt[AST]): Opt[AST] =
-            Opt(icfg.getASTEnv(x).featureExpr(x.entry), x.entry)
+            icfg.findEnv(x.entry) match  {
+                case Some(env) => Opt(env.featureExpr(x.entry), x.entry)
+                case _=> x
+            }
 
         def getEdge(f: Opt[AST], t: Opt[AST]): Edge[AST] =
             Edge(getNodeWithASTFeature(f), getNodeWithASTFeature(t), f.condition.and(t.condition))
