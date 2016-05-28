@@ -131,7 +131,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * there can be many in case of exceptional flow.
       */
     override def getReturnSitesOfCallAt(node: Opt[AST]): util.List[Opt[AST]] =
-        if (isCallStmt(node)) getSuccsOf(node) else java.util.Collections.emptyList[Opt[AST]]
+        if (isCallStmt(node)) getSuccsOf(node)
+        else java.util.Collections.emptyList[Opt[AST]]
 
     /**
       * Returns all callee methods for a given call.
