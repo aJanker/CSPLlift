@@ -51,7 +51,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
 
     public static CacheBuilder<Object, Object> DEFAULT_CACHE_BUILDER = CacheBuilder.newBuilder().concurrencyLevel(Runtime.getRuntime().availableProcessors()).initialCapacity(10000).softValues();
 
-    protected static final Logger logger = LoggerFactory.getLogger(IDESolver.class);
+    public static final Logger logger = LoggerFactory.getLogger(IDESolver.class);
 
     //enable with -Dorg.slf4j.simpleLogger.defaultLogLevel=trace
     public static final boolean DEBUG = logger.isDebugEnabled();

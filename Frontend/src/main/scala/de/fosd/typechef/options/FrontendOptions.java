@@ -17,7 +17,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     public boolean parse = true,
             typecheck = false,
             writeInterface = false,
-            dumpcfg = false,
+            dumpcfg = true,
             dumpcg = false,
             serializeAST = false,
             reuseAST = false,
@@ -277,6 +277,18 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
 
     public String getCCFGDotFilename() {
         return outputStem + ".cfg.dot";
+    }
+
+    public String getInformationFlowGraphExtension() {
+        return ".ifg.dot";
+    }
+
+    public String getInformationFLowGraphFilename() {
+        return outputStem + getInformationFlowGraphExtension();
+    }
+
+    public String getInformationFlowGraphsOutputDir() {
+        return outputStem + "_ifg";
     }
 
     public boolean printParserStatistics() {

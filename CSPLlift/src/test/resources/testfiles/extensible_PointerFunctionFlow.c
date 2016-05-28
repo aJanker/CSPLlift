@@ -9,7 +9,12 @@ struct fun2 {
 
 int cipher2(int j) {
     int res;
-    res = j + j;
+    #ifdef A
+    int value = 4;
+    #else
+    int value = j;
+    #endif
+    res = j + value;
     return res;
 };
 

@@ -3,7 +3,7 @@ package de.fosd.typechef
 import java.io._
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
-import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter}
+import de.fosd.typechef.ccallgraph.{CCallGraph, CallGraphDebugWriter, CallGraphWriter, DotCallGraphWriter}
 import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
@@ -179,7 +179,7 @@ object Frontend extends EnforceTreeHelper {
 
                     // call graph writer
                     val writer = new CallGraphWriter(new FileWriter(new File(opt.getValidCGFilename)))
-                    //val dotWriter = new DotCallGraphWriter(new FileWriter(new File(opt.getValidCGFilename + ".dot")))
+                    val dotWriter = new DotCallGraphWriter(new FileWriter(new File(opt.getValidCGFilename + ".dot")))
                     val dbgWriter = new CallGraphDebugWriter(new FileWriter(new File(opt.getDebugCGFilename)))
 
                     val c = new CCallGraph()
@@ -202,6 +202,7 @@ object Frontend extends EnforceTreeHelper {
 
                 if (opt.dumpcfg) {
                     println("#control flow graph")
+                    println(opt.getCCFGDotFilename)
                     stopWatch.start("dumpCFG")
 
                     //run without feature model, because otherwise too expensive runtimes in systems such as linux
@@ -213,19 +214,22 @@ object Frontend extends EnforceTreeHelper {
 
                 if (opt.spllift) {
                     println("#static analysis with spllift")
-                    val (_, solution) = StopWatch.measureUserTime("spllift", {
+                    val (_, (solution, cifg)) = StopWatch.measureUserTime("spllift", {
                         val spllift = CSPLliftFrontend
                         val cInterCFGOptions =
                             if (opt.getCLinkingInterfacePath != null) new DefaultCInterCFGOptions(Some(opt.getCLinkingInterfacePath))
                             else new DefaultCInterCFGOptions
                         val cInterCFG = new CInterCFG(ast, fullFM, cInterCFGOptions)
                         val problem = new InformationFlowProblem(cInterCFG)
-                        spllift.solve[InformationFlow](problem)
+                        (spllift.solve[InformationFlow](problem), cInterCFG)
 
                     })
 
                     val allReaches = Taint.allReaches[String](solution)
+
                     println("#static analysis with spllift - result")
+
+                    Taint.writeGraphs(cifg, allReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
                     println(Taint.prettyPrintSinks(allReaches))
 
                 }

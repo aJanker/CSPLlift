@@ -65,10 +65,10 @@ class DotGraph(fwriter: Writer) extends IOUtilities with CFGWriter {
 
     private def asText(o: AST): String = o match {
         case FunctionDef(_, decl, _, _) => "Function " + o.getPositionFrom.getLine + ": " + decl.getName
-        case s: Statement => "Stmt " + s.getPositionFrom.getLine + ": " + PrettyPrinter.print(s).take(20)
-        case e: Expr => "Expr " + e.getPositionFrom.getLine + ": " + PrettyPrinter.print(e).take(20)
+        case s: Statement => "Stmt " + s.getPositionFrom.getLine + ": " + PrettyPrinter.print(s).take(40)
+        case e: Expr => "Expr " + e.getPositionFrom.getLine + ": " + PrettyPrinter.print(e).take(40)
         case Declaration(_, initDecl) => "Decl " + o.getPositionFrom.getLine + ": " + initDecl.map(_.entry.getName).mkString(", ")
-        case x => esc(PrettyPrinter.print(x)).take(20)
+        case x => esc(PrettyPrinter.print(x)).take(40)
     }
 
 

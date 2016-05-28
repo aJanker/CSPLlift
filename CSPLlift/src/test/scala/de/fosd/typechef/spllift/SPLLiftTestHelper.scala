@@ -31,6 +31,8 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
     val testfileDir = "testfiles/"
 
+    lazy val dbgWriterDir = "/Users/andi/Dropbox/Masterarbeit/ifg_tests/"
+
     def defaultTestInit(filename: String, isSink: Reach => Boolean, cModuleInterfacePath : Option[String] = None) = {
         StopWatch.reset()
 
@@ -44,7 +46,10 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         val sinks = Taint.findSinks[String](solution, isSink)
 
         // dbg print
-        if (dbg) println(Taint.prettyPrintSinks(sinks))
+        if (dbg) {
+            Taint.writeGraphs(cInterCFG, sinks, dbgWriterDir + filename, ".ifg")
+            println(Taint.prettyPrintSinks(sinks))
+        }
 
         println(StopWatch.toString)
 
@@ -115,5 +120,4 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
     def isReachMatch(r: Reach, condition: FeatureExpr, reachingIds: List[Opt[Id]]): Boolean =
         r.to.condition.equivalentTo(condition) && r.from.forall(reachingIds contains)
-
 }

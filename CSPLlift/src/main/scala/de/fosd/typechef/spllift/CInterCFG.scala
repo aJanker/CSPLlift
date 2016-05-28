@@ -263,8 +263,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val externalDef = getExternalDefinitions(name)
         val result = externalDef ++ localDef
 
-        if (result.isEmpty)
+        if (result.isEmpty) {
             WarningsCache.add("No function definiton found for " + name + "!")
+        }
 
         result
     }
