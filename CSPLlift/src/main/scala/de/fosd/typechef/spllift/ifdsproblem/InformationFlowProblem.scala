@@ -154,12 +154,31 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     val callPs = groupOptListVAware(callParams, interproceduralCFG.getFeatureModel)
                     val defPs = groupOptListVAware(defParams, interproceduralCFG.getFeatureModel)
 
-                    if (callPs.size != defPs.size) {
-                            WarningsCache.add("Call and function parameter sizes does not match for: " + fCallOpt
-                                + "\n" + callPs.toString + "\n" + defPs.toString)
+                    // deal with variadic functions
+                    def defParamHasVarArgs: Boolean =
+                        defPs.lastOption match {
+                            case Some(l) if l.exists {
+                                case Opt(_, v: VarArgs) => true
+                                case _ => false
+                            } => true
+                            case _ => false
                         }
 
-                    callPs zip defPs
+                    def defParamIsVoidSpecifier: Boolean =
+                        (defPs.size == 1) && defPs.head.exists {
+                            case Opt(_, _: VoidSpecifier) | Opt(_, PlainParameterDeclaration(List(Opt(_, _: VoidSpecifier)), _)) => true
+                            case _ => false
+                        }
+
+                    if ((callPs.size != defPs.size) && defParamHasVarArgs) callPs.map((_, defPs.head))
+                    else if ((callPs.size != defPs.size) && defParamIsVoidSpecifier) List()
+                    else {
+                        if (callPs.size != defPs.size)
+                            WarningsCache.add("Call and function parameter sizes does not match for: " + fCallOpt
+                                + "\n" + callPs.toString + "\n" + defPs.toString)
+
+                        callPs zip defPs
+                    }
                 }
 
                 val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
