@@ -1,4 +1,4 @@
-
+import AssemblyKeys._
 
 libraryDependencies += "gnu.getopt" % "java-getopt" % "1.0.13"
 
