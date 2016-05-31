@@ -2,7 +2,6 @@ package de.fosd.typechef.spllift.analysis
 
 import java.io.Writer
 
-import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{Declaration, Expr, _}
 
@@ -30,9 +29,9 @@ trait IFGWriter {
 
     def writeFooter()
 
-    def writeNode(node : Opt[AST])
+    def writeNode(node : Node)
 
-    def writeEdge(from : Opt[AST], to : Opt[AST], condition: FeatureExpr)
+    def writeEdge(from : Node, to : Node, condition: FeatureExpr)
 
     def close()
 }
@@ -48,12 +47,12 @@ class InformationFlowGraphWriter(writer: Writer) extends IFGWriter {
 
     override def writeFooter() = writer.write("}\n")
 
-    override def writeNode(node : Opt[AST]) = {
-        val o = node.entry
-        val condition = node.condition
+    override def writeNode(node : Node) = {
+        val o = node.value.entry
+        val condition = node.value.condition
 
         val op = esc(asText(o))
-        writer.write("\"" + node.hashCode() + "\"")
+        writer.write("\"" + node.hashCode + "\"")
         writer.write("[")
 
         val position =
@@ -70,8 +69,8 @@ class InformationFlowGraphWriter(writer: Writer) extends IFGWriter {
         writer.write("];\n")
     }
 
-    override def writeEdge(from : Opt[AST], to : Opt[AST], condition: FeatureExpr) = {
-            writer.write("\"" + from.hashCode() + "\" -> \"" + to.hashCode() + "\"")
+    override def writeEdge(from : Node, to : Node, condition: FeatureExpr) = {
+            writer.write("\"" + from.hashCode + "\" -> \"" + to.hashCode + "\"")
             writer.write("[")
 
             writer.write("label=\"" + condition.toTextExpr + "\", ")

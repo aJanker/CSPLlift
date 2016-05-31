@@ -42,13 +42,13 @@ object Taint {
         /**
           * Retrieves the original presence condition in the ast, not the dataflow condition
           */
-        def getNodeWithASTFeature(x: Opt[AST]): Opt[AST] =
+        def getNodeWithASTFeature(x: Opt[AST]): Node =
             icfg.findEnv(x.entry) match  {
-                case Some(env) => Opt(env.featureExpr(x.entry), x.entry)
-                case _=> x
+                case Some(env) => Node(Opt(env.featureExpr(x.entry), x.entry))
+                case _=> Node(x)
             }
 
-        def getEdge(f: Opt[AST], t: Opt[AST]): Edge[AST] =
+        def getEdge(f: Opt[AST], t: Opt[AST]): Edge =
             Edge(getNodeWithASTFeature(f), getNodeWithASTFeature(t), f.condition.and(t.condition))
 
         sinks.par.zipWithIndex.foreach {
@@ -63,13 +63,14 @@ object Taint {
                 writer.writeHeader("")
 
                 // write nodes first
-                val allUniqueSourceNodes = sink._2.flatMap(reach => (reach._2.to :: reach._2.from).map(getNodeWithASTFeature)).distinct
+                val allUniqueSourceNodes = sink._2.flatMap(reach => (reach._2.to :: reach._2.from)).map(getNodeWithASTFeature).distinct
+
                 allUniqueSourceNodes.foreach(writer.writeNode)
 
                 val allUniqueDataFlowEdges = sink._2.flatMap(reach => {
                     val from = reach._2.from.reverse
 
-                    from.foldLeft((from, List[Edge[AST]]()))((x, curr) => {
+                    from.foldLeft((from, List[Edge]()))((x, curr) => {
                         val (r, edges) = x
                         val remaining = r.tail
                         val edge = getEdge(curr, remaining.headOption.getOrElse(reach._2.to))
@@ -110,11 +111,20 @@ object Taint {
 
 }
 
-case class Edge[T](from: Opt[T], to: Opt[T], condition: FeatureExpr) {
+case class Node(value : Opt[AST])  {
     override def equals(that: Any) = that match {
-        case that: Edge[T] => (that canEqual this) && (this.from == that.from && this.to == that.to && this.condition == that.condition)
+        case that: Node => (that canEqual this) && (value equals that.value) && value.entry.getPositionFrom.equals(that.value.entry.getPositionFrom)
         case _ => false
     }
-    override def canEqual(that: Any) = that.isInstanceOf[Edge[T]]
-    override def hashCode = from.hashCode + to.hashCode + condition.hashCode()
+    override def canEqual(that: Any) = that.isInstanceOf[Node]
+    override def hashCode = value.hashCode + value.entry.getPositionFrom.hashCode
+}
+
+case class Edge(from: Node, to: Node, condition: FeatureExpr) {
+    override def equals(that: Any) = that match {
+        case that: Edge => (that canEqual this) && ((this.from equals  that.from) && (this.to equals  that.to) && this.condition == that.condition)
+        case _ => false
+    }
+    override def canEqual(that: Any) = that.isInstanceOf[Edge]
+    override def hashCode = from.hashCode + to.hashCode + condition.hashCode
 }
