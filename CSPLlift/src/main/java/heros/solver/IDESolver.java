@@ -669,7 +669,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
             l = val.get(nHashN, nHashD);
         }
         if (l == null)
-            return valueLattice.topElement(); //implicitly initialized to top; see line [1] of Fig. 7 in SRH96 paper
+            return valueLattice.bottomElement(); //implicitly initialized to top; see line [1] of Fig. 7 in SRH96 paper
         else return l;
     }
 
