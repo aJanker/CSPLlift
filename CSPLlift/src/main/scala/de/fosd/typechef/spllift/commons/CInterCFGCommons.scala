@@ -4,8 +4,8 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.UsedDefinedDeclaredVariables
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
-import de.fosd.typechef.parser.c.{AST, ASTNavigation, ConditionalNavigation}
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
+import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, _}
 
 import scala.collection.JavaConverters._
 
@@ -15,9 +15,6 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
         originalFilePath match {
             case None => None
             case Some(path) => Some(getPlainFileNameS(path))
-            /*if (path.contains(File.separatorChar))
-                Some(path.substring(path.lastIndexOf(File.separatorChar), path.length).replace("/", ""))
-            else Some(path) */
         }
 
     def getPlainFileName(ast: AST, default: String = "NOFILENAME_AST"): String = getPlainFileNameS(ast.getFile.getOrElse(default))
@@ -41,10 +38,10 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
         res
     }
 
-    def groupOptListVAware[T](l : List[Opt[T]], fm: FeatureModel) : List[List[Opt[T]]] = {
+    def groupOptListVAware[T](l: List[Opt[T]], fm: FeatureModel): List[List[Opt[T]]] = {
         if (l.isEmpty) return List()
 
-        var group : List[Opt[T]] = List(l.head)
+        var group: List[Opt[T]] = List(l.head)
         var groups: List[List[Opt[T]]] = List()
         var combinedCondition: FeatureExpr = l.head.condition
 
@@ -65,4 +62,23 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
 
         (group.reverse :: groups).reverse
     }
+
+    def getFDefParameters(fDef: Opt[FunctionDef]): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.entry)
+    def getFDefParameters(fDef: FunctionDef): List[Opt[ParameterDeclarationD]] =
+        fDef.declarator.extensions.flatMap {
+            case Opt(_, DeclParameterDeclList(l: List[Opt[ParameterDeclarationD]@unchecked])) => l
+            case _ => None
+        }
+
+    def getPointerFDefParamNames(fDef: Opt[FunctionDef]): List[Opt[Id]] = getPointerFDefParamNames(fDef.entry)
+    def getPointerFDefParamNames(fDef: FunctionDef): List[Opt[Id]] = {
+        def andAll(a: FeatureExpr, b: Opt[_]): FeatureExpr = a.and(b.condition)
+
+        getFDefParameters(fDef).flatMap(param => {
+            if (param.entry.decl.pointers.nonEmpty)
+                Some(Opt(param.entry.decl.pointers.foldLeft(FeatureExprFactory.True)(andAll), param.entry.decl.getId))
+            else None
+        })
+    }
+
 }

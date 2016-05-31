@@ -9,7 +9,7 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.spllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
-import de.fosd.typechef.typesystem.{CAnonymousStruct, CStruct, CType}
+import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
 
 import scala.collection.JavaConverters._
@@ -33,7 +33,7 @@ trait InformationFlowProblemOperations extends CInterCFGCommons with SPLLiftCons
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
 
-class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt[AST], InformationFlow, Opt[FunctionDef], CInterCFG] with InformationFlowConfiguration with InformationFlowProblemOperations with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
+class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfiguration with IFDSTabulationProblem[Opt[AST], InformationFlow, Opt[FunctionDef], CInterCFG] with InformationFlowProblemOperations with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
 
     private var initialGlobalsFile: String = ""
     private val zeroVal = Zero()
@@ -101,10 +101,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: Opt[AST], destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
-
-                /*println("Going from: " + interproceduralCFG.getMethodOf(callStmt).entry.getName)
-                println("To: " + destinationMethod.entry.getName) */
-
                 val default = KILL
                 val flowCondition = destinationMethod.condition
 
@@ -145,10 +141,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
                 val fCall = filterASTElems[FunctionCall](callStmt.entry).head
                 val fCallExprs = fCall.params.exprs
-                val fDefParams = destinationMethod.entry.declarator.extensions.flatMap {
-                    case Opt(_, DeclParameterDeclList(l: List[Opt[ParameterDeclarationD]@unchecked])) => l
-                    case _ => None
-                }
+                val fDefParams = getFDefParameters(destinationMethod)
 
                 def matchCallParamsToDefParams[T, U](callParams: List[Opt[T]], defParams: List[Opt[U]]): List[(List[Opt[T]], List[Opt[U]])] = {
                     val callPs = groupOptListVAware(callParams, interproceduralCFG.getFeatureModel)
@@ -234,37 +227,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
                         z.copy(condition = z.condition.and(flowCondition)) :: constantParameterSources
                     }
-
-                    def computeTarget(flowFact: InformationFlow): util.Set[InformationFlow] = {
-                        computeTarget(flowFact)
-                        val callParamToFDefParams = mapCallParamToFDefParam(fCallExprs, fDefParams)
-                        var ret = KILL
-
-                        flowFact match {
-                            case s@VarSource(x, _, _, global) =>
-                                callParamToFDefParams.find(callParamToFDefParam => x.entry.name.equalsIgnoreCase(callParamToFDefParam.entry._1.name)) match {
-                                    case Some(hit) =>
-                                        val condition = hit.condition.and(x.condition).and(flowCondition)
-                                        val source = VarSource(Opt(condition, hit.entry._2), fCallOpt, ListBuffer(s) ++ s.reachingSources)
-                                        val reach = Reach(Opt(condition, hit.entry._1), s.name :: s.reachingSources.toList.map(_.name), List(s))
-                                        ret = if (global.isDefined) GEN(List(source, s.copy(name = s.name.and(flowCondition)), reach)) else GEN(List(source, reach)) // New local Parameter
-                                    case None if global.isDefined => ret = GEN(s.copy(name = s.name.and(flowCondition))) // Global Variable
-                                    case None => ret = KILL // Local Variable from previous function
-                                }
-
-                            case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s.copy(name = s.name.and(flowCondition)))
-                            case z: Zero if !initialSeedsExists(destinationMethod.entry) =>
-                                // Introduce Global Variables from linked file
-                                filesWithSeeds ::= destinationMethod.entry.getFile.getOrElse("")
-                                //ret = globalsAsInitialSeeds(destinationMethod)
-                                ret = GEN(z.copy(condition = z.condition.and(flowCondition)))
-                            case z: Zero => ret = GEN(Zero(z.condition.and(flowCondition)))
-                            case r: Reach => ret = GEN(r)
-                            case _ => ret = default
-                        }
-
-                        ret
-                    }
                 }
             }
 
@@ -297,7 +259,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               * @return
               */
             override def getReturnFlowFunction(callSite: Opt[AST], calleeMethod: Opt[FunctionDef], exitStmt: Opt[AST], returnSite: Opt[AST]): FlowFunction[InformationFlow] = {
-                val flowCondition = calleeMethod.condition
                 def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = {
                     val fCall = filterASTElems[FunctionCall](callSite)
                     assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOf(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
@@ -314,14 +275,15 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     return pseudoSystemFunctionCallReturnFlow
 
                 val exitOpt = parentOpt(exitStmt.entry, interproceduralCFG.getASTEnv(exitStmt))
+                val flowCondition = calleeMethod.condition
+                val pointerParamNames = getPointerFDefParamNames(calleeMethod)
 
                 new InfoFlowFunction(callSite, returnSite, Some(defines(callSite)), Some(uses(exitStmt)), Some(assignsReturnVariablesTo(callSite.entry, exitStmt.entry))) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
                         var res = KILL
-
                         flowFact match {
                             case r: Reach => res = GEN(r.copy(to = r.to.copy(r.to.condition.and(flowCondition))))
-
+                            case s: StructSource if pointerParamNames.exists(_.entry.equals(s.name.entry)) => res = GEN(s)
                             case s@VarSource(sId, _, _, global) if useIsSatisfiable(sId) =>
                                 val reachCondition = sId.condition.and(currOpt.condition).and(exitOpt.condition).and(flowCondition)
                                 val reach = Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source generation
@@ -340,13 +302,10 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                                     case (target, assignment) if assignment.isEmpty => genVarSource(target, reachCondition = currOpt.condition.and(exitOpt.condition).and(z.condition)) // Apply only when assignment is really empty
                                     case _ => None
                                 }
-                                res = GEN(sources)
-                            case z: Zero => res = KILL
+                                res = GEN(z :: sources)
+                            case z: Zero => res = GEN(z)
                             case _ => res = default(flowFact) // Do default flow action
                         }
-
-
-
                         res
                     }
                 }
@@ -361,10 +320,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
               * @param succ
               * The successor for which the flow is computed. This value can
               * be used to compute a branched analysis that propagates
-              * different values depending on where control0flow branches.
+              * different values depending on where controlflow branches.
               */
             override def getNormalFlowFunction(curr: Opt[AST], succ: Opt[AST]): FlowFunction[InformationFlow] = {
                 def default(flowFact: InformationFlow) = GEN(flowFact)
+
                 new InfoFlowFunction(curr, succ) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
                         var res = KILL
@@ -469,7 +429,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
                     override def computeTargets(infoFlowFact: InformationFlow): util.Set[InformationFlow] =
                         infoFlowFact match {
                             case s: Source if s.globalFile.isDefined => KILL
-                            case _ => default(infoFlowFact) // TODO Pointer passed to function! // TODO LAST Statement
+                            case _ => default(infoFlowFact)  // TODO LAST Statement
                         }
                 }
             }
@@ -534,7 +494,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends IFDSTabulationProblem[Opt
 
         def isStructOrUnion(cType: CType): Boolean =
             cType.atype match {
-                case _: CStruct | _: CAnonymousStruct => true
+                case CPointer(t) => isStructOrUnion(t) // simple pointer detection - really, really worse coding
+                case _: CStruct | _: CAnonymousStruct  => true
                 case _ => false
             }
 

@@ -125,6 +125,7 @@ trait UsedDefinedDeclaredVariables {
             case FunctionCall(params) => params.exprs.map(_.entry).flatMap(usesField)
             case PostfixExpr(_: Id, f: FunctionCall) => usesField(f)
             case PostfixExpr(p, PointerPostfixSuffix(_, i: Id)) => List((i, parents(p)))
+            case PointerDerefExpr(p) => usesField(p)
             case UnaryExpr(_, ex) => usesField(ex)
             case SizeOfExprU(expr) => usesField(expr)
             case CastExpr(_, expr) => usesField(expr)
