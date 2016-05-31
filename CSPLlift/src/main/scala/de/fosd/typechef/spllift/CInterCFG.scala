@@ -186,7 +186,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (destNames.isEmpty)
             WarningsCache.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
 
-
         destNames.nonEmpty
     }
 
@@ -264,7 +263,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         }
 
         def findCalleeWithBruteForce() = {
-            WarningsCache.add("No function definiton found for " + name + "! - Trying brute force.")
             val bruteForceResult = cInterCFGElementsCacheEnv.getAllKnownTUnits.par.flatMap(findCalleeInTunit).toList
 
             if (bruteForceResult.isEmpty)
