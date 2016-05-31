@@ -370,7 +370,10 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
      */
     protected Set<D> computeCallFlowFunction
     (FlowFunction<D> callFlowFunction, D d1, D d2) {
-        return callFlowFunction.computeTargets(d2);
+        Set<D> result = new HashSet<>();
+        result.addAll(callFlowFunction.computeTargets(d1));
+        result.addAll(callFlowFunction.computeTargets(d2));
+        return result;
     }
 
     /**

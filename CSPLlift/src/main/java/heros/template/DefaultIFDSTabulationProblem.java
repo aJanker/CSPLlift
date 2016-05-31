@@ -70,7 +70,7 @@ public abstract class DefaultIFDSTabulationProblem<N,D,M, I extends Interprocedu
 	
 	@Override
 	public int numThreads() {
-		return Runtime.getRuntime().availableProcessors();
+		return 1;
 	}
 	
 	@Override
