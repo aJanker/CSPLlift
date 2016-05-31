@@ -2,8 +2,27 @@ package de.fosd.typechef.spllift.analysis
 
 import java.io.Writer
 
+import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{Declaration, Expr, _}
+
+case class Node(value: Opt[AST]) {
+    override def equals(that: Any) = that match {
+        case that: Node => (that canEqual this) && (value equals that.value) && value.entry.getPositionFrom.equals(that.value.entry.getPositionFrom)
+        case _ => false
+    }
+    override def canEqual(that: Any) = that.isInstanceOf[Node]
+    override def hashCode = value.hashCode + value.entry.getPositionFrom.hashCode
+}
+
+case class Edge(from: Node, to: Node, condition: FeatureExpr) {
+    override def equals(that: Any) = that match {
+        case that: Edge => (that canEqual this) && ((this.from equals that.from) && (this.to equals that.to) && this.condition == that.condition)
+        case _ => false
+    }
+    override def canEqual(that: Any) = that.isInstanceOf[Edge]
+    override def hashCode = from.hashCode + to.hashCode + condition.hashCode
+}
 
 trait IFGWriter {
 
@@ -29,9 +48,9 @@ trait IFGWriter {
 
     def writeFooter()
 
-    def writeNode(node : Node)
+    def writeNode(node: Node)
 
-    def writeEdge(from : Node, to : Node, condition: FeatureExpr)
+    def writeEdge(edge: Edge)
 
     def close()
 }
@@ -47,21 +66,21 @@ class InformationFlowGraphWriter(writer: Writer) extends IFGWriter {
 
     override def writeFooter() = writer.write("}\n")
 
-    override def writeNode(node : Node) = {
-        val o = node.value.entry
+    override def writeNode(node: Node) = {
+        val ast = node.value.entry
         val condition = node.value.condition
 
-        val op = esc(asText(o))
+        val op = esc(asText(ast))
         writer.write("\"" + node.hashCode + "\"")
         writer.write("[")
 
         val position =
-            if (o.hasPosition) o.getPositionFrom.toString
+            if (ast.hasPosition) ast.getPositionFrom.toString
             else "No Position available"
 
-        writer.write("label=\"{{" + op + "}|" + "{" + position +"}|"  + esc(condition.toString) + "}\", ")
+        writer.write("label=\"{{" + op + "}|" + "{" + position + "}|" + esc(condition.toString) + "}\", ")
 
-        writer.write("color=\"" + (if (o.isInstanceOf[ExternalDef]) externalDefNodeFontColor else normalNodeFontColor) + "\", ")
+        writer.write("color=\"" + (if (ast.isInstanceOf[ExternalDef]) externalDefNodeFontColor else normalNodeFontColor) + "\", ")
         writer.write("fontname=\"" + normalNodeFontName + "\", ")
         writer.write("style=\"filled\"" + ", ")
         writer.write("fillcolor=\"" + (if (condition.isTautology()) normalNodeFillColor else featureNodeFillColor) + "\"")
@@ -69,14 +88,16 @@ class InformationFlowGraphWriter(writer: Writer) extends IFGWriter {
         writer.write("];\n")
     }
 
-    override def writeEdge(from : Node, to : Node, condition: FeatureExpr) = {
-            writer.write("\"" + from.hashCode + "\" -> \"" + to.hashCode + "\"")
-            writer.write("[")
-
-            writer.write("label=\"" + condition.toTextExpr + "\", ")
-            writer.write("color=\"" + (if (condition.isTautology()) normalConnectionEdgeColor else featureConnectionEdgeColor) + "\", ")
-            writer.write("style=\"" + normalConnectionEdgeThickness + "\"")
-            writer.write("];\n")
+    override def writeEdge(edge: Edge) = {
+        val from = edge.from
+        val to = edge.to
+        val condition = edge.condition
+        writer.write("\"" + from.hashCode + "\" -> \"" + to.hashCode + "\"")
+        writer.write("[")
+        writer.write("label=\"" + condition.toTextExpr + "\", ")
+        writer.write("color=\"" + (if (condition.isTautology()) normalConnectionEdgeColor else featureConnectionEdgeColor) + "\", ")
+        writer.write("style=\"" + normalConnectionEdgeThickness + "\"")
+        writer.write("];\n")
     }
 
     private def esc(i: String) = {
