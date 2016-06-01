@@ -66,7 +66,11 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
     def getFDefParameters(fDef: Opt[FunctionDef]): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.entry)
     def getFDefParameters(fDef: FunctionDef): List[Opt[ParameterDeclarationD]] =
         fDef.declarator.extensions.flatMap {
-            case Opt(_, DeclParameterDeclList(l: List[Opt[ParameterDeclarationD]@unchecked])) => l
+            case Opt(_, DeclParameterDeclList(l)) =>
+                l.headOption match {
+                    case Some(Opt(_ ,p: ParameterDeclarationD)) => l.asInstanceOf[List[Opt[ParameterDeclarationD]]]
+                    case _ => None
+                }
             case _ => None
         }
 
