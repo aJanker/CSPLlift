@@ -14,6 +14,7 @@ import heros.InterproceduralCFG
 import soot.spl.ifds.Constraint
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Extensions to the InterproceduralCFG of the IFDS Framework used in TypeChef
@@ -60,6 +61,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     extends CInterproceduralCFG[Opt[AST], Opt[FunctionDef]] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
+
+    private val cInterCFGNodes = new mutable.HashSet[Opt[AST]]()
 
     override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
@@ -202,7 +205,11 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns the successor nodes.
       */
-    override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = getSuccsOfS(stmt).asJava
+    override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = {
+        val succs = getSuccsOfS(stmt)
+        cInterCFGNodes.++=(succs)
+        succs.asJava
+    }
 
     private def getSuccsOfS(stmt: Opt[AST]): List[Opt[AST]] =
         succ(stmt.entry, getASTEnv(stmt)).filter {
@@ -232,12 +239,15 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns the set of all nodes that are neither call nor start nodes.
       */
     override def allNonCallStartNodes(): util.Set[Opt[AST]] = {
+        def nonCallStartOptNode(n: Opt[AST]) = nonCallStartNode(n.entry)
         def nonCallStartNode(n: AST) = {
             val node = getPresenceNode(n)
             !(isCallStmt(node) || isStartPoint(node))
         }
-        val allNonCallStartNodes = cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode}
-        asJavaIdentitySet(allNonCallStartNodes.map(getPresenceNode))
+        val allNonCallStartNodes = cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode} map getPresenceNode
+        val allVisitedNonCallStartNodes = cInterCFGNodes.toList filter nonCallStartOptNode
+
+        asJavaIdentitySet(allNonCallStartNodes ++ allVisitedNonCallStartNodes)
     }
 
     /**

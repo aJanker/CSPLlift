@@ -360,7 +360,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
 
                                         singleVisitOnSourceTypes(target, assignToStruct, assignToVar)
                                 }
-                                res = GEN(reach :: sources)
+                                res = GEN(s :: reach :: sources) //TODO x = x + 1
 
                             case s@VarSource(id, _, _, None) if defineIsImplication(id) => res = KILL // Kill previously known local source as it is now no longer valid
                             case s@VarSource(id, _, _, global) if global.isDefined && defineIsImplication(id) && globalNameScopeIsSatisfiable(id, global) => res = KILL // Kill previously known global source as it is now no longer valid , only kill this source in case the name scope is globally visible
