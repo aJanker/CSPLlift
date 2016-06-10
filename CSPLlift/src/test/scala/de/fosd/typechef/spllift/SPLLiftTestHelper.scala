@@ -8,7 +8,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.analysis.Taint
+import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
 import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
 import org.scalatest.Matchers
 import soot.spl.ifds.Constraint
@@ -48,6 +48,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         // dbg print
         if (dbg) {
             Taint.writeGraphs(cInterCFG, sinks, dbgWriterDir + filename, ".ifg")
+            SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(dbgWriterDir  + filename + "/callGraph.dot")))
             println(Taint.prettyPrintSinks(sinks))
         }
 

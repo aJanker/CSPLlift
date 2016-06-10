@@ -9,7 +9,7 @@ import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
-import de.fosd.typechef.spllift.analysis.Taint
+import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
 import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblem}
 import de.fosd.typechef.spllift.{CInterCFG, CSPLliftFrontend, DefaultCInterCFGOptions}
 import de.fosd.typechef.typesystem._
@@ -230,6 +230,7 @@ object Frontend extends EnforceTreeHelper {
                     println("#static analysis with spllift - result")
 
                     Taint.writeGraphs(cifg, allReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
+                    SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
                     println(Taint.prettyPrintSinks(allReaches))
 
                 }

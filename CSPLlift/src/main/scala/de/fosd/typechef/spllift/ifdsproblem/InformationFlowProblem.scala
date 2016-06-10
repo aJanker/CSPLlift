@@ -7,6 +7,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.spllift.analysis.{Edge, Node, SuperCallGraph}
 import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.spllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
@@ -102,11 +103,14 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
               */
             override def getCallFlowFunction(callStmt: Opt[AST], destinationMethod: Opt[FunctionDef]): FlowFunction[InformationFlow] = {
                 val default = KILL
-                val flowCondition = destinationMethod.condition
+                val flowCondition = destinationMethod.condition.and(callStmt.condition)
 
                 lazy val callEnv = interproceduralCFG.getASTEnv(callStmt)
                 lazy val fCallOpt = parentOpt(callStmt.entry, callEnv)
-                lazy val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
+                val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
+                val orgDestOpt = parentOpt(destinationMethod.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
+
+                SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt)), Node(orgDestOpt), flowCondition))
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
                     && destinationMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
@@ -273,6 +277,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
                     && calleeMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallReturnFlow
+
+                exitStmt.entry match {
+                    case ReturnStatement(_) =>
+                    case _ => WarningsCache.add("Exiting " + calleeMethod.entry.getName + " without return statement.")
+                }
 
                 val exitOpt = parentOpt(exitStmt.entry, interproceduralCFG.getASTEnv(exitStmt))
                 val flowCondition = calleeMethod.condition

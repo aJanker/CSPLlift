@@ -1,18 +1,23 @@
 #include <minimal_linking.h>
 
 int cipher1(int i) {
-   int res = 0;
-   int x = 10;
+   int res, x = 0;
+#ifdef A
+   x = 10;
+#endif
 
    if (i < 0) {
+
+    res =
 #ifdef B
-   res = i + x;
+      i + x;
 #else
-   res = x;
+      x;
 #endif
+
   }
 
-  return res;
+   return res;
 };
 
 int cipher2(int j) {

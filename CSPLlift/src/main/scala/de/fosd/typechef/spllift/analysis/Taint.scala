@@ -38,19 +38,19 @@ object Taint {
         /**
           * Retrieves the original presence condition in the ast, not the dataflow condition
           */
-        def getNode(x: Opt[AST]): Node =
+        def getNode(x: Opt[AST]): Node[AST] =
             icfg.findEnv(x.entry) match  {
                 case Some(env) => Node(Opt(env.featureExpr(x.entry), x.entry))
                 case _=> Node(x)
             }
 
-        def getEdge(f: Opt[AST], t: Opt[AST]): Edge =
+        def getEdge(f: Opt[AST], t: Opt[AST]): Edge[AST] =
             Edge(getNode(f), getNode(t), f.condition.and(t.condition))
 
-        def getEdges(reach: (Constraint[_], Reach)): List[Edge] = {
+        def getEdges(reach: (Constraint[_], Reach)): List[Edge[AST]] = {
             val from = reach._2.from.reverse
 
-            from.foldLeft((from, List[Edge]()))((x, curr) => {
+            from.foldLeft((from, List[Edge[AST]]()))((x, curr) => {
                 val (r, edges) = x
                 val remaining = r.tail
                 val edge = getEdge(curr, remaining.headOption.getOrElse(reach._2.to))
