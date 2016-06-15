@@ -14,7 +14,8 @@ int bar(int j) {
 #ifdef A
     foo2(j);
 #endif
-    return foo(j);
+    int r = foo()
+    return r;
 }
 
 

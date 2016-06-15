@@ -334,6 +334,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
             override def getNormalFlowFunction(curr: Opt[AST], succ: Opt[AST]): FlowFunction[InformationFlow] = {
                 def default(flowFact: InformationFlow) = GEN(flowFact)
 
+
                 new InfoFlowFunction(curr, succ) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
                         var res = KILL
@@ -361,7 +362,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
 
                                                     val field = currStructFieldDefines.find(_._2.headOption match {
                                                         case None => false
-                                                        case Some(filedHit) => target.eq(filedHit)
+                                                        case Some(fieldHit) => target.eq(fieldHit)
                                                     })
 
                                                     if (field.isDefined) s :: genStructSource(target, field.get, Some(s), reachCondition) else List(s) // return reaching source again as a variable gets assigned to a struct source
@@ -408,6 +409,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
                             case r: Reach => res = default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
                             case _ => res = default(flowFact)
                         }
+
                         res
                     }
                 }
@@ -478,24 +480,24 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
                 case f : FunctionDef => interproceduralCFG.getTS(succ).lookupEnv(f.stmt.innerStatements.headOption.getOrElse(currOpt).entry)
                 case _ => currTS.lookupEnv(succ.entry)
             }
-        lazy val currDefines = definedIds match {
+        val currDefines = definedIds match {
             case None => defines(curr)
             case Some(x) => x
         }
 
-        lazy val currUses = usedIds match {
+        val currUses = usedIds match {
             case None => uses(curr)
             case Some(x) => x
         }
 
-        lazy val currAssignments = assignments match {
+        val currAssignments = assignments match {
             case None => assignsVariables(curr)
             case Some(x) => x
         }
 
-        lazy val currStructFieldDefines = definesField(curr)
+        val currStructFieldDefines = definesField(curr)
 
-        lazy val currStructFieldUses = usesField(curr)
+        val currStructFieldUses = usesField(curr)
 
         private lazy val varSourceCache = new scala.collection.mutable.HashMap[Opt[Id], List[Source]]()
 

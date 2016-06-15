@@ -13,28 +13,17 @@ import scala.collection.JavaConverters._
 
 object CSPLliftFrontend {
 
-    def solve[D](problem: IFDSTabulationProblem[Opt[AST], D, Opt[FunctionDef], CInterCFG], fmContext: FeatureModelContext = new FeatureModelContext()): List[util.Map[D, Constraint[String]]] = {
+    def solve[D](problem: IFDSTabulationProblem[Opt[AST], D, Opt[FunctionDef], CInterCFG], fmContext: FeatureModelContext = new FeatureModelContext(), printWarnings: Boolean = false): List[util.Map[D, Constraint[String]]] = {
 
         val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fmContext, false)})
         StopWatch.measureWallTime("spllift_solve", {solver.solve()})
 
-        if (WarningsCache.size() != 0) {
+        if (printWarnings && WarningsCache.size() != 0) {
             println("#ISSUED Warnings:")
             println(WarningsCache)
             println("#TOTAL Warnings:\t" +  WarningsCache.issuedWarnings())
         }
 
-        /*println("eq-relations")
-
-        println(problem.interproceduralCFG().cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.pointerEquivalenceClassesToString())
-
-        println()
-
-        println("eq-assignments")
-
-        problem.interproceduralCFG().cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.getObjectNamesAssignments.toOptList().foreach(x => println(x.entry))
-
-        println() */
         solver.getAllResults.asScala.toList
 
     }

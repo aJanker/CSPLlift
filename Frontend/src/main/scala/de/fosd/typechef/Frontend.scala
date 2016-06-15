@@ -10,7 +10,7 @@ import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
 import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
-import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblem}
+import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblem, Source}
 import de.fosd.typechef.spllift.{CInterCFG, CSPLliftFrontend, DefaultCInterCFGOptions}
 import de.fosd.typechef.typesystem._
 
@@ -227,11 +227,17 @@ object Frontend extends EnforceTreeHelper {
 
                     val allReaches = Taint.allReaches[String](solution)
 
+                    def hasName(name : String, source : Source) : Boolean = {
+                        source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
+                    }
+
+                    val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._2.sources.exists(s => hasName("key", s))))
+
                     println("#static analysis with spllift - result")
 
-                    Taint.writeGraphs(cifg, allReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
+                    Taint.writeGraphs(cifg, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
                     SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
-                    println(Taint.prettyPrintSinks(allReaches))
+                    println(Taint.prettyPrintSinks(allKeyReaches))
 
                 }
 

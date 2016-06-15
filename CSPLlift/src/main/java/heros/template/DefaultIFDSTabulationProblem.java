@@ -65,7 +65,7 @@ public abstract class DefaultIFDSTabulationProblem<N,D,M, I extends Interprocedu
 
 	@Override
 	public boolean autoAddZero() {
-		return true;
+		return false;
 	}
 	
 	@Override
