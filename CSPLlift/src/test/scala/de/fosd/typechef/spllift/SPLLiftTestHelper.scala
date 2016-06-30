@@ -47,7 +47,8 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
         // dbg print
         if (dbg) {
-            Taint.writeGraphs(cInterCFG, sinks, dbgWriterDir + filename, ".ifg")
+            Taint.writeGraphToSink(cInterCFG, sinks, dbgWriterDir + filename, ".ifg")
+            Taint.writeGraphFromSource(cInterCFG, sinks, dbgWriterDir + filename, "_sourceToSink.ifg")
             SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(dbgWriterDir  + filename + "/callGraph.dot")))
             println(Taint.prettyPrintSinks(sinks))
         }

@@ -34,29 +34,33 @@ object Taint {
             }
         }
 
-    def writeGraphs(icfg: CInterCFG, sinks: List[(AST, List[(Constraint[_], Reach)])], outputDir: String, extension: String) = {
-        /**
-          * Retrieves the original presence condition in the ast, not the dataflow condition
-          */
-        def getNode(x: Opt[AST]): Node[AST] =
-            icfg.findEnv(x.entry) match  {
-                case Some(env) => Node(Opt(env.featureExpr(x.entry), x.entry))
-                case _=> Node(x)
-            }
+    def writeGraphFromSource(icfg: CInterCFG, sinks: List[(AST, List[(Constraint[_], Reach)])], outputDir: String, extension: String) = {
+        val uniqueSources = sinks.par.flatMap(sink => sink._2.flatMap(reach => reach._2.sources)).distinct.toList
 
-        def getEdge(f: Opt[AST], t: Opt[AST]): Edge[AST] =
-            Edge(getNode(f), getNode(t), f.condition.and(t.condition))
+        val sourceToSink = uniqueSources.par.map(source => {
+            (source, sinks.flatMap(sink => sink._2.filter(reach => reach._2.sources.exists(_.equals(source)))))
+        })
 
-        def getEdges(reach: (Constraint[_], Reach)): List[Edge[AST]] = {
-            val from = reach._2.from.reverse
+        sourceToSink.zipWithIndex.foreach{
+            case (x, i) =>
+                val source = x._1
+                val sinks = x._2
 
-            from.foldLeft((from, List[Edge[AST]]()))((x, curr) => {
-                val (r, edges) = x
-                val remaining = r.tail
-                val edge = getEdge(curr, remaining.headOption.getOrElse(reach._2.to))
-                (remaining, edge :: edges)
-            })._2
+                val writer = new InformationFlowGraphWriter(new FileWriter(new File(outputDir + "/" + i + extension)))
+                writer.writeHeader()
+
+                val allUniqueSourceNodes = sinks.flatMap(reach => reach._2.to :: reach._2.from).map(getNode(_, icfg)).distinct
+                allUniqueSourceNodes.foreach(writer.writeNode)
+
+                val allUniqueDataFlowEdges = sinks.flatMap(getEdges(_, icfg)).distinct
+                allUniqueDataFlowEdges.foreach(writer.writeEdge)
+
+                writer.writeFooter()
+                writer.close()
         }
+    }
+
+    def writeGraphToSink(icfg: CInterCFG, sinks: List[(AST, List[(Constraint[_], Reach)])], outputDir: String, extension: String) = {
 
         val dir = new File(outputDir)
         if (!dir.exists()) dir.mkdirs()
@@ -68,15 +72,38 @@ object Taint {
                 writer.writeHeader()
 
                 // write nodes first
-                val allUniqueSourceNodes = sink._2.flatMap(reach => reach._2.to :: reach._2.from).map(getNode).distinct
+                val allUniqueSourceNodes = sink._2.flatMap(reach => reach._2.to :: reach._2.from).map(getNode(_, icfg)).distinct
                 allUniqueSourceNodes.foreach(writer.writeNode)
 
-                val allUniqueDataFlowEdges = sink._2.flatMap(getEdges).distinct
+                val allUniqueDataFlowEdges = sink._2.flatMap(getEdges(_, icfg)).distinct
                 allUniqueDataFlowEdges.foreach(writer.writeEdge)
 
                 writer.writeFooter()
                 writer.close()
         }
+    }
+
+    /**
+      * Retrieves the original presence condition in the ast, not the dataflow condition
+      */
+    private def getNode(x: Opt[AST], icfg: CInterCFG): Node[AST] =
+        icfg.findEnv(x.entry) match {
+            case Some(env) => Node(Opt(env.featureExpr(x.entry), x.entry))
+            case _ => Node(x)
+        }
+
+    private def getEdge(f: Opt[AST], t: Opt[AST], icfg: CInterCFG): Edge[AST] =
+        Edge(getNode(f, icfg), getNode(t, icfg), f.condition.and(t.condition))
+
+    private def getEdges(reach: (Constraint[_], Reach), icfg: CInterCFG): List[Edge[AST]] = {
+        val from = reach._2.from.reverse
+
+        from.foldLeft((from, List[Edge[AST]]()))((x, curr) => {
+            val (r, edges) = x
+            val remaining = r.tail
+            val edge = getEdge(curr, remaining.headOption.getOrElse(reach._2.to), icfg)
+            (remaining, edge :: edges)
+        })._2
     }
 
 

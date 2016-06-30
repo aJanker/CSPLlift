@@ -235,7 +235,8 @@ object Frontend extends EnforceTreeHelper {
 
                     println("#static analysis with spllift - result")
 
-                    Taint.writeGraphs(cifg, allReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
+                    Taint.writeGraphToSink(cifg, allReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
+                    Taint.writeGraphFromSource(cifg, allReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
                     SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
                     println(Taint.prettyPrintSinks(allKeyReaches))
 
