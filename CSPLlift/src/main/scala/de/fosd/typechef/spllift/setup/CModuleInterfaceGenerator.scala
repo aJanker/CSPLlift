@@ -3,7 +3,7 @@ package de.fosd.typechef.spllift.setup
 import java.io.File
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
-import de.fosd.typechef.typesystem.linker.{CInterface, InterfaceWriter, SystemLinker}
+import de.fosd.typechef.typesystem.linker.{CInterface, InterfaceWriter, LINK_RELAXED, SystemLinker}
 
 
 /**
@@ -43,15 +43,11 @@ object CModuleInterfaceGenerator extends App with InterfaceWriter {
 
     private def linkInterfaces(l: List[CInterface]): CInterface =
         l.reduceLeft { (left, right) =>
-            /*val conflicts = left getConflicts right
+            val conflicts = left getConflicts right
 
             for (c <- conflicts; if !c._2.isTautology(fm)) yield println(c + " is not a tautology in feature model.")
 
-             if (!(left isCompatibleTo right)) {
-                println(conflicts + " is not compatible with feature model.")
-                // left
-            } */
 
-            left debug_join right
+            left.linkWithOutElimination(right, LINK_RELAXED)
         }
 }
