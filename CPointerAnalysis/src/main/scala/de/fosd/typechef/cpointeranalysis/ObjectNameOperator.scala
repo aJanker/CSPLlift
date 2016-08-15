@@ -1,5 +1,7 @@
 package de.fosd.typechef.cpointeranalysis
 
+import java.util.regex.Pattern
+
 import de.fosd.typechef.parser.c.AST
 
 trait PointerContext extends Serializable {
@@ -22,6 +24,9 @@ trait PointerContext extends Serializable {
             case ObjectNameOperator.PointerCreation | ObjectNameOperator.PointerDereference => operator + objectName
         }
     }
+
+    def unapplyPointer(operator: String): String =
+        operator.replaceAll(Pattern.quote(ObjectNameOperator.PointerCreation.toString), "").replaceAll(Pattern.quote(ObjectNameOperator.PointerDereference.toString), "")
 
     def unscopeMethodName(scopedObjectName: String): String = scopedObjectName.substring(scopedObjectName.indexOf('§') + 1, scopedObjectName.indexOf('$'))
 

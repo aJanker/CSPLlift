@@ -92,7 +92,7 @@ class CTypeSystemFrontend(iast: TranslationUnit,
                 println("Found " + merrors.size + " type errors: ")
             }
         //println("\n")
-
+        finalEnv = env
         errors
     }
 
