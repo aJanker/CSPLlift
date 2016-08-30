@@ -2,14 +2,25 @@
 //#include <stdio.h>
 
 int cipher1(int i) {
-   int res;
+   int res = 0;
    int x = 1000;
+   int dbg;
 
-#ifdef B
-   res = i + x;
-#else
-   res = x;
-#endif
+   #ifdef B
+     i = x;
+   #endif
+
+
+    if (i < 10) {
+        #ifdef C
+            res = i + x;
+        #else
+            res = x;
+        #endif
+    }
+
+
+    dbg = res;
 
    return res;
 };
