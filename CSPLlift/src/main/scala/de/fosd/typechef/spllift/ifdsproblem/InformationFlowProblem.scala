@@ -515,7 +515,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
         def isSatisfiable(inner: Opt[Id], outer: Opt[Id]): Boolean = inner.entry.name.equalsIgnoreCase(outer.entry.name) && inner.condition.and(outer.condition).isSatisfiable(interproceduralCFG.getFeatureModel)
 
         def isImplication(inner: Id, outer: Opt[Id]): Boolean = isImplication(Opt(currASTEnv.featureExpr(inner), inner), outer)
-        def isImplication(inner: Opt[Id], outer: Opt[Id]): Boolean = outer.entry.name.equalsIgnoreCase(inner.entry.name) && outer.condition.implies(inner.condition).isTautology(interproceduralCFG.getFeatureModel)
+        def isImplication(inner: Opt[Id], outer: Opt[Id]): Boolean = outer.entry.name.equalsIgnoreCase(inner.entry.name) /*&& outer.condition.implies(inner.condition).isTautology(interproceduralCFG.getFeatureModel) */
 
         def defineIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currDefines, isSatisfiable)
 

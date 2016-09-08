@@ -1,11 +1,13 @@
 package de.fosd.typechef.cpointeranalysis
 
+import java.util
+
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.typesystem.CFunction
 import de.fosd.typechef.typesystem.linker.CSignature
+import de.fosd.typechef.typesystem.{CDeclUse, CFunction, CTypeCache, CTypeSystemFrontend}
 
 import scala.collection.immutable.Map
 import scala.collection.mutable
@@ -23,14 +25,14 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         /*if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
         else None */
 
-    def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, currentFile: String): CPointerAnalysisContext = {
-        val context = extractObjectNames(tUnit, currentFile)
+    def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, env : (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse])): CPointerAnalysisContext = {
+        val context = extractObjectNames(tUnit, env)
 
         extractIntraproceduralAssignments(context)
         context.solve()
 
-        extractInterproceduralFieldPointerAccesses(context)
-        context.solve()
+        /*extractInterproceduralFieldPointerAccesses(context)
+        context.solve() */
     }
 
     private def extractInterproceduralFieldPointerAccesses(context: CPointerAnalysisContext): CPointerAnalysisContext = {
@@ -43,11 +45,15 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         def getField(objectName: ObjectName): String = objectName.substring(objectName.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString) + ObjectNameOperator.StructPointerAccess.toString.length)
 
         def isFieldAccessOf(parent: String, child: String): Boolean = {
-            val defaultStructPointerAccess = parent + ObjectNameOperator.StructPointerAccess.toString
-            lazy val nestedStructPointerAccess = "(" + parent + ObjectNameOperator.StructPointerAccess.toString
-            lazy val doubleNestedStructPointerAccess = "(" + parent + ")" + ObjectNameOperator.StructPointerAccess.toString
+            def isFieldAccessOf(fieldAccess: String) : Boolean = {
+                val defaultStructPointerAccess = parent + fieldAccess
+                lazy val nestedStructPointerAccess = "(" + parent + fieldAccess
+                lazy val doubleNestedStructPointerAccess = "(" + parent + ")" + fieldAccess
 
-            child.startsWith(defaultStructPointerAccess) || child.startsWith(nestedStructPointerAccess) || child.startsWith(doubleNestedStructPointerAccess)
+                child.startsWith(defaultStructPointerAccess) || child.startsWith(nestedStructPointerAccess) || child.startsWith(doubleNestedStructPointerAccess)
+            }
+
+            isFieldAccessOf(ObjectNameOperator.StructPointerAccess.toString) || isFieldAccessOf(ObjectNameOperator.StructAccess.toString)
         }
 
         def isFieldAccess(scope: String, name: String, access: Opt[ObjectName]): Boolean = {
@@ -206,11 +212,11 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         context
     }
 
-    private def extractObjectNames(ast: AST, cFile: String): CPointerAnalysisContext = {
+    private def extractObjectNames(ast: AST, env : (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse])): CPointerAnalysisContext = {
 
         // context variables
-        var analyisContext: CPointerAnalysisContext = new CPointerAnalysisContext(cFile)
-        var currentFile: String = cFile
+        var analyisContext: CPointerAnalysisContext = new CPointerAnalysisContext()
+        var currentFile: String = "NOFILENAME"
         var currentFunction: Scope = "GLOBAL"
         var currentFunctionKind: String = "function"
         var currentDeclarator: ObjectName = ""
@@ -231,6 +237,19 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         // function calls and function call parameters
         var functionCalls: ConditionalSet[FunctionCall] = ConditionalSet()
         var functionCallParameters: List[(FunctionName, List[Opt[ObjectName]])] = List()
+
+        //helper functions
+        val cachedEnv : (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse]) = env
+        def getEnv(node: AST): Option[ASTEnv] = cachedEnv._1.find {_.containsASTElem(node)}
+        def getTypeSystem(node: AST): Option[CTypeSystemFrontend with CTypeCache with CDeclUse] =
+            getEnv(node) match {
+                case Some(env) =>
+                    cachedEnv._2.get(env) match {
+                        case null => None
+                        case ts => Some(ts)
+                    }
+                case _ => None
+            }
 
         // Recursive Extraction Functions
         def extractAST(ast: AST, ctx: FeatureExpr = True): Option[String] = {
@@ -278,10 +297,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
                     Some(ObjectNameOperator.FunctionCall.toString)
                 };
-                /*
-                 * TODO: analyze function defs and calls to relate parameters
-                 *
-                 */
+
                 case SimplePostfixSuffix(t: String) => None
                 case PointerPostfixSuffix(operator: String, expr) => {
                     val str = extractExpr(expr, ctx)
@@ -657,13 +673,27 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                 case BuiltinOffsetof(typeName: TypeName, offsetofMemberDesignator: List[Opt[OffsetofMemberDesignator]]) => None
                 case BuiltinTypesCompatible(typeName1: TypeName, typeName2: TypeName) => None
                 case BuiltinVaArgs(expr: Expr, typeName: TypeName) => None
-                case LcurlyInitializer(inits: List[Opt[Initializer]]) => ; None
+                case curly@LcurlyInitializer(inits: List[Opt[Initializer]]) =>
+                    extractCurlyInitializer(curly, ctx)
+                    None
                 case AlignOfExprT(typeName: TypeName) => extractAST(typeName, ctx);
                 case AlignOfExprU(expr: Expr) => extractExpr(expr, ctx);
                 case GnuAsmExpr(isVolatile: Boolean, isGoto: Boolean, expr: StringLit, stuff: Any) => extractExpr(expr, ctx);
                 case RangeExpr(from: Expr, to: Expr) => extractExpr(from, ctx); extractExpr(to, ctx); None
 
             }
+        }
+
+        def extractCurlyInitializer(curly: LcurlyInitializer, ctx: FeatureExpr): Option[String] = {
+            if (DEBUG) {
+                println(curly)
+            }
+
+            println("curly")
+            val env = getEnv(curly).get
+            val ts = getTypeSystem(curly).get
+            println(findPriorASTElem[StructOrUnionSpecifier](curly, env))
+            None
         }
 
         def extractStmt(stmt: Statement, ctx: FeatureExpr): Option[String] = {

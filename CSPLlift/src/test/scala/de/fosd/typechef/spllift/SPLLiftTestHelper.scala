@@ -42,7 +42,6 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         val problem = new InformationFlowProblem(cInterCFG)
         val solution = CSPLliftFrontend.solve(problem)
 
-
         val sinks = Taint.findSinks[String](solution, isSink)
 
         // dbg print
@@ -50,6 +49,10 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
             Taint.writeGraphToSink(cInterCFG, sinks, dbgWriterDir + filename, ".ifg")
             Taint.writeGraphFromSource(cInterCFG, sinks, dbgWriterDir + filename, "_sourceToSink.ifg")
             SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(dbgWriterDir  + filename + "/callGraph.dot")))
+            println("#### Pointer EQ")
+            println(cInterCFG.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses())
+            println("\n### Taints:")
+
             println(Taint.prettyPrintSinks(sinks))
         }
 

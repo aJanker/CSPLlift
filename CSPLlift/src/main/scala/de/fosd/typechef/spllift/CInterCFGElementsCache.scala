@@ -21,11 +21,11 @@ trait CInterCFGElementsCache {
 
     val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv
 
-    def findEnv(node: AST): Option[ASTEnv] =
-        cInterCFGElementsCacheEnv.getEnvs.find {_.containsASTElem(node)}
+    def getEnv(node: AST): Option[ASTEnv] =
+        cInterCFGElementsCacheEnv.getEnv(node)
 
     def getTranslationUnit(node: AST): Option[TranslationUnit] =
-        findEnv(node) match {
+        getEnv(node) match {
             case Some(env) =>
                 cInterCFGElementsCacheEnv.getTunitForEnv(env) match {
                     case null => None
@@ -35,7 +35,7 @@ trait CInterCFGElementsCache {
         }
 
     def getTypeSystem(node: AST): Option[CTypeSystemFrontend with CTypeCache with CDeclUse] =
-        findEnv(node) match {
+        getEnv(node) match {
             case Some(env) =>
                 cInterCFGElementsCacheEnv.getTSForEnv(env) match {
                     case null => None
@@ -133,7 +133,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private def calculatePointerEquivalenceRelations = {
         StopWatch.measureUserTime("pointsToAnalysis", {
             val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
-            cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), getPlainFileName(allDefs.last.entry))
+            cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), (getEnvs, envToTS))
         })
     }
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
@@ -143,10 +143,13 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def getTSForEnv(env: ASTEnv) = envToTS.get(env)
 
     def getTunitForFile(file: String): Option[TranslationUnit] = {
-        val dbgFile = file.replace("/Users/andi/Dropbox", "/home/janker")
+        val dbgFile = file /*.replace("/Users/andi/Dropbox", "/home/janker") */
         if (fileToTUnit.containsKey(dbgFile)) Some(fileToTUnit.get(dbgFile))
-        else loadTUnit(dbgFile)
+        else loadTUnit(file)
     }
+
+    def getEnv(node: AST): Option[ASTEnv] =
+        getEnvs.find {_.containsASTElem(node)}
 
     def getEnvs: List[ASTEnv] = envToTUnit.keySet.toList
 

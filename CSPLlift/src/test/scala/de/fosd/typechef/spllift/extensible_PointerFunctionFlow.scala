@@ -11,11 +11,9 @@ class extensible_PointerFunctionFlow extends SPLLiftTestHelper {
 
         val (tunit, _, _, sinks) = defaultTestInit("simplePointerFunctionFlow.c", allSinks)
 
-        println(PrettyPrinter.print(tunit))
-
         println(Taint.prettyPrintSinks(sinks))
 
-        println(tunit)
+        println(PrettyPrinter.print(tunit))
 
         successful should be(true)
 
@@ -25,6 +23,8 @@ class extensible_PointerFunctionFlow extends SPLLiftTestHelper {
         var successful = true
 
         val (tunit, _, _, sinks) = defaultTestInit("extensible_PointerFunctionFlow.c", allSinks)
+
+        println(PrettyPrinter.print(tunit))
 
         successful should be(true)
 

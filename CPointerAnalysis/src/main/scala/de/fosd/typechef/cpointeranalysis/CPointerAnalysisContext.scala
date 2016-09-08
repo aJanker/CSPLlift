@@ -4,6 +4,7 @@ import java.io._
 
 import de.fosd.typechef.conditional.{ConditionalSet, Opt}
 import de.fosd.typechef.featureexpr.FeatureExpr
+import de.fosd.typechef.featureexpr.bdd.False
 
 import scala.collection.immutable.Map
 import scala.collection.mutable
@@ -51,11 +52,16 @@ trait EquivalenceContext extends PointerContext {
 
     def pointerEquivalenceClassesToString() = equivalenceClasses.foldLeft(new StringWriter())((w, e) => w.append(e.toString + "\n")).toString
 
+    def _initEquivalenceClasses(objectNames: Set[ObjectName]) : Unit = {
+
+    }
+
     def initEquivalenceClasses(objectNameContext: ObjectNameContext): Unit = {
         clearEquivalenceClasses
 
         val r = objectNameContext.getObjectNames.keys.foldLeft((getEquivalenceClassesMap, getEquivalenceClasses))((e, k) => {
             val ec = new EquivalenceClass(ConditionalSet(k, objectNameContext.getObjectNames.get(k)), ConditionalSet())
+
             (e._1 + (k -> ec), e._2 + ec)
         })
 
@@ -70,14 +76,83 @@ trait EquivalenceContext extends PointerContext {
     }
 
     def createInitialPrefixSets(objectNameContext: ObjectNameContext ,equivalenceClassesPrefixSets: Set[(ObjectName, ObjectName)] = equivalenceClassesPrefixSets, equivalenceClassesMap: Map[ObjectName, EquivalenceClass] = equivalenceClassesMap): Unit = {
+        def lookup(objectName: ObjectName) : Opt[Option[EquivalenceClass]] = {
+            val eqClassLocal = find(objectName)
+            val conditionLocal = objectNameContext.getObjectNames.get(objectName)
+
+            lazy val globalObjectName = objectName.replace("§" + objectNameContext.unscopeMethodName(objectName) + "$", "§GLOBAL$")
+            lazy val eqClassGlobal = find(globalObjectName)
+            lazy val conditionGlobal = objectNameContext.getObjectNames.get(globalObjectName)
+
+            val eqClass =
+                if (eqClassLocal.isDefined) eqClassLocal
+                else eqClassGlobal
+
+            val condition =
+                if (eqClassLocal.isDefined) conditionLocal
+                else conditionGlobal
+
+            if (eqClass.isEmpty) {
+                println("Warning: No eq class found for: " + objectName)
+            }
+
+            Opt(condition, eqClass)
+        }
+
         val objectNames = objectNameContext.getObjectNames.keys
-        var eqClassObjectO: EquivalenceClass = EquivalenceClass()
-        var eqClassObjectO1: EquivalenceClass = EquivalenceClass()
+
+        for (o <- objectNames) {
+            val eqClassObjectO = equivalenceClassesMap.get(o)
+            val oCondition = objectNameContext.getObjectNames.get(o)
+
+            val uo = unscopeName(o)
+            val scope = unscopeFileAndMethod(o)
+
+            if (uo.startsWith(ObjectNameOperator.PointerCreation.toString)) {
+                val uo1 = uo.replace(ObjectNameOperator.PointerCreation.toString, "")
+                val o1Condition = lookup(scope + uo1).condition
+
+                if (eqClassObjectO.isDefined) {
+                    if (o1Condition.equivalentTo(False)) {
+                        eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition.and(o1Condition))
+                    } else {
+                        eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
+                    }
+                } else {
+                    println("Equivalence class not found for object name" + o)
+                }
+            } else if (uo.startsWith(ObjectNameOperator.PointerDereference.toString)) {
+                val uo1 = uo.replace(ObjectNameOperator.PointerDereference.toString, "")
+                val condEqClassO1 = lookup(scope + uo1)
+
+                if (condEqClassO1.entry.isDefined) {
+                    condEqClassO1.entry.get.addPrefix((ObjectNameOperator.PointerDereference.toString, o), oCondition.and(condEqClassO1.condition))
+                } else {
+                    println("Prefix set [pointer dereference] not generated for object name: " + o)
+                }
+
+            } else if (uo.contains(ObjectNameOperator.StructAccess.toString) || uo.contains(ObjectNameOperator.StructPointerAccess.toString)) {
+                val field = ObjectNameOperator.getField(uo)
+                val uo1 = uo.replace(field, "")
+
+                val condEqClassO1 = lookup(scope + uo1)
+
+                if (condEqClassO1.entry.isDefined) {
+                    condEqClassO1.entry.get.addPrefix((field, o), oCondition.and(condEqClassO1.condition))
+                } else {
+                    println("Prefix set [field access] not generated for object name: " + o)
+                }
+
+            } else {
+                if (uo.contains(ObjectNameOperator.PointerCreation.toString) || uo.contains(ObjectNameOperator.PointerDereference.toString))
+                    println("Prefix set not generated for object name: " + o)
+            }
+        }
 
 
         // generate cross product of all object names
         // for ((o, o1) <- equivalenceClassesPrefixSets) {
-        for { o <- objectNames; o1 <- objectNames } {
+        /* for { o <- objectNames; o1 <- objectNames; if haveSameScope(o, o1)} {
             val findObjectNameO = equivalenceClassesMap.get(o)
             val findObjectNameO1 = equivalenceClassesMap.get(o1)
 
@@ -150,7 +225,7 @@ trait EquivalenceContext extends PointerContext {
                     println("Equivalence class not found for object name" + o1)
                 }
             }
-        }
+        } */
     }
 
     def solveEquivalenceClasses(context: ObjectNameContext) =
@@ -211,6 +286,7 @@ trait EquivalenceContext extends PointerContext {
 
 trait ObjectNameContext extends PointerContext {
 
+    private var _objectNames : Set[Opt[ObjectName]] = Set()
     private var objectNames: ConditionalSet[ObjectName] = ConditionalSet()
     private var objectNamesScope: Map[ObjectName, Scope] = Map()
     private var objectNameAssignments: ConditionalSet[Assignment] = ConditionalSet()
@@ -220,6 +296,11 @@ trait ObjectNameContext extends PointerContext {
     def setObjectNameAssignments(oAssignments: ConditionalSet[Assignment]) = objectNameAssignments = oAssignments
 
     def addObjectName(scopedObjectName: ObjectName, ctx: FeatureExpr): ObjectName = {
+
+        if(scopedObjectName.equalsIgnoreCase("minimal_linking_main§GLOBAL$cipher1")) {
+            println("break")
+        }
+        _objectNames = _objectNames + Opt(ctx, scopedObjectName)
         // add object name with scope defined
         objectNames = objectNames + (scopedObjectName, ctx)
         scopedObjectName
@@ -253,6 +334,16 @@ trait ObjectNameContext extends PointerContext {
     def showAssignments() = println("*** Assignments: %s".format(objectNameAssignments))
 
     def showExtractedObjectNames() = println(objectNames)
+
+    def getField(objectName: ObjectName) : String = {
+        val delimiter =
+            if (objectName.contains(ObjectNameOperator.StructPointerAccess.toString)) Some(ObjectNameOperator.StructPointerAccess.toString)
+            else if (objectName.contains(ObjectNameOperator.StructAccess.toString)) Some(ObjectNameOperator.StructAccess.toString)
+            else None
+        if (delimiter.isDefined) objectName.substring(objectName.indexOf(delimiter.get) + delimiter.get.length)
+        else ""
+    }
+
 }
 
 trait FunctionContext extends PointerContext {

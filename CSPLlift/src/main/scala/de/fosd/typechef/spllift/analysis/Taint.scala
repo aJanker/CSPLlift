@@ -87,7 +87,7 @@ object Taint {
       * Retrieves the original presence condition in the ast, not the dataflow condition
       */
     private def getNode(x: Opt[AST], icfg: CInterCFG): Node[AST] =
-        icfg.findEnv(x.entry) match {
+        icfg.getEnv(x.entry) match {
             case Some(env) => Node(Opt(env.featureExpr(x.entry), x.entry))
             case _ => Node(x)
         }

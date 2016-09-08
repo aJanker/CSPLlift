@@ -36,6 +36,8 @@ trait PointerContext extends Serializable {
         unescopedObjectName
     }
 
+    def haveSameScope(scopedObjectName: String, otherScopedObjectName: String) : Boolean = unscopeFileAndMethod(scopedObjectName).equalsIgnoreCase(unscopeFileAndMethod(otherScopedObjectName))
+
     def unscopeFileAndMethod(scopedObjectName: String): String = scopedObjectName.substring(0, scopedObjectName.indexOf('$') + 1)
 
     def parenthesize(objName: String): String = {

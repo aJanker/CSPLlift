@@ -78,11 +78,14 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getOptions = options
 
     // undocumented function call to cifg from spllift -> gets current flow condition
-    override def getConstraint(node: Opt[AST]): Constraint[String] = Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
+    override def getConstraint(node: Opt[AST]): Constraint[String] = {
+        val cond = getASTEnv(node).featureExpr(node.entry)
+        Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
+    }
 
     override def getASTEnv(node: Opt[AST]): ASTEnv = getASTEnv(node.entry)
     private def getASTEnv(node: AST): ASTEnv =
-        findEnv(node) match {
+        getEnv(node) match {
             case Some(env) => env
             case _ => throw new NoSuchElementException("No env found for node: " + node)
         }
@@ -117,8 +120,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns whether succ is a branch target of stmt.
       */
-    override def isBranchTarget(stmt: Opt[AST], suc: Opt[AST]): Boolean =
-        getSuccsOfS(stmt).exists(_.equals(suc))
+    override def isBranchTarget(stmt: Opt[AST], suc: Opt[AST]): Boolean = !isFallThroughSuccessor(stmt, suc)
 
     /**
       * Returns all caller statements/nodes of a given method.
@@ -215,7 +217,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         succ(stmt.entry, getASTEnv(stmt)).filter {
             case Opt(_, f: FunctionDef) => false
             case _ => true
-        }
+        }.filter(_.condition.isSatisfiable(getFeatureModel))
 
     /**
       * Returns <code>true</code> if the given statement leads to a method return
@@ -257,7 +259,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isFallThroughSuccessor(stmt: Opt[AST], succ: Opt[AST]): Boolean = {
         val successors = getSuccsOfS(stmt)
-        (successors.size == 1) && successors.contains(succ)
+        successors.contains(succ) && ((successors.size == 1) || !successors.exists(s => !s.equals(succ) && succ.condition.and(s.condition).isSatisfiable(getFeatureModel)))
     }
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {

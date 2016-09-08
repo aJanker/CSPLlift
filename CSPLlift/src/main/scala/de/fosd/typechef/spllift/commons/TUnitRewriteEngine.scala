@@ -45,7 +45,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
       * Rewrites all function calls nested in return statements from:
       * return foo(x);
       * to:
-      * returntTypeOf(foo(x)) tmp = foo(x);
+      * returnTypeOf(foo(x)) tmp = foo(x);
       * return tmp;
       */
     def rewriteFunctionCallsInReturnStmts(tunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty): TranslationUnit = {
