@@ -9,10 +9,9 @@ import de.fosd.typechef.crewrite._
 import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
-import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
-import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblem, Source}
+import de.fosd.typechef.spllift.CSPLliftFrontend
+import de.fosd.typechef.spllift.evaluation.CSPLliftEvalFrontend
 import de.fosd.typechef.spllift.setup.CModuleInterfaceGenerator
-import de.fosd.typechef.spllift.{CInterCFG, CSPLliftFrontend, DefaultCInterCFGOptions}
 import de.fosd.typechef.typesystem._
 
 object Frontend extends EnforceTreeHelper {
@@ -25,7 +24,7 @@ object Frontend extends EnforceTreeHelper {
             try {
                 opt.parseOptions(args)
             } catch {
-                case o: OptionException => if (!opt.isPrintVersion || !opt.mergeCLinkingInterfaces) throw o
+                case o: OptionException => if (!opt.isPrintVersion || !opt.isMergeLinkingInterfacesEnabled) throw o
             }
 
             if (opt.isPrintVersion) {
@@ -33,7 +32,7 @@ object Frontend extends EnforceTreeHelper {
                 return
             }
 
-            if (opt.mergeCLinkingInterfaces) {
+            if (opt.isMergeLinkingInterfacesEnabled) {
                 CModuleInterfaceGenerator.mergeInterfaces(opt.getCModuleInterfaceMergeDir)
 
                 return
@@ -71,7 +70,7 @@ object Frontend extends EnforceTreeHelper {
         var currentPeriodId: Int = 0
         var times: Map[(Int, String), Long] = Map()
 
-        private def genId(): Int = { currentPeriodId += 1; currentPeriodId }
+        private def genId(): Int = {currentPeriodId += 1; currentPeriodId}
 
         private def measure(checkpoint: String) {
             times = times + ((genId(), checkpoint) -> System.currentTimeMillis())
@@ -122,10 +121,10 @@ object Frontend extends EnforceTreeHelper {
         if (opt.reuseAST && opt.parse && new File(opt.getSerializedASTFilename).exists()) {
             println("loading AST.")
             try {
-            ast = loadSerializedAST(opt.getSerializedASTFilename)
-            ast = prepareAST[TranslationUnit](ast)
+                ast = loadSerializedAST(opt.getSerializedASTFilename)
+                ast = prepareAST[TranslationUnit](ast)
             } catch {
-                case e: Throwable => println(e.toString);e.printStackTrace(); ast=null
+                case e: Throwable => println(e.toString); e.printStackTrace(); ast = null
             }
             if (ast == null)
                 println("... failed reading AST\n")
@@ -201,12 +200,12 @@ object Frontend extends EnforceTreeHelper {
                     //c.writeDotCallGraph(opt.getFile, dotWriter, fullFM) /* if no feature model is provided, an empty one is used */
 
                     // DEBUG
-                     c.writeDbgCallGraph(opt.getFile, dbgWriter, fullFM) /* if no feature model is provided, an empty one is used */
+                    c.writeDbgCallGraph(opt.getFile, dbgWriter, fullFM) /* if no feature model is provided, an empty one is used */
                     // c.showPointerEquivalenceClasses()
                     // c.showFunctionDefs()
                     // c.showFunctionCalls()
                     // c.showAssignments()
-                   }
+                }
 
                 if (opt.dumpcfg) {
                     println("#control flow graph")
@@ -214,43 +213,28 @@ object Frontend extends EnforceTreeHelper {
                     stopWatch.start("dumpCFG")
 
                     //run without feature model, because otherwise too expensive runtimes in systems such as linux
-                    val cf = new CInterAnalysisFrontend(ast/*, fm_ts*/)
+                    val cf = new CInterAnalysisFrontend(ast /*, fm_ts*/)
                     val writer = new CFGCSVWriter(new FileWriter(new File(opt.getCCFGFilename)))
                     val dotwriter = new DotGraph(new FileWriter(new File(opt.getCCFGDotFilename)))
                     cf.writeCFG(opt.getFile, new ComposedWriter(List(dotwriter, writer)))
                 }
 
-                if (opt.lift) {
-                    println("#static analysis with spllift")
-                    val spllift = CSPLliftFrontend
+                if (opt.isLiftAnalysisEnabled) {
+                    if (opt.isLiftEvaluationModeEnabled) {
+                        val cSPLliftEvalFrontend = new CSPLliftEvalFrontend(ast, fullFM)
 
-                    val cInterCFGOptions = new DefaultCInterCFGOptions(opt.getCLinkingInterfacePath)
-                    val cInterCFG = new CInterCFG(ast, fullFM, cInterCFGOptions)
+                        if (opt.isLiftSamplingEvaluationEnabled)
+                            cSPLliftEvalFrontend.checkAgainstSampling(opt)
 
-                    if (opt.lift_TaintAnalysis) {
-                        val (_, (solution, cifg)) = StopWatch.measureUserTime("spllift", {
-                            val problem = new InformationFlowProblem(cInterCFG)
-                            (spllift.solve[InformationFlow](problem), cInterCFG)
+                        if (opt.isLiftSingleEvaluationEnabled)
+                            cSPLliftEvalFrontend.checkAgainstErrorConfiguration(opt)
 
-                        })
+                    } else {
+                        println("#static analysis with spllift")
 
-                        val allReaches = Taint.allReaches[String](solution)
-
-                        def hasName(name : String, source : Source) : Boolean = {
-                            source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
-                        }
-
-                        val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._2.sources.exists(s => hasName("key", s))))
-
-                        println("#static analysis with spllift - result")
-
-                        Taint.writeGraphToSink(cifg, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
-                        Taint.writeGraphFromSource(cifg, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
-                        SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
-                        println(Taint.prettyPrintSinks(allKeyReaches))
+                        val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
+                        cSPLliftFrontend.analyze(opt)
                     }
-
-
                 }
 
                 if (opt.staticanalyses) {
@@ -317,12 +301,12 @@ object Frontend extends EnforceTreeHelper {
 
     def loadSerializedAST(filename: String): TranslationUnit = try {
         val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename))) {
-            override protected def resolveClass(desc: ObjectStreamClass) = { /*println(desc);*/ super.resolveClass(desc) }
+            override protected def resolveClass(desc: ObjectStreamClass) = {/*println(desc);*/ super.resolveClass(desc)}
         }
         val ast = fr.readObject().asInstanceOf[TranslationUnit]
         fr.close()
         ast
     } catch {
-        case e:ObjectStreamException => System.err.println("failed loading serialized AST: "+e.getMessage); null
+        case e: ObjectStreamException => System.err.println("failed loading serialized AST: " + e.getMessage); null
     }
 }

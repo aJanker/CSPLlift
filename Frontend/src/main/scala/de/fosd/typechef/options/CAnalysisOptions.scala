@@ -1,6 +1,7 @@
 package de.fosd.typechef.options
 
 import de.fosd.typechef.crewrite.ICAnalysisOptions
+import de.fosd.typechef.spllift.options.CSPLliftOptions
 import de.fosd.typechef.typesystem.{ICTypeSysOptions, LinuxDefaultOptions}
 import gnu.getopt.{Getopt, LongOpt}
 
@@ -17,15 +18,11 @@ abstract class CAnalysisOptions extends CInterAnalysisOptions
 /**
   * Options for the combination of TypeChef with SPLLift.
   */
-abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
+abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLliftOptions {
 
-    var lift: Boolean = false
-    var liftBenchmark: Boolean = false
-    var liftPrepareEvaluation: Boolean = false
-    var mergeCLinkingInterfaces: Boolean = false
+    private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
 
-    private var cLinkingInterfacePath: Option[String] = None
-    private var cLinkingInterfaceMergeDir: Option[String] = None
+    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, mergeCLinkingInterfaces : Boolean = false
 
     private val F_MERGELINKINTERFACE: Char = Options.genOptionId()
     private val F_LINKINTERFACE: Char = Options.genOptionId()
@@ -37,13 +34,22 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
         SPLLIFT_Taint
     )
 
-    def getCLinkingInterfacePath: Option[String] = cLinkingInterfacePath
-    def getInformationFlowGraphExtension: String = ".ifg.dot"
-    def getInformationFLowGraphFilename: String = getOutputStem + getInformationFlowGraphExtension
-    def getInformationFlowGraphsOutputDir: String = getOutputStem + "_ifg"
-    def getCModuleInterfaceMergeDir: String = cLinkingInterfaceMergeDir.getOrElse(getOutputStem)
+    override def getCLinkingInterfacePath: Option[String] = cLinkingInterfacePath
+    override def getCModuleInterfaceMergeDir: String = cLinkingInterfaceMergeDir.getOrElse(getOutputStem)
 
-    def lift_TaintAnalysis : Boolean = SPLLIFT_Taint.isSelected
+    override def getInformationFlowGraphExtension: String = ".ifg.dot"
+    override def getInformationFLowGraphFilename: String = getOutputStem + getInformationFlowGraphExtension
+    override def getInformationFlowGraphsOutputDir: String = getOutputStem + "_ifg"
+
+    override def isLiftEvaluationModeEnabled: Boolean = liftEvalSampling || liftEvalSingle
+    override def isLiftAnalysisEnabled: Boolean = lift
+    override def isLiftBenchmarkEnabled: Boolean = liftBenchmark
+    override def isMergeLinkingInterfacesEnabled: Boolean = mergeCLinkingInterfaces
+
+    override def isLiftSamplingEvaluationEnabled: Boolean = liftEvalSampling
+    override def isLiftSingleEvaluationEnabled: Boolean = liftEvalSingle
+
+    override def liftTaintAnalysis : Boolean = SPLLIFT_Taint.isSelected
 
     protected override def getOptionGroups: java.util.List[Options.OptionGroup] = {
         val r: java.util.List[Options.OptionGroup] = super.getOptionGroups
@@ -67,7 +73,8 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
 
             if (arg.equalsIgnoreCase("ALL")) opts.foreach(_.isSelected = true)
             else if (arg.equalsIgnoreCase("BENCHMARK")) liftBenchmark = true
-            else if (arg.equalsIgnoreCase("PREPARE")) liftPrepareEvaluation = true
+            else if (arg.equalsIgnoreCase("EVALCOVERAGE")) liftEvalSampling = true
+            else if (arg.equalsIgnoreCase("EVALSINGLE")) liftEvalSingle = true
             else {
                 val opt = opts.find(_.param.toUpperCase == arg)
 

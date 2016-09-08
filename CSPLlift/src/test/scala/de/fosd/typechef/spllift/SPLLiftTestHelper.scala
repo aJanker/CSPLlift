@@ -40,7 +40,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
         val cInterCFG = new CInterCFG(tunit, BDDFeatureModel.empty, new DefaultCInterCFGOptions(cModuleInterfacePath))
         val problem = new InformationFlowProblem(cInterCFG)
-        val solution = CSPLliftFrontend.solve(problem)
+        val solution = CSPLlift.solve(problem)
 
         val sinks = Taint.findSinks[String](solution, isSink)
 
