@@ -11,6 +11,7 @@ import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
 import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
 import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, InformationFlowProblem, Source}
+import de.fosd.typechef.spllift.setup.CModuleInterfaceGenerator
 import de.fosd.typechef.spllift.{CInterCFG, CSPLliftFrontend, DefaultCInterCFGOptions}
 import de.fosd.typechef.typesystem._
 
@@ -24,13 +25,20 @@ object Frontend extends EnforceTreeHelper {
             try {
                 opt.parseOptions(args)
             } catch {
-                case o: OptionException => if (!opt.isPrintVersion) throw o
+                case o: OptionException => if (!opt.isPrintVersion || !opt.mergeCLinkingInterfaces) throw o
             }
 
             if (opt.isPrintVersion) {
                 println("TypeChef " + getVersion)
                 return
             }
+
+            if (opt.mergeCLinkingInterfaces) {
+                CModuleInterfaceGenerator.mergeInterfaces(opt.getCModuleInterfaceMergeDir)
+
+                return
+            }
+
             if (opt.isPrintIncludes)
                 opt.printInclude()
         }

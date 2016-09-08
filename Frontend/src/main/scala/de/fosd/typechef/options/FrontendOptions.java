@@ -149,7 +149,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions  
         } else if (c == 'o') {
             outputStem = g.getOptarg();
         } else if (c == F_FILEPC) {//--filePC
-            checkFileExists(g.getOptarg());
+            checkIfFileExists(g.getOptarg());
             filePresenceConditionFile = g.getOptarg();
         } else if (c == F_HIDEPARSERRESULTS) {
             parserResults = false;
@@ -247,7 +247,6 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions  
         }
         return localFM;
     }
-
 
     public String getSerializedASTFilename() {
         return getOutputStem() + ".ast";

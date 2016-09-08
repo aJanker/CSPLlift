@@ -22,13 +22,16 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
     var lift: Boolean = false
     var liftBenchmark: Boolean = false
     var liftPrepareEvaluation: Boolean = false
+    var mergeCLinkingInterfaces: Boolean = false
 
     private var cLinkingInterfacePath: Option[String] = None
+    private var cLinkingInterfaceMergeDir: Option[String] = None
 
+    private val F_MERGELINKINTERFACE: Char = Options.genOptionId()
+    private val F_LINKINTERFACE: Char = Options.genOptionId()
     private val F_SPLLIFT: Char = Options.genOptionId
-    private val F_LINKINTERFACE: Char = Options.genOptionId
 
-    private val SPLLIFT_Taint = SecurityOption("taint", "Issues a warning when a potential taint memory leak is found.", false)
+    private val SPLLIFT_Taint = SecurityOption("taint", "Issues a warning when a potential taint memory leak is found.", dflt = false)
 
     private val opts: List[SecurityOption] = List(
         SPLLIFT_Taint
@@ -38,6 +41,7 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
     def getInformationFlowGraphExtension: String = ".ifg.dot"
     def getInformationFLowGraphFilename: String = getOutputStem + getInformationFlowGraphExtension
     def getInformationFlowGraphsOutputDir: String = getOutputStem + "_ifg"
+    def getCModuleInterfaceMergeDir: String = cLinkingInterfaceMergeDir.getOrElse(getOutputStem)
 
     def lift_TaintAnalysis : Boolean = SPLLIFT_Taint.isSelected
 
@@ -50,7 +54,8 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
                     opts.map(o => " * " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
                     "\n(Analyses with * are activated by default)."
             ),
-            new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions.")
+            new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions."),
+            new Options.Option("mergeLinkingInterface", LongOpt.OPTIONAL_ARGUMENT, F_LINKINTERFACE, "dir", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
         ))
 
         r
@@ -73,8 +78,15 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
         }
 
         if (c == F_LINKINTERFACE) {
-            checkFileExists(g.getOptarg)
+            checkIfFileExists(g.getOptarg)
             cLinkingInterfacePath = Some(g.getOptarg)
+        } else if (c == F_MERGELINKINTERFACE) {
+            if (g.getOptarg != null) {
+                checkIfDirectoryExists(g.getOptarg)
+                cLinkingInterfaceMergeDir = Some(g.getOptarg)
+            }
+
+            mergeCLinkingInterfaces = true
         } else if(c == F_SPLLIFT) {
             lift = true
             interpretLiftOpts()

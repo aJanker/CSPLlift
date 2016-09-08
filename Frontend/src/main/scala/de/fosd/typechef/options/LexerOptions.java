@@ -175,7 +175,7 @@ public abstract class LexerOptions extends Options implements ILexerOptions {
         } else if (c == PP_OPENFEAT) {   //--openFeat
             macroFilter.add("4:" + g.getOptarg());
         } else if (c == PP_IQUOTE) { // --iquote=
-            checkDirectoryExists(g.getOptarg());
+            checkIfDirectoryExists(g.getOptarg());
             try {
                 quoteIncludePath.add(new File(g.getOptarg()).getCanonicalPath());
             } catch (IOException e) {
@@ -193,7 +193,7 @@ public abstract class LexerOptions extends Options implements ILexerOptions {
         } else if (c == PP_LEXOUT) {   //--lexOutput (previously -o)
             lexOutputFile = g.getOptarg();
         } else if (c == PP_INCLUDE) { // --include=
-            checkFileExists(g.getOptarg());
+            checkIfFileExists(g.getOptarg());
             try {
                 includedHeaders.add(new File(g.getOptarg()).getCanonicalPath());
             } catch (IOException e) {

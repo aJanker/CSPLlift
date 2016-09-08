@@ -121,26 +121,26 @@ public abstract class FeatureModelOptions extends LexerOptions implements ILexer
     protected boolean interpretOption(int c, Getopt g) throws OptionException {
         if (c == FM_DIMACS) {       //--featureModelDimacs, loads the full model
             String filename = g.getOptarg();
-            checkFileExists(filename);
+            checkIfFileExists(filename);
             if (fullFeatureModel != null)
                 throw new OptionException("cannot load feature model " + filename + " from dimacs file. A feature model was already loaded.");
             fullFeatureModel = FeatureExprLib.featureModelFactory().createFromDimacsFilePrefix(filename, dimacsPrefix);
             dimacsModelLoaded = true;
         } else if (c == FM_DIMACS_SMALL) {       //--smallFeatureModelDimacs
             String filename = g.getOptarg();
-            checkFileExists(filename);
+            checkIfFileExists(filename);
             if (smallFeatureModel != null)
                 throw new OptionException("cannot load feature model " + filename + " from dimacs file. A feature model was already loaded.");
             smallFeatureModel = FeatureExprLib.featureModelFactory().createFromDimacsFilePrefix(filename, dimacsPrefix);
             dimacsModelLoaded = true;
         } else if (c == FM_FEXPR) {     //--featureModelFExpr
-            checkFileExists(g.getOptarg());
+            checkIfFileExists(g.getOptarg());
             FeatureExpr f = new FeatureExprParserJava(FeatureExprLib.l()).parseFile(g.getOptarg());
             if (fullFeatureModel == null)
                 fullFeatureModel = FeatureExprLib.featureModelFactory().create(f);
             else fullFeatureModel = fullFeatureModel.and(f);
         } else if (c == FM_FEXPR_SMALL) {     //--smallFeatureModelFExpr
-            checkFileExists(g.getOptarg());
+            checkIfFileExists(g.getOptarg());
             FeatureExpr f = new FeatureExprParserJava(FeatureExprLib.l()).parseFile(g.getOptarg());
             if (smallFeatureModelExpr == null)
                 smallFeatureModelExpr = f;
@@ -149,7 +149,7 @@ public abstract class FeatureModelOptions extends LexerOptions implements ILexer
                 smallFeatureModel = FeatureExprLib.featureModelFactory().create(f);
             else smallFeatureModel = smallFeatureModel.and(f);
         } else if (c == FM_PARTIALCONFIG) {
-            checkFileExists(g.getOptarg());
+            checkIfFileExists(g.getOptarg());
             if (partialConfig != null)
                 throw new OptionException("cannot load a second partial configuration");
             partialConfig = PartialConfigurationParser$.MODULE$.load(g.getOptarg());

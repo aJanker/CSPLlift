@@ -1,8 +1,9 @@
 package de.fosd.typechef.options
 
-import java.io.{FileInputStream, File}
-import gnu.getopt.{Getopt, LongOpt}
+import java.io.{File, FileInputStream}
 import java.util.{ArrayList, Properties}
+
+import gnu.getopt.{Getopt, LongOpt}
 
 
 class FrontendOptionsWithConfigFiles extends FrontendOptions {
@@ -54,8 +55,7 @@ class FrontendOptionsWithConfigFiles extends FrontendOptions {
     private final val SYSINCL: Char = Options.genOptionId()
 
     protected override def getOptionGroups() = {
-        import Options.OptionGroup
-        import Options.Option
+        import Options.{Option, OptionGroup}
 
         val groups = new ArrayList[OptionGroup](super.getOptionGroups)
 
@@ -74,19 +74,19 @@ class FrontendOptionsWithConfigFiles extends FrontendOptions {
 
     override protected def interpretOption(c: Int, g: Getopt) = {
         if (c == 'r') {
-            checkDirectoryExists(g.getOptarg)
+            checkIfDirectoryExists(g.getOptarg)
             setSystemRoot(g.getOptarg)
             true
         } else if (c == 'h') {
-            checkFileExists(g.getOptarg)
+            checkIfFileExists(g.getOptarg)
             setPredefMacroDef(g.getOptarg)
             true
         } else if (c == 'c') {
-            checkFileExists(g.getOptarg)
+            checkIfFileExists(g.getOptarg)
             loadSettings(g.getOptarg)
             true
         } else if (c == SYSINCL) {
-            checkDirectoryExists(g.getOptarg)
+            checkIfDirectoryExists(g.getOptarg)
             setSystemIncludes(g.getOptarg)
             true
         } else

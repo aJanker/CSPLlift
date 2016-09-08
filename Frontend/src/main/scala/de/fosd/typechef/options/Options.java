@@ -1,6 +1,5 @@
 package de.fosd.typechef.options;
 
-import de.fosd.typechef.VALexer;
 import gnu.getopt.Getopt;
 import gnu.getopt.LongOpt;
 
@@ -179,13 +178,13 @@ public abstract class Options {
     }
 
 
-    protected void checkFileExists(String file) throws OptionException {
+    protected void checkIfFileExists(String file) throws OptionException {
         File f = new File(file);
         if (!(f.exists() && f.isFile()))
             throw new OptionException("Expected a file, found " + file);
     }
 
-    protected void checkDirectoryExists(String file) throws OptionException {
+    protected void checkIfDirectoryExists(String file) throws OptionException {
         File f = new File(file);
         if (!(f.exists() && f.isDirectory()))
             throw new OptionException("Expected a directory, found " + file);
