@@ -6,7 +6,7 @@ import java.util
 import de.fosd.typechef.conditional.{One, Opt}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.CInterCFG
-import de.fosd.typechef.spllift.ifdsproblem.{InformationFlow, Reach, Source}
+import de.fosd.typechef.spllift.cifdsproblem.{InformationFlow, Reach, Source}
 import soot.spl.ifds.Constraint
 
 import scala.collection.JavaConverters._

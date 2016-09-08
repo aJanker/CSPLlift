@@ -1,4 +1,4 @@
-package de.fosd.typechef.spllift.ifdsproblem
+package de.fosd.typechef.spllift.cifdsproblem
 
 import java.util
 import java.util.Collections
@@ -7,16 +7,16 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.spllift.CInterCFG
 import de.fosd.typechef.spllift.analysis.{Edge, Node, SuperCallGraph}
 import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningsCache}
-import de.fosd.typechef.spllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
-import heros.{FlowFunction, FlowFunctions, IFDSTabulationProblem}
+import heros.{FlowFunction, FlowFunctions}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-trait SPLLiftConstants {
+trait InformationFlowConstants {
 
     lazy val SPLLIFT_CONSTANT_VALUE = "SPLLIFT_CONSTANT_VALUE"
 
@@ -26,7 +26,7 @@ trait SPLLiftConstants {
 
 }
 
-trait InformationFlowProblemOperations extends CInterCFGCommons with SPLLiftConstants {
+trait InformationFlowProblemOperations extends CInterCFGCommons with InformationFlowConstants {
     def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
     def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
@@ -34,7 +34,7 @@ trait InformationFlowProblemOperations extends CInterCFGCommons with SPLLiftCons
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
 
-class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfiguration with IFDSTabulationProblem[Opt[AST], InformationFlow, Opt[FunctionDef], CInterCFG] with InformationFlowProblemOperations with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
+class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlow](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {
 
     private var initialGlobalsFile: String = ""
     private val zeroVal = Zero()
@@ -50,14 +50,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends InformationFlowConfigurat
             res
         })
 
-
-    /**
-      * Returns the interprocedural control-flow graph which this problem is computed over.
-      *
-      * <b>NOTE:</b> this method could be called many times. Implementations of this
-      * interface should therefore cache the return value!
-      */
-    override def interproceduralCFG: CInterCFG = cICFG
 
     /**
       * This must be a data-flow fact of type {@link D}, but must <i>not</i>

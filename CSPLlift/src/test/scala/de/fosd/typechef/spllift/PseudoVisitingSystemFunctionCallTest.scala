@@ -4,7 +4,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.ifdsproblem.Reach
+import de.fosd.typechef.spllift.cifdsproblem.Reach
 import org.junit.Test
 
 class PseudoVisitingSystemFunctionCallTest extends SPLLiftTestHelper {

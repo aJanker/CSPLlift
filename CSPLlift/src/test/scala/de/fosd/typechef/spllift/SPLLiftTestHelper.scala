@@ -9,7 +9,7 @@ import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
-import de.fosd.typechef.spllift.ifdsproblem.{InformationFlowProblem, Reach}
+import de.fosd.typechef.spllift.cifdsproblem.{InformationFlowProblem, Reach}
 import org.scalatest.Matchers
 import soot.spl.ifds.Constraint
 

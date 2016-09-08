@@ -4,8 +4,8 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.spllift.cifdsproblem._
 import de.fosd.typechef.spllift.commons.CInterCFGCommons
-import de.fosd.typechef.spllift.ifdsproblem._
 import heros.FlowFunction
 
 trait CInterCFGPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with CInterCFGCommons {

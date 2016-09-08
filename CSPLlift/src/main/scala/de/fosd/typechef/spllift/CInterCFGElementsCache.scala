@@ -7,6 +7,7 @@ import java.util.zip.GZIPInputStream
 import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
@@ -87,6 +88,9 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     override def prepareAST[T <: Product](t: T): T = {
         var tunit = super.prepareAST(t.asInstanceOf[TranslationUnit])
+        if (options.getConfiguration.isDefined)
+            tunit = ProductDerivation.deriveProduct(tunit, options.getConfiguration.get)
+
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
         copyPositions(t.asInstanceOf[TranslationUnit], tunit)
@@ -132,11 +136,12 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     }
     private def calculatePointerEquivalenceRelations = {
         StopWatch.measureUserTime("pointsToAnalysis", {
-            val allDefs = getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }
-            cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(TranslationUnit(allDefs), (getEnvs, envToTS))
+            cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, (getEnvs, envToTS))
         })
     }
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
+
+    def getAllKnownTUnitsAsSingleTUnit : TranslationUnit = TranslationUnit(getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs })
 
     def getTunitForEnv(env: ASTEnv) = envToTUnit.get(env)
 

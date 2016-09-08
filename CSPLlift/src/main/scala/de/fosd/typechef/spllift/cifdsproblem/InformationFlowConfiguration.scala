@@ -1,4 +1,4 @@
-package de.fosd.typechef.spllift.ifdsproblem
+package de.fosd.typechef.spllift.cifdsproblem
 
 import heros.SolverConfiguration
 
