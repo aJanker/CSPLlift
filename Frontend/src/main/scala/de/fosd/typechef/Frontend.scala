@@ -212,33 +212,36 @@ object Frontend extends EnforceTreeHelper {
                     cf.writeCFG(opt.getFile, new ComposedWriter(List(dotwriter, writer)))
                 }
 
-                if (opt.spllift) {
+                if (opt.lift) {
                     println("#static analysis with spllift")
-                    val (_, (solution, cifg)) = StopWatch.measureUserTime("spllift", {
-                        val spllift = CSPLliftFrontend
-                        val cInterCFGOptions =
-                            if (opt.getCLinkingInterfacePath != null) new DefaultCInterCFGOptions(Some(opt.getCLinkingInterfacePath))
-                            else new DefaultCInterCFGOptions
-                        val cInterCFG = new CInterCFG(ast, fullFM, cInterCFGOptions)
-                        val problem = new InformationFlowProblem(cInterCFG)
-                        (spllift.solve[InformationFlow](problem), cInterCFG)
+                    val spllift = CSPLliftFrontend
 
-                    })
+                    val cInterCFGOptions = new DefaultCInterCFGOptions(opt.getCLinkingInterfacePath)
+                    val cInterCFG = new CInterCFG(ast, fullFM, cInterCFGOptions)
 
-                    val allReaches = Taint.allReaches[String](solution)
+                    if (opt.lift_TaintAnalysis) {
+                        val (_, (solution, cifg)) = StopWatch.measureUserTime("spllift", {
+                            val problem = new InformationFlowProblem(cInterCFG)
+                            (spllift.solve[InformationFlow](problem), cInterCFG)
 
-                    def hasName(name : String, source : Source) : Boolean = {
-                        source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
+                        })
+
+                        val allReaches = Taint.allReaches[String](solution)
+
+                        def hasName(name : String, source : Source) : Boolean = {
+                            source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
+                        }
+
+                        val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._2.sources.exists(s => hasName("key", s))))
+
+                        println("#static analysis with spllift - result")
+
+                        Taint.writeGraphToSink(cifg, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
+                        Taint.writeGraphFromSource(cifg, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
+                        SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
+                        println(Taint.prettyPrintSinks(allKeyReaches))
                     }
 
-                    val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._2.sources.exists(s => hasName("key", s))))
-
-                    println("#static analysis with spllift - result")
-
-                    Taint.writeGraphToSink(cifg, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
-                    Taint.writeGraphFromSource(cifg, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
-                    SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
-                    println(Taint.prettyPrintSinks(allKeyReaches))
 
                 }
 

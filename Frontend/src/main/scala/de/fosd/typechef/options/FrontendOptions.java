@@ -13,7 +13,7 @@ import java.io.File;
 import java.util.List;
 
 
-public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
+public class FrontendOptions extends CAnalysisOptions implements ParserOptions  {
     public boolean parse = true,
             typecheck = false,
             writeInterface = false,
@@ -28,14 +28,11 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             simplifyPresenceConditions = false,
             writePI = false,
             printInclude = false,
-            printVersion = false,
-            spllift = false;
+            printVersion = false;
     private File errorXMLFile = null;
     private final File _autoErrorXMLFile = new File(".");
     private String outputStem = "";
     private String filePresenceConditionFile = "";
-
-    private String cLinkingInterfacePath = null;
 
     private final static char F_PARSE = Options.genOptionId();
     private final static char F_INTERFACE = Options.genOptionId();
@@ -52,11 +49,9 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     private final static char F_HIDEPARSERRESULTS = Options.genOptionId();
     private final static char F_BDD = Options.genOptionId();
     private final static char F_ERRORXML = Options.genOptionId();
-    private static final char TY_DEBUG_INCLUDES = genOptionId();
-    private static final char TY_VERSION = genOptionId();
-    private static final char TY_HELP = genOptionId();
-    private static final char F_SPLLIFT = genOptionId();
-    private static final char F_LINKINTERFACE = genOptionId();
+    private static final char TY_DEBUG_INCLUDES = Options.genOptionId();
+    private static final char TY_VERSION = Options.genOptionId();
+    private static final char TY_HELP = Options.genOptionId();
 
     private Function3<FeatureExpr, String, Position, Object> _renderParserError;
 
@@ -102,14 +97,9 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
                         "Use BDD engine instead of SAT engine (provide as first parameter)."),
 
                 new Option("errorXML", LongOpt.OPTIONAL_ARGUMENT, F_ERRORXML, "file",
-                        "File to store syntax and type errors in XML format."),
-
-                new Option("spllift", LongOpt.NO_ARGUMENT, F_SPLLIFT, null,
-                        "Perform static analysis using SPLLIFT."),
-
-                new Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions.")
-
+                        "File to store syntax and type errors in XML format.")
         ));
+
         r.add(new OptionGroup("Parser options", 23,
                 new Option("hideparserresults", LongOpt.NO_ARGUMENT, F_HIDEPARSERRESULTS, null,
                         "Do not show parser results."),
@@ -185,11 +175,6 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
         } else if (c == TY_HELP) {//--help
             //printUsage();
             printVersion = true;
-        } else if (c == F_LINKINTERFACE) {
-            checkFileExists(g.getOptarg());
-            cLinkingInterfacePath = g.getOptarg();
-        } else if (c == F_SPLLIFT) {
-            spllift = true;
         } else
             return super.interpretOption(c, g);
 
@@ -204,29 +189,34 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
         if (getFiles().size() > 1)
             throw new OptionException("Multiple files specified. Only one supported.");
 
-        if (outputStem.length() == 0)
+        if (getOutputStem().length() == 0)
             outputStem = getFile().replace(".c", "");
         if (writePI && (lexOutputFile == null || lexOutputFile.length() == 0))
-            lexOutputFile = outputStem + ".pi";
+            lexOutputFile = getOutputStem() + ".pi";
     }
 
     public String getFile() {
         return getFiles().iterator().next();
     }
 
+    @Override
+    public String getOutputStem() {
+        return outputStem;
+    }
+
     public String getInterfaceFilename() {
-        return outputStem + ".interface";
+        return getOutputStem() + ".interface";
     }
 
     public String getDebugInterfaceFilename() {
-        return outputStem + ".dbginterface";
+        return getOutputStem() + ".dbginterface";
     }
 
-    public String getFilePresenceConditionFilename() {
+    private String getFilePresenceConditionFilename() {
         if (filePresenceConditionFile.length() > 0)
             return filePresenceConditionFile;
         else
-            return outputStem + ".pc";
+            return getOutputStem() + ".pc";
     }
 
     private FeatureExpr filePC = null;
@@ -243,7 +233,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
     }
 
     public String getLocalFeatureModelFilename() {
-        return outputStem + ".fm";
+        return getOutputStem() + ".fm";
     }
 
     private FeatureExpr localFM = null;
@@ -260,35 +250,23 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
 
 
     public String getSerializedASTFilename() {
-        return outputStem + ".ast";
+        return getOutputStem() + ".ast";
     }
 
     public String getValidCGFilename() {
-        return outputStem + ".cg";
+        return getOutputStem() + ".cg";
     }
 
     public String getDebugCGFilename() {
-        return outputStem + ".cg.dbg";
+        return getOutputStem() + ".cg.dbg";
     }
 
     public String getCCFGFilename() {
-        return outputStem + ".cfg";
+        return getOutputStem() + ".cfg";
     }
 
     public String getCCFGDotFilename() {
-        return outputStem + ".cfg.dot";
-    }
-
-    public String getInformationFlowGraphExtension() {
-        return ".ifg.dot";
-    }
-
-    public String getInformationFLowGraphFilename() {
-        return outputStem + getInformationFlowGraphExtension();
-    }
-
-    public String getInformationFlowGraphsOutputDir() {
-        return outputStem + "_ifg";
+        return getOutputStem() + ".cfg.dot";
     }
 
     public boolean printParserStatistics() {
@@ -340,10 +318,5 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions {
             System.out.println("  "+dir);
         }
     }
-
-    public String getCLinkingInterfacePath() {
-        return this.cLinkingInterfacePath;
-    }
-
 }
 

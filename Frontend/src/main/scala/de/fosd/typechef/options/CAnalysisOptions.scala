@@ -1,20 +1,95 @@
 package de.fosd.typechef.options
 
-import de.fosd.typechef.typesystem.{LinuxDefaultOptions, ICTypeSysOptions}
-import gnu.getopt.{Getopt, LongOpt}
-import scala.Predef.String
 import de.fosd.typechef.crewrite.ICAnalysisOptions
+import de.fosd.typechef.typesystem.{ICTypeSysOptions, LinuxDefaultOptions}
+import gnu.getopt.{Getopt, LongOpt}
 
-/**
- * options for the type system and additional security analysis
- *
- * (type system, data flow, etc)
- */
-class CAnalysisOptions extends FeatureModelOptions with ICTypeSysOptions with ICAnalysisOptions {
+trait AnalysisOptions {
+    def getOutputStem : String
 
     case class SecurityOption(param: String, expl: String, dflt: Boolean) {
         var isSelected = dflt
     }
+}
+
+abstract class CAnalysisOptions extends CInterAnalysisOptions
+
+/**
+  * Options for the combination of TypeChef with SPLLift.
+  */
+abstract class CInterAnalysisOptions extends CIntraAnalysisOptions {
+
+    var lift: Boolean = false
+    var liftBenchmark: Boolean = false
+    var liftPrepareEvaluation: Boolean = false
+
+    private var cLinkingInterfacePath: Option[String] = None
+
+    private val F_SPLLIFT: Char = Options.genOptionId
+    private val F_LINKINTERFACE: Char = Options.genOptionId
+
+    private val SPLLIFT_Taint = SecurityOption("taint", "Issues a warning when a potential taint memory leak is found.", false)
+
+    private val opts: List[SecurityOption] = List(
+        SPLLIFT_Taint
+    )
+
+    def getCLinkingInterfacePath: Option[String] = cLinkingInterfacePath
+    def getInformationFlowGraphExtension: String = ".ifg.dot"
+    def getInformationFLowGraphFilename: String = getOutputStem + getInformationFlowGraphExtension
+    def getInformationFlowGraphsOutputDir: String = getOutputStem + "_ifg"
+
+    def lift_TaintAnalysis : Boolean = SPLLIFT_Taint.isSelected
+
+    protected override def getOptionGroups: java.util.List[Options.OptionGroup] = {
+        val r: java.util.List[Options.OptionGroup] = super.getOptionGroups
+
+        r.add(new Options.OptionGroup("General options for interprocedural analysis with SPLLift", 100,
+            new Options.Option("spllift", LongOpt.REQUIRED_ARGUMENT, F_SPLLIFT, "type",
+                "Enables the lifted analysis class: \n" +
+                    opts.map(o => " * " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
+                    "\n(Analyses with * are activated by default)."
+            ),
+            new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions.")
+        ))
+
+        r
+    }
+
+    protected override def interpretOption(c: Int, g: Getopt): Boolean = {
+        def interpretLiftOpts() : Unit = {
+            val arg: String = g.getOptarg.replace('_', '-')
+
+            if (arg.equalsIgnoreCase("ALL")) opts.foreach(_.isSelected = true)
+            else if (arg.equalsIgnoreCase("BENCHMARK")) liftBenchmark = true
+            else if (arg.equalsIgnoreCase("PREPARE")) liftPrepareEvaluation = true
+            else {
+                val opt = opts.find(_.param.toUpperCase == arg)
+
+                if (opt.isEmpty) throw new OptionException("Analysis " + arg + " unknown. Known analyses: " + opts.map(_.param).mkString(", "))
+
+                opt.foreach(_.isSelected = true)
+            }
+        }
+
+        if (c == F_LINKINTERFACE) {
+            checkFileExists(g.getOptarg)
+            cLinkingInterfacePath = Some(g.getOptarg)
+        } else if(c == F_SPLLIFT) {
+            lift = true
+            interpretLiftOpts()
+        } else return super.interpretOption(c, g)
+
+        true
+    }
+}
+
+/**
+  * options for the type system and additional security analysis
+  *
+  * (type system, data flow, etc)
+  */
+abstract class CIntraAnalysisOptions extends FeatureModelOptions with AnalysisOptions with ICTypeSysOptions with ICAnalysisOptions {
 
     private val Apointersign = SecurityOption("pointer-sign", "Issue type error when pointers have incompatible signedness (undefined behavior)", LinuxDefaultOptions.warning_pointer_sign)
     private val Aintegeroverflow = SecurityOption("integer-overflow", "Issue security warning on possible integer overflows in security-relevant locations (unintended effects and undefined behavior)", LinuxDefaultOptions.warning_potential_integer_overflow)
@@ -36,7 +111,7 @@ class CAnalysisOptions extends FeatureModelOptions with ICTypeSysOptions with IC
     private val Sdeadstore = SecurityOption("deadstore", "Issue a warning when values stored to variables are never read afterwards", false)
 
 
-    val opts: List[SecurityOption] = List(
+    private val opts: List[SecurityOption] = List(
         Apointersign, Aintegeroverflow, Aimplicitcoercion, Alongdesignator, Aimplicitidentifier, Aconflictinglinkage, Avolatile, Aconst, Achar, Sdoublefree, Sxfree, Sunitializedmemory, Scasetermination, Sdanglingswitchcode, Scfginnonvoidfunc, Sstdlibfuncreturn, Sdeadstore
     )
 
