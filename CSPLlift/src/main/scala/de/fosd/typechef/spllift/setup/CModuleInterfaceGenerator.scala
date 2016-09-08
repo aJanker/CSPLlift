@@ -2,8 +2,8 @@ package de.fosd.typechef.spllift.setup
 
 import java.io.File
 
-import de.fosd.typechef.featureexpr.FeatureExprFactory
-import de.fosd.typechef.typesystem.linker.{CInterface, InterfaceWriter, LINK_RELAXED, SystemLinker}
+import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
+import de.fosd.typechef.typesystem.linker._
 
 
 /**
@@ -12,42 +12,49 @@ import de.fosd.typechef.typesystem.linker.{CInterface, InterfaceWriter, LINK_REL
 object CModuleInterfaceGenerator extends App with InterfaceWriter {
 
     val startDir = args(0)
-    val out: String = args(0) + "/CModuleInterface.interface"
     val featureModel_DIMACS: String = if (args.length > 3) args(1) else " "
-
-    private def getFileTree(f: File): Stream[File] =
-        f #:: (if (f.isDirectory) f.listFiles().toStream.flatMap(getFileTree)
-        else Stream.empty)
-
-    val fileList = getFileTree(new File(startDir)).filter(f => f.isFile && f.getPath.endsWith(".interface"))
 
     val fm =
         if (new File(featureModel_DIMACS).isFile) FeatureExprFactory.default.featureModelFactory.createFromDimacsFilePrefix(featureModel_DIMACS, "")
         else FeatureExprFactory.default.featureModelFactory.empty
 
-    val interfaces = fileList.par.map(f => {
-        val interface = SystemLinker.linkStdLib(readInterface(f))
-        // interface.exports.map(sig => sig.copy(p))
-        interface
-    }).toList
+    mergeAndWriteInterfaces(startDir, fm)
 
-    println("#Loaded interfaces:\t" + interfaces.size)
+    def mergeInterfaces(dir : String, fm : FeatureModel = FeatureExprFactory.default.featureModelFactory.empty, strictness: Strictness = LINK_RELAXED) : CInterface = {
+        val fileList = getFileTree(new File(startDir)).filter(f => f.isFile && f.getPath.endsWith(".interface"))
 
-    val finalInterface = linkInterfaces(interfaces) //.packWithOutElimination //.andFM(fm_constraints)
+        val interfaces = fileList.par.map(f => {
+            val interface = SystemLinker.linkStdLib(readInterface(f))
+            // interface.exports.map(sig => sig.copy(p))
+            interface
+        }).toList
 
-    println("#Linked interface is well-formed:\t" + finalInterface.isWellformed)
+        println("#Loaded interfaces:\t" + interfaces.size)
 
-    writeExportInterface(finalInterface, new File(out))
+        val finalInterface = linkInterfaces(interfaces, strictness) //.packWithOutElimination //.andFM(fm_constraints)
 
-    println("#Linked interface written to:\t" + new File(out).getAbsolutePath)
+        println("#Linked interface is well-formed:\t" + finalInterface.isWellformed)
 
-    private def linkInterfaces(l: List[CInterface]): CInterface =
+        finalInterface
+    }
+
+    def mergeAndWriteInterfaces(dir : String, fm : FeatureModel = FeatureExprFactory.default.featureModelFactory.empty, strictness: Strictness = LINK_RELAXED, name : String = "CModuleInterface.interface") : Unit = {
+        val interface = mergeInterfaces(dir, fm, strictness)
+        val out = new File(dir + "/" + name)
+
+        writeExportInterface(interface, out)
+
+        println("#Linked interface written to:\t" + out.getAbsolutePath)
+    }
+
+    private def getFileTree(f: File): Stream[File] = f #:: (if (f.isDirectory) f.listFiles().toStream.flatMap(getFileTree) else Stream.empty)
+
+    private def linkInterfaces(l: List[CInterface], strictness: Strictness = LINK_RELAXED): CInterface =
         l.reduceLeft { (left, right) =>
             val conflicts = left getConflicts right
 
             for (c <- conflicts; if !c._2.isTautology(fm)) yield println(c + " is not a tautology in feature model.")
 
-
-            left.linkWithOutElimination(right, LINK_RELAXED)
+            left.linkWithOutElimination(right, strictness)
         }
 }
