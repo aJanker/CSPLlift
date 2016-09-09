@@ -79,7 +79,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     // undocumented function call to cifg from spllift -> gets current flow condition
     override def getConstraint(node: Opt[AST]): Constraint[String] = {
-        val cond = getASTEnv(node).featureExpr(node.entry)
+        // val cond = getASTEnv(node).featureExpr(node.entry)
         Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
     }
 

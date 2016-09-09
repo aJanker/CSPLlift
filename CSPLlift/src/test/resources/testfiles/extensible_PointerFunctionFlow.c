@@ -1,72 +1,104 @@
-struct enc {
-    int **fun;
+/*struct _chunck {
+    void **mem;
 };
 
-struct fun2 {
-    int (*cipherfun2)(int);
+void xmalloc();
+
+void xfree();
+
+void foo() {
+    (c->freefun)();
+}
+
+struct obstack{
+    struct _chunck *chunk;
+    struct _chunck *(*chunkfun)();
+    void (*freefun)();
 };
 
+struct obstack* c;
 
-int cipher2(int j) {
-    int res;
+*/
+/*void chunck_fun(struct obstack *h, void *f) {
+    h->chunkfun = (struct _chunck *(*)()) f;
+    (h->chunkfun)();
+} */
+/*
+void free_fun(struct obstack *h, void *f) {
+    h->freefun = f;
+    //(*h->freefun)();
+    //(h->freefun)();
+} */
+
+
+int foo(int value) {
+        int i = 0;
+        int y = 2;
+        int x = 1;
+
     #ifdef A
-    int value = 4;
-    #else
-    int value = j;
-    #endif
-    res = j + value;
-    return res;
+            x =
+           #if defined(B) && defined(C)
+             value;
+            #elif defined(B)
+               i;
+            #else
+               y;
+            #endif
+        #endif
+
+
+        #ifdef B
+           y = x;
+        #endif
+
+
+
+    return y;
 };
-
-struct cipher_ctx{
-    struct enc *enc;
-    struct fun2 *f2;
-    struct enc *(*fun)(int);
-    int (*cipherfun)(int);
-};
-
-void init(struct cipher_ctx *ci, struct fun2 *di) {
-    ci->f2 = di;
-}
-
-void foo_fun(struct cipher_ctx *c, int (*f)(int)) {
-    c->cipherfun = (int (*)(int)) f;
-}
-
-void foo3(struct cipher_ctx *c) {
-    int foo_value = 222;
-    int sinkInFoo = c->f2->cipherfun2(foo_value);
-
-    return;
-}
-
-void foo2(struct cipher_ctx *c) {
-    foo3(c);
-
-    return;
-}
-
-void foo1(struct cipher_ctx *c) {
-    foo2(c);
-
-    return;
-}
 
 int main() {
-    struct cipher_ctx* c;
-    struct fun2* d;
+    /*struct obstack h;
+    struct obstack b;
 
-    d->cipherfun2 = &cipher2;
+    free_fun(&h, &xfree);
+    c = &h;
+    #ifdef A
 
-    init(c, d);
-    foo_fun(c, &cipher2);
+    free_fun(&b, &xmalloc);
+    c = &b;
 
-    foo1(c);
+    #endif
 
-    int secret = 666;
+    foo(); */
 
-    int sink = c->cipherfun(secret);
-    int sink2 = c->f2->cipherfun2(secret);
+    int secret = 6;
+    int non = 3;
+    int sink;
 
-    return 0;
+#ifdef S
+    if (secret > 6) {
+        goto DST;
+    }
+
+#endif
+
+    return 1;
+
+DST:
+
+    #ifdef X
+        secret = non;
+    #endif
+
+
+    sink =
+        #ifdef Z
+        foo(secret);
+        #else
+        secret;
+        #endif
+
+     return 0;
+
 }

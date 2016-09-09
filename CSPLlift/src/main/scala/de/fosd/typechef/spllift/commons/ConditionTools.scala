@@ -1,9 +1,13 @@
-package de.fosd.typechef.spllift.evaluation
+package de.fosd.typechef.spllift.commons
 
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.featureexpr.SingleFeatureExpr
+import de.fosd.typechef.spllift.evaluation.SimpleConfiguration
+import soot.spl.ifds.Constraint
 
-trait FeatureHelper {
+trait ConditionTools {
+
+    def isSatisfiableInConfiguration(cons : Constraint[_], configuration : SimpleConfiguration) : Boolean = cons.getBDDFeatureExpr.evaluate(configuration.getTrueFeatures)
 
     /**
       * Returns a sorted list of all features in this AST, including Opt and Choice Nodes

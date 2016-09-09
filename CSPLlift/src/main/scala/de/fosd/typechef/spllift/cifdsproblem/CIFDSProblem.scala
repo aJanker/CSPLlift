@@ -1,9 +1,10 @@
 package de.fosd.typechef.spllift.cifdsproblem
 
 import de.fosd.typechef.spllift.commons.CInterCFGCommons
+import de.fosd.typechef.spllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.spllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions, IFDSProblem}
 
-abstract class CIFDSProblem[D](cICFG: CInterCFG) extends IFDSProblem[D] with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
+abstract class CIFDSProblem[D <: FlowFact](cICFG: CInterCFG) extends IFDSProblem[D] with CInterCFGCommons with CInterCFGPseudoVistingSystemLibFunctions {
 
     /**
       * Returns the interprocedural control-flow graph which this problem is computed over.
@@ -12,4 +13,10 @@ abstract class CIFDSProblem[D](cICFG: CInterCFG) extends IFDSProblem[D] with CIn
       * interface should therefore cache the return value!
       */
     override def interproceduralCFG: CInterCFG = cICFG
+}
+
+trait FlowFact {
+
+    def isEquivalent(other : Any, configuration: SimpleConfiguration) : Boolean
+
 }

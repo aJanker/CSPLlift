@@ -13,7 +13,7 @@ int cipher1(int i) {
 
     if (i < 10) {
         #ifdef C
-            res = i + x;
+            res = i >> x;
         #else
             res = x;
         #endif

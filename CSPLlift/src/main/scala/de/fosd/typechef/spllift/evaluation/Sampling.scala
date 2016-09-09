@@ -5,6 +5,7 @@ import java.io.{File, FileWriter}
 import de.fosd.typechef.conditional.{Choice, One, Opt}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel, SingleFeatureExpr}
 import de.fosd.typechef.parser.c.{AST, TranslationUnit}
+import de.fosd.typechef.spllift.commons.ConditionTools
 
 import scala.collection.immutable.HashMap
 import scala.io.Source
@@ -12,7 +13,7 @@ import scala.io.Source
 /**
   * Adapted from the sampling infrastructure of Jörg Liebig, Alex von Rhein, and me.
   */
-class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends FeatureHelper {
+class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools {
 
     /** List of all features found in the currently processed file */
     private val features: List[SingleFeatureExpr] = getAllFeatures(tunit)
@@ -260,6 +261,9 @@ class SimpleConfiguration(private val features: List[SingleFeatureExpr], private
             fex: SingleFeatureExpr => config.apply(featureIDHashmap(fex))
         }).toSet
     }
+
+    def getTrueFeatures: Set[String] = getTrueSet.map(_.feature)
+    def getFalseFeatures: Set[String] = getFalseSet.map(_.feature)
 
     override def toString: String = {
         features.map(

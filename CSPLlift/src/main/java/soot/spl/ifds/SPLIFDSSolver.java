@@ -174,7 +174,7 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 		Constraint c = interCfg.getConstraint(stmt);
 		if (c == Constraint.trueValue()) return false;
 		if (c == Constraint.falseValue()) return true; // c
-		return (!(c.bFexpr.leak().isOne()));
+		return (!(c.getBDDFeatureExpr().leak().isOne()));
 	}
 	static class WrappedFlowFunction<D> implements FlowFunction<D> {
 		

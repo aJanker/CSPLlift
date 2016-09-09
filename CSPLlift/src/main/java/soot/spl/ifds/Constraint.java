@@ -1,6 +1,7 @@
 package soot.spl.ifds;
 
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory;
 import net.sf.javabdd.BDDFactory;
 import soot.util.NumberedString;
 import soot.util.StringNumberer;
@@ -10,7 +11,9 @@ import java.util.Collection;
 import static soot.spl.ifds.Constraint.FeatureModelMode.NO_SINGLETON;
 
 public class Constraint<T> implements Cloneable {
-	
+
+	private final BDDFeatureExpr bddFeatureExpr;
+
 	public static BDDFactory FACTORY;
 	
 	public enum FeatureModelMode{
@@ -18,11 +21,15 @@ public class Constraint<T> implements Cloneable {
 		ALL,			//consider all feature constraints
 		NO_SINGLETON	//consider all feature constraints but singleton constraints of the form "A" or "!A"
 	};
+
+	public BDDFeatureExpr getBDDFeatureExpr() {
+		return this.bddFeatureExpr;
+	}
 	
 	public static FeatureModelMode fmMode = NO_SINGLETON;
 
 	@SuppressWarnings({ "rawtypes" })
-	private final static Constraint FALSE = new Constraint(null) {
+	private final static Constraint FALSE = new Constraint(BDDFeatureExprFactory.FalseB()) {
 		public Constraint and(Constraint other) {
 			//false && other = false
 			return this;
@@ -63,7 +70,7 @@ public class Constraint<T> implements Cloneable {
 	};
 	
 	@SuppressWarnings({ "rawtypes" })
-	private final static Constraint TRUE = new Constraint(null) {
+	private final static Constraint TRUE = new Constraint(BDDFeatureExprFactory.TrueB()) {
 		public Constraint and(Constraint other) {
 			//true && other == other
 			return other;
@@ -103,8 +110,6 @@ public class Constraint<T> implements Cloneable {
 		}
 	};
 
-	public final BDDFeatureExpr bFexpr;
-
 	public synchronized static <T> Constraint<T> make(BDDFeatureExpr bdd) {
 		synchronized (FACTORY) {
 			if (bdd.leak().isOne())
@@ -116,7 +121,7 @@ public class Constraint<T> implements Cloneable {
 	}
 
 	private Constraint(BDDFeatureExpr bdd) {
-		this.bFexpr = bdd;
+		this.bddFeatureExpr = bdd;
 	}
 	
 	/**
@@ -130,7 +135,7 @@ public class Constraint<T> implements Cloneable {
 			if(other==trueValue()) return other;
 			if(other==falseValue()) return this;
 
-			BDDFeatureExpr disjunction = (BDDFeatureExpr) bFexpr.or(other.bFexpr);
+			BDDFeatureExpr disjunction = (BDDFeatureExpr) bddFeatureExpr.or(other.bddFeatureExpr);
 			if (disjunction.leak().isOne())
 				return trueValue();
 			else
@@ -149,7 +154,7 @@ public class Constraint<T> implements Cloneable {
 			if(other==trueValue()) return this;
 			if(other==falseValue()) return other;
 
-			BDDFeatureExpr conjunction = (BDDFeatureExpr) bFexpr.and(other.bFexpr);
+			BDDFeatureExpr conjunction = (BDDFeatureExpr) bddFeatureExpr.and(other.bddFeatureExpr);
 			if (conjunction.leak().isZero())
 				return falseValue();
 			else
@@ -159,11 +164,11 @@ public class Constraint<T> implements Cloneable {
 	
 	@Override
 	public String toString() {
-		return this.bFexpr./* toString() */ toTextExpr();
+		return this.bddFeatureExpr./* toString() */ toTextExpr();
 	}
 
 	public Constraint<T> not() {
-		return Constraint.make((BDDFeatureExpr) this.bFexpr.not());
+		return Constraint.make((BDDFeatureExpr) this.bddFeatureExpr.not());
 	}
 
 
@@ -180,7 +185,7 @@ public class Constraint<T> implements Cloneable {
 	@Override
 	public int hashCode() {
 		synchronized (FACTORY) {
-			return this.bFexpr.hashCode();
+			return this.bddFeatureExpr.hashCode();
 		}
 	}
 
@@ -195,10 +200,10 @@ public class Constraint<T> implements Cloneable {
 				return false;
 			@SuppressWarnings("rawtypes")
 			Constraint other = (Constraint) obj;
-			if (bFexpr == null) {
-				if (other.bFexpr != null)
+			if (bddFeatureExpr == null) {
+				if (other.bddFeatureExpr != null)
 					return false;
-			} else if (!bFexpr.equals(other.bFexpr))
+			} else if (!bddFeatureExpr.equals(other.bddFeatureExpr))
 				return false;
 			return true;
 		}
@@ -206,7 +211,7 @@ public class Constraint<T> implements Cloneable {
 
 	public int size() {
 		synchronized (FACTORY) {
-			return bFexpr.leak().nodeCount();
+			return bddFeatureExpr.leak().nodeCount();
 		}
 	}
 }

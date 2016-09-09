@@ -1,14 +1,13 @@
 package de.fosd.typechef.spllift
 
 import java.io.FileWriter
-import java.util
 
 import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
-import de.fosd.typechef.spllift.cifdsproblem.{CIFDSProblem, InformationFlowProblem, Source}
+import de.fosd.typechef.spllift.cifdsproblem.{CIFDSProblem, FlowFact, InformationFlowProblem, Source}
 import de.fosd.typechef.spllift.commons.WarningsCache
 import de.fosd.typechef.spllift.options.CSPLliftOptions
 import soot.spl.ifds.{Constraint, FeatureModelContext, SPLIFDSSolver}
@@ -50,10 +49,10 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
 object CSPLlift {
 
-    def solveCIFDSProblem[D, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fmContext: FeatureModelContext = new FeatureModelContext(), printWarnings: Boolean = false): List[util.Map[D, Constraint[String]]] =
+    def solveCIFDSProblem[D <: FlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fmContext: FeatureModelContext = new FeatureModelContext(), printWarnings: Boolean = false): List[Map[D, Constraint[String]]] =
         CSPLlift.solve[D](getCIFDSProblemInstance[D, T](ifdsProblem)(cifg), fmContext, printWarnings)
 
-    def solve[D](problem: IFDSProblem[D], fmContext: FeatureModelContext = new FeatureModelContext(), printWarnings: Boolean = false): List[util.Map[D, Constraint[String]]] = {
+    def solve[D <: FlowFact](problem: IFDSProblem[D], fmContext: FeatureModelContext = new FeatureModelContext(), printWarnings: Boolean = false): List[Map[D, Constraint[String]]] = {
 
         val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fmContext, false)})
         StopWatch.measureWallTime("spllift_solve", {solver.solve()})
@@ -64,7 +63,8 @@ object CSPLlift {
             println("#TOTAL Warnings:\t" +  WarningsCache.issuedWarnings())
         }
 
-        solver.getAllResults.asScala.toList
+        // Looks messy, but requiered for a clean conversion from java collections to scala collections...
+        solver.getAllResults.asScala.map(_.asScala.toMap).toList
 
     }
 }
