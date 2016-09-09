@@ -89,7 +89,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     override def prepareAST[T <: Product](t: T): T = {
         var tunit = super.prepareAST(t.asInstanceOf[TranslationUnit])
         if (options.getConfiguration.isDefined)
-            tunit = ProductDerivation.deriveProduct(tunit, options.getConfiguration.get)
+            tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
 
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)

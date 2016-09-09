@@ -1,6 +1,6 @@
 package de.fosd.typechef.spllift
 
-import de.fosd.typechef.featureexpr.SingleFeatureExpr
+import de.fosd.typechef.spllift.evaluation.SimpleConfiguration
 
 /**
   *
@@ -11,7 +11,9 @@ trait CInterCFGOptions {
 
   def getModuleInterfacePath: Option[String]
 
-  def getConfiguration: Option[Set[String]] = None
+  def getConfiguration: Option[SimpleConfiguration] = None
+  def getTrueSet: Option[Set[String]] = None
+  def getFalseSet: Option[Set[String]] = None
 
   def getGraphEntryFunctionNames: List[String] = List("main")
 
@@ -32,6 +34,8 @@ class DefaultCInterCFGOptions(moduleInterfacePath : Option[String] = None) exten
   override def pseudoVisitingSystemLibFunctions = true
 }
 
-class ConfigurationBasedCInterCFGOptions(configuration : Set[SingleFeatureExpr], moduleInterfacePath : Option[String] = None) extends DefaultCInterCFGOptions(moduleInterfacePath) {
-  override def getConfiguration: Option[Set[String]] = Some(configuration.map(_.feature))
+class ConfigurationBasedCInterCFGOptions(configuration : SimpleConfiguration, moduleInterfacePath : Option[String] = None) extends DefaultCInterCFGOptions(moduleInterfacePath) {
+  override def getConfiguration: Option[SimpleConfiguration] = Some(configuration)
+  override def getTrueSet: Option[Set[String]] = Some(configuration.getTrueSet.map(_.feature))
+  override def getFalseSet: Option[Set[String]] = Some(configuration.getFalseSet.map(_.feature))
 }

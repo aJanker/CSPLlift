@@ -33,9 +33,9 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         val configs = sampling.codeConfigurationCoverage()
 
         val coverageResults = configs.map(config => {
-            val cInterCFGOptions = new ConfigurationBasedCInterCFGOptions(config.getTrueSet, opt.getCLinkingInterfacePath)
+            val cInterCFGOptions = new ConfigurationBasedCInterCFGOptions(config, opt.getCLinkingInterfacePath)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "coverage")
-            (solution, config.getTrueSet, wallTime)
+            (solution, config, wallTime)
         })
 
         // TODO Compare Results
