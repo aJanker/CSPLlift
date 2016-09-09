@@ -29,9 +29,11 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         val cInterCFGOptions = new DefaultCInterCFGOptions(opt.getCLinkingInterfacePath)
         val (vaaWallTime, (vaaSolution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
+        // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.codeConfigurationCoverage()
 
+        // 3. Run Code Coverage
         val coverageResults = configs.map(config => {
             val cInterCFGOptions = new ConfigurationBasedCInterCFGOptions(config, opt.getCLinkingInterfacePath)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "coverage")
@@ -43,8 +45,8 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
 
     }
 
-    private def runSPLLift[D, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGOptions, stopWatch: String = "None"): (Long, (List[util.Map[D, Constraint[String]]], CInterCFG)) =
-        StopWatch.measureUserTime(stopWatch, {
+    private def runSPLLift[D, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGOptions, stopWatchMark: String = "None"): (Long, (List[util.Map[D, Constraint[String]]], CInterCFG)) =
+        StopWatch.measureUserTime(stopWatchMark, {
             val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions)
             val problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG)
 

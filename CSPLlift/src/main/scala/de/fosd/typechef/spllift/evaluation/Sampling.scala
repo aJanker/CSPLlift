@@ -245,7 +245,7 @@ class SimpleConfiguration(private val features: List[SingleFeatureExpr], private
                 val ret: scala.collection.mutable.BitSet = scala.collection.mutable.BitSet()
                 for (tf: SingleFeatureExpr <- trueSet) ret.add(featureIDHashmap(tf))
                 for (ff: SingleFeatureExpr <- falseSet) ret.remove(featureIDHashmap(ff))
-                scala.collection.immutable.BitSet.fromBitMask(ret.toArray[Long])
+                ret.toImmutable
             }
         )
 
