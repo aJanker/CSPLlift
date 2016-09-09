@@ -28,7 +28,7 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
     private val F_LINKINTERFACE: Char = Options.genOptionId()
     private val F_SPLLIFT: Char = Options.genOptionId
 
-    private val SPLLIFT_Taint = SecurityOption("taint", "Issues a warning when a potential taint memory leak is found.", dflt = false)
+    private val SPLLIFT_Taint = SecurityOption("TAINT", "Issues a warning when a potential taint memory leak is found.", dflt = false)
 
     private val opts: List[SecurityOption] = List(
         SPLLIFT_Taint
@@ -76,7 +76,7 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
             else if (arg.equalsIgnoreCase("EVALCOVERAGE")) liftEvalSampling = true
             else if (arg.equalsIgnoreCase("EVALSINGLE")) liftEvalSingle = true
             else {
-                val opt = opts.find(_.param.toUpperCase == arg)
+                val opt = opts.find(_.param.toUpperCase equalsIgnoreCase arg)
 
                 if (opt.isEmpty) throw new OptionException("Analysis " + arg + " unknown. Known analyses: " + opts.map(_.param).mkString(", "))
 

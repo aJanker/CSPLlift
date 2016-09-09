@@ -10,7 +10,6 @@ import heros.solver.IDESolver;
 import heros.template.DefaultIDETabulationProblem;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -52,13 +51,15 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 					boolean srcAnnotated = hasFeatureAnnotation(src);
 					boolean succAnnotated = hasFeatureAnnotation(successor);
 					if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
-										
-					List<Opt<AST>> srcSuccs = interCfg.getSuccsOf(src);
-					if (interCfg.isFallThroughSuccessor(src, successor)) {
+					// TODO Validate
+
+
+					/* List<Opt<AST>> srcSuccs = interCfg.getSuccsOf(src);
+					/* if (interCfg.isFallThroughSuccessor(src, successor)) {
 							// (src --> successor) is a fallThroughEdge (as src has only one successor), currently, this is the only case we can handle precisely 
 							return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
-					}
-					return conservativeBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
+					} */
+					return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
 				}
 				private EdgeFunction<Constraint<String>> conservativeBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
 					//boolean srcAnnotated = hasFeatureAnnotation(src);

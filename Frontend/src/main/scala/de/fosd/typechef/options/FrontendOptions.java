@@ -17,7 +17,7 @@ public class FrontendOptions extends CAnalysisOptions implements ParserOptions  
     public boolean parse = true,
             typecheck = false,
             writeInterface = false,
-            dumpcfg = true,
+            dumpcfg = false,
             dumpcg = false,
             serializeAST = false,
             reuseAST = false,
