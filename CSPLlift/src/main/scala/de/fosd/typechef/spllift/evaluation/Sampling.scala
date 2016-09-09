@@ -9,6 +9,9 @@ import de.fosd.typechef.parser.c.{AST, TranslationUnit}
 import scala.collection.immutable.HashMap
 import scala.io.Source
 
+/**
+  * Adapted from the sampling infrastructure of Jörg Liebig, Alex von Rhein, and me.
+  */
 class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends FeatureHelper {
 
     /** List of all features found in the currently processed file */
@@ -226,92 +229,93 @@ class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends FeatureHelper 
       */
     def completeConfiguration(expr: FeatureExpr, list: List[SingleFeatureExpr], model: FeatureModel, preferDisabledFeatures: Boolean = false): SimpleConfiguration = {
         expr.getSatisfiableAssignment(model, list.toSet, preferDisabledFeatures) match {
-            case Some(ret) => new SimpleConfiguration(ret._1, ret._2)
+            case Some(ret) => new SimpleConfiguration(ret._1, ret._2, features, featureIDHashmap)
             case None => null
         }
     }
+}
 
-    // representation of a product configuration that can be dumped into a file
-    // and loaded at further runs
-    class SimpleConfiguration(private val config: scala.collection.immutable.BitSet) extends scala.Serializable {
+// representation of a product configuration that can be dumped into a file
+// and loaded at further runs
+class SimpleConfiguration(private val features: List[SingleFeatureExpr], private val featureIDHashmap: Map[SingleFeatureExpr, Int], private val config: scala.collection.immutable.BitSet) extends scala.Serializable {
 
-        def this(trueSet: List[SingleFeatureExpr], falseSet: List[SingleFeatureExpr]) = this(
+    def this(trueSet: List[SingleFeatureExpr], falseSet: List[SingleFeatureExpr], features: List[SingleFeatureExpr], featureIDHashmap: Map[SingleFeatureExpr, Int]) =
+        this(features, featureIDHashmap,
             {
                 val ret: scala.collection.mutable.BitSet = scala.collection.mutable.BitSet()
                 for (tf: SingleFeatureExpr <- trueSet) ret.add(featureIDHashmap(tf))
                 for (ff: SingleFeatureExpr <- falseSet) ret.remove(featureIDHashmap(ff))
-                ret.toImmutable
+                scala.collection.immutable.BitSet.fromBitMask(ret.toArray[Long])
             }
         )
 
-        def getTrueSet: Set[SingleFeatureExpr] = {
-            features.filter({
-                fex: SingleFeatureExpr => config.apply(featureIDHashmap(fex))
-            }).toSet
-        }
-
-        def getFalseSet: Set[SingleFeatureExpr] = {
-            features.filterNot({
-                fex: SingleFeatureExpr => config.apply(featureIDHashmap(fex))
-            }).toSet
-        }
-
-        override def toString: String = {
-            features.map(
-                {
-                    fex: SingleFeatureExpr => if (config.apply(featureIDHashmap(fex))) fex else fex.not()
-                }
-            ).mkString("&&")
-        }
-
-        // caching, values of this field will not be serialized
-        @transient
-        private var featureExpression: FeatureExpr = null
-
-        def toFeatureExpr: FeatureExpr = {
-            if (featureExpression == null)
-                featureExpression = FeatureExprFactory.createFeatureExprFast(getTrueSet, getFalseSet)
-            featureExpression
-        }
-
-        /**
-          * This method assumes that all features in the parameter-set appear in either the trueList, or in the falseList
-          * @param features given feature set
-          * @return
-          */
-        def containsAllFeaturesAsEnabled(features: Set[SingleFeatureExpr]): Boolean = {
-            for (fex <- features) {
-                if (!config.apply(featureIDHashmap(fex))) return false
-            }
-            true
-        }
-
-        /**
-          * This method assumes that all features in the parameter-set appear in the configuration (either as true or as false)
-          * @param features given feature set
-          * @return
-          */
-        def containsAllFeaturesAsDisabled(features: Set[SingleFeatureExpr]): Boolean = {
-            for (fex <- features) {
-                if (config.apply(featureIDHashmap(fex))) return false
-            }
-            true
-        }
-
-        def containsAtLeastOneFeatureAsEnabled(set: Set[SingleFeatureExpr]): Boolean =
-            !containsAllFeaturesAsDisabled(set)
-
-        def containsAtLeastOneFeatureAsDisabled(set: Set[SingleFeatureExpr]): Boolean =
-            !containsAllFeaturesAsEnabled(set)
-
-        override def equals(other: Any): Boolean = {
-            if (!other.isInstanceOf[SimpleConfiguration]) super.equals(other)
-            else {
-                val otherSC = other.asInstanceOf[SimpleConfiguration]
-                otherSC.config.equals(this.config)
-            }
-        }
-
-        override def hashCode(): Int = config.hashCode()
+    def getTrueSet: Set[SingleFeatureExpr] = {
+        features.filter({
+            fex: SingleFeatureExpr => config.apply(featureIDHashmap(fex))
+        }).toSet
     }
+
+    def getFalseSet: Set[SingleFeatureExpr] = {
+        features.filterNot({
+            fex: SingleFeatureExpr => config.apply(featureIDHashmap(fex))
+        }).toSet
+    }
+
+    override def toString: String = {
+        features.map(
+            {
+                fex: SingleFeatureExpr => if (config.apply(featureIDHashmap(fex))) fex else fex.not()
+            }
+        ).mkString("&&")
+    }
+
+    // caching, values of this field will not be serialized
+    @transient
+    private var featureExpression: FeatureExpr = null
+
+    def toFeatureExpr: FeatureExpr = {
+        if (featureExpression == null)
+            featureExpression = FeatureExprFactory.createFeatureExprFast(getTrueSet, getFalseSet)
+        featureExpression
+    }
+
+    /**
+      * This method assumes that all features in the parameter-set appear in either the trueList, or in the falseList
+      * @param features given feature set
+      * @return
+      */
+    def containsAllFeaturesAsEnabled(features: Set[SingleFeatureExpr]): Boolean = {
+        for (fex <- features) {
+            if (!config.apply(featureIDHashmap(fex))) return false
+        }
+        true
+    }
+
+    /**
+      * This method assumes that all features in the parameter-set appear in the configuration (either as true or as false)
+      * @param features given feature set
+      * @return
+      */
+    def containsAllFeaturesAsDisabled(features: Set[SingleFeatureExpr]): Boolean = {
+        for (fex <- features) {
+            if (config.apply(featureIDHashmap(fex))) return false
+        }
+        true
+    }
+
+    def containsAtLeastOneFeatureAsEnabled(set: Set[SingleFeatureExpr]): Boolean =
+        !containsAllFeaturesAsDisabled(set)
+
+    def containsAtLeastOneFeatureAsDisabled(set: Set[SingleFeatureExpr]): Boolean =
+        !containsAllFeaturesAsEnabled(set)
+
+    override def equals(other: Any): Boolean = {
+        if (!other.isInstanceOf[SimpleConfiguration]) super.equals(other)
+        else {
+            val otherSC = other.asInstanceOf[SimpleConfiguration]
+            otherSC.config.equals(this.config)
+        }
+    }
+
+    override def hashCode(): Int = config.hashCode()
 }
