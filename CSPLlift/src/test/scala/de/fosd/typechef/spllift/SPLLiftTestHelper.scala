@@ -38,7 +38,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
         val tunit = parseTUnitFromFile(filename)
 
-        val cInterCFG = new CInterCFG(tunit, BDDFeatureModel.empty, new DefaultCInterCFGOptions(cModuleInterfacePath))
+        val cInterCFG = new CInterCFG(tunit, BDDFeatureModel.empty, new DefaultCInterCFGConfiguration(cModuleInterfacePath))
         val problem = new InformationFlowProblem(cInterCFG)
         val solution = CSPLlift.solve(problem)
 

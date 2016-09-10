@@ -66,9 +66,9 @@ trait CInterCFGElementsCache {
     }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGOptions) extends EnforceTreeHelper with CInterCFGPseudoVistingSystemLibFunctions with CInterCFGCommons with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends EnforceTreeHelper with CInterCFGPseudoVistingSystemLibFunctions with CInterCFGCommons with PointerContext {
 
-    def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = new DefaultCInterCFGOptions) =
+    def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
 
     private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
@@ -76,7 +76,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
 
     private val cFunctionPointerAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath, fm)
-    var cFunctionPointerEQRelation: CPointerAnalysisContext = null
+    var cFunctionPointerEQRelation: CPointerAnalysisContext = _
 
     private val cModuleInterface: Option[CModuleInterface] =
         cModuleInterfacePath match {
@@ -105,8 +105,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         var tunit: TranslationUnit = _tunit
 
-        val (time, _) = StopWatch.measureWallTime("tunit_completePreparation", {
-            StopWatch.measureUserTime("tunit_rewriting", {
+        val (time, _) = StopWatch.measureWallTime(options.getStopWatchPrefix + "tunit_completePreparation", {
+            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", {
                 println("#Rewriting AST...")
                 tunit = prepareAST(_tunit)
             })
@@ -115,7 +115,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
 
             println("#Typecheck")
-            StopWatch.measureUserTime("typecheck", {
+            StopWatch.measureUserTime(options.getStopWatchPrefix + "typecheck", {
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
@@ -135,7 +135,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
     }
     private def calculatePointerEquivalenceRelations = {
-        StopWatch.measureUserTime("pointsToAnalysis", {
+        StopWatch.measureUserTime(options.getStopWatchPrefix + "pointsToAnalysis", {
             cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, (getEnvs, envToTS))
         })
     }

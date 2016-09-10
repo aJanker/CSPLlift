@@ -222,22 +222,13 @@ object Frontend extends EnforceTreeHelper {
                 if (opt.isLiftAnalysisEnabled) {
                     if (opt.isLiftEvaluationModeEnabled) {
                         val cSPLliftEvalFrontend = new CSPLliftEvalFrontend(ast, fullFM)
-
-                        if (opt.isLiftSamplingEvaluationEnabled)
-                            cSPLliftEvalFrontend.checkAgainstSampling(opt)
-
-                        if (opt.isLiftSingleEvaluationEnabled)
-                            cSPLliftEvalFrontend.checkAgainstErrorConfiguration(opt)
-
-                    } else {
+                        cSPLliftEvalFrontend.evaluate(opt)
+                    } //else {
                         println("#static analysis with spllift")
 
                         val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
                         cSPLliftFrontend.analyze(opt)
-                    }
-
-                    val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
-                    cSPLliftFrontend.analyze(opt)
+                    //}
                 }
 
                 if (opt.staticanalyses) {

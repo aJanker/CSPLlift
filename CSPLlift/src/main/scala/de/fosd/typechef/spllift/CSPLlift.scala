@@ -18,12 +18,12 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     def analyze(opt: CSPLliftOptions) = {
 
-        val cInterCFGOptions = new DefaultCInterCFGOptions(opt.getCLinkingInterfacePath)
+        val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
 
         if (opt.liftTaintAnalysis) {
             val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions)
 
-            val (_, (solution)) = StopWatch.measureUserTime("spllift", {
+            val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
                 val problem = new InformationFlowProblem(cInterCFG)
                 CSPLlift.solve(problem)
             })
@@ -54,8 +54,8 @@ object CSPLlift {
 
     def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[Map[D, Constraint]] = {
 
-        val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fm, true)})
-        StopWatch.measureWallTime("spllift_solve", {solver.solve()})
+        val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new SPLIFDSSolver(problem, fm, true)})
+        StopWatch.measureWallTime("wall_lift_solve", {solver.solve()})
 
         if (printWarnings && WarningsCache.size() != 0) {
             println("#ISSUED Warnings:")

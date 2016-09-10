@@ -18,7 +18,7 @@ abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProble
 
 trait CFlowFact {
 
-    def isEquivalent(other : Any, configuration: SimpleConfiguration) : Boolean
+    def isEquivalentTo(other : CFlowFact, configuration: SimpleConfiguration) : Boolean
 
     def getConditions : Set[BDDFeatureExpr]
 

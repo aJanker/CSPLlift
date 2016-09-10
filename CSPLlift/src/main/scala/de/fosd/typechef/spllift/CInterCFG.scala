@@ -34,7 +34,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     /**
       * Retrieves the configuration options of the cfg.
       */
-    def getOptions : CInterCFGOptions
+    def getOptions : CInterCFGConfiguration
 
     /**
       * Retrieves the cfg contraint of a given node.
@@ -57,7 +57,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     def getTS(node: N): CTypeSystemFrontend with CTypeCache with CDeclUse
 }
 
-class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGOptions = new DefaultCInterCFGOptions)
+class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
     extends CInterproceduralCFG[Opt[AST], Opt[FunctionDef]] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
     Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory

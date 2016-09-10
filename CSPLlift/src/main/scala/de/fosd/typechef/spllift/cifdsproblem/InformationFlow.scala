@@ -13,7 +13,7 @@ import scala.collection.mutable.ListBuffer
 
 sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
-    override def isEquivalent(other: Any, configuration: SimpleConfiguration): Boolean = false
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = true
     override def getConditions : Set[BDDFeatureExpr] = Set()
 }
 
