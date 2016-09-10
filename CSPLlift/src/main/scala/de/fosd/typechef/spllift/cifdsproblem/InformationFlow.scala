@@ -3,6 +3,7 @@ package de.fosd.typechef.spllift.cifdsproblem
 import java.io.{StringWriter, Writer}
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureExprFactory}
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
@@ -14,8 +15,9 @@ import scala.collection.mutable.ListBuffer
 sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = false
-    override def getConditions : Set[BDDFeatureExpr] = Set()
     override def isInterestingFact: Boolean = false
+    override def getConditions : Set[BDDFeatureExpr] = Set()
+    override def toText: String = toString
 }
 
 
@@ -50,7 +52,24 @@ case class PointerSource(override val name: Opt[Id], override val stmt: Opt[_], 
 
 case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) extends InformationFlow {
     override def isInterestingFact: Boolean = true
-    def toText: String = toText(new StringWriter).toString
+
+    // TODO Refactor
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
+        if (!other.isInstanceOf[Reach])
+            return false
+
+        val otherReach = other.asInstanceOf[Reach]
+
+        val toProduct = ProductDerivation.deriveProduct(to.entry, configuration.getTrueFeatures)
+        val eqTo = toProduct.equals(otherReach.to.entry)
+        val fromEntry = from.map(_.entry)
+        val otherFromEntry = otherReach.from.map(_.entry)
+
+        eqTo && fromEntry.equals(otherFromEntry)
+    }
+
+
+    override def toText: String = toText(new StringWriter).toString
 
     def toText(writer: Writer) : Writer = {
         writer.append("Reach under condition " + to.condition.toTextExpr + " at " + PrettyPrinter.print(to.entry) + "\n")

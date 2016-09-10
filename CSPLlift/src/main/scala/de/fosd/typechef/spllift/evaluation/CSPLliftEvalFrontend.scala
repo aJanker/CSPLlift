@@ -12,7 +12,7 @@ import soot.spl.ifds.Constraint
 
 class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools {
 
-    def evaluate(opt: CSPLliftOptions) : Boolean = {
+    def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
 
         if (opt.isLiftSamplingEvaluationEnabled)
@@ -25,7 +25,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
     }
 
 
-    def checkAgainstSampling(opt: CSPLliftOptions) : Boolean = {
+    def checkAgainstSampling(opt: CSPLliftOptions): Boolean = {
         var successful = true
 
         if (opt.liftTaintAnalysis)
@@ -34,7 +34,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         successful
     }
 
-    def checkAgainstErrorConfiguration(opt: CSPLliftOptions) : Boolean  = {
+    def checkAgainstErrorConfiguration(opt: CSPLliftOptions): Boolean = {
         var successful = true
 
         if (opt.liftTaintAnalysis)
@@ -43,82 +43,63 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         successful
     }
 
-
-    private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions) : Boolean = {
+    private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Boolean = {
 
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
-        val (vaaWallTime, (vaaFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
+        val (vaaWallTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.codeConfigurationCoverage()
 
         // 3. Run Analysis for every generated config
-        val coverageResults = configs.zipWithIndex.map(x => {
+        val coverageFacts = configs.zipWithIndex.map(x => {
             val (config, i) = x
-            val run = "coverage_" + i + "_"
+            val run = "coverage_" + i
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
-            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run)
+            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
             (solution, config, wallTime)
         })
 
         // 4. Compare
-        var matchedVaaFacts = scala.collection.mutable.Map[(D, Constraint), Int]()
-        vaaFacts.foreach(fact => matchedVaaFacts += (fact -> 0))
-
-        val unmatchedCoverageFacts = coverageResults.flatMap(c => {
-            val covFacts = c._1
-            val configuration = c._2
-
-            // Check if for every coverage based result a corresponding vaa based result was found.
-            val unmatched = covFacts.filterNot(cr => {
-                vaaFacts.exists(vr => {
-                    val condition = vr._2
-
-                    if (isSatisfiableInConfiguration(condition, configuration) && vr._1.isEquivalentTo(cr._1, configuration)) {
-                        // is match, increase vaa match counter
-                        matchedVaaFacts += (vr -> (matchedVaaFacts.getOrElse(vr, 0) + 1))
-                        true
-                    } else false
-
-                })
-            })
-
-            unmatched.map(um => (um, configuration))
-        })
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
         println("\n### Tested " + configs.size + " unique variants for code coverage.")
 
-        val unmatchedVAAFacts = matchedVaaFacts.toList.collect { case ((x, 0)) => x }
-
-        if (unmatchedVAAFacts.nonEmpty) {
+        if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the coverage approach: ")
-            println("Size:\t" +  unmatchedVAAFacts.size)
+            println("Size:\t" + unmatchedLiftedFacts.size)
 
-            unmatchedVAAFacts.foreach(uc => println("Error:\n" + uc))
+            // unmatchedLiftedFacts.foreach(uc => println("Error:\n" + uc))
         }
 
         if (unmatchedCoverageFacts.nonEmpty) {
             println("\n### Following results were not covered by the lifted approach: ")
-            println("Size:\t" + unmatchedCoverageFacts.size)
+            println("Size:\t" + unmatchedCoverageFacts.foldLeft(0)((i, x) => x._1.size + i))
 
             unmatchedCoverageFacts.foreach(uc => {
                 println("Configuration:\t" + uc._2)
-                println("Error:\n" + uc._1)
+                uc._1.foreach(uc2 => {
+                    println("Error:\n" + uc2._1)
+                    println
+                    println(uc2._1.toText)
+                })
+
+                println("###\n")
             })
         }
 
         unmatchedCoverageFacts.isEmpty
     }
 
-    private def runErrorConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], opt: CSPLliftOptions) : Boolean = {
+    private def runErrorConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], opt: CSPLliftOptions): Boolean = {
         // 1. Step -> Run VAA first in order to detect all affected features
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
-        val (vaaUserTime, (vaaFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
+        val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
         // 2. Collect distinct conditions
-        val (cfgConditions, factConditions) = vaaFacts.foldLeft((Set[BDDFeatureExpr](), Set[BDDFeatureExpr]()))((x, fact) => {
+        val (cfgConditions, factConditions) = liftedFacts.foldLeft((Set[BDDFeatureExpr](), Set[BDDFeatureExpr]()))((x, fact) => {
             val (cfgConds, factConds) = x
 
             val cfgCond = fact._2.getFeatureExpr
@@ -127,24 +108,81 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
             (cfgConds + cfgCond, factConds ++ factCond)
         })
 
-        // 3. Generate Code Coverage Configurations for all distinct warning conditions
+        // 3. Generate Condition Coverage Configurations for all distinct warning conditions
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.conditionConfigurationCoverage(cfgConditions)
 
         // 4. Run Analysis for every generated config
-        val singleConfResults = configs.zipWithIndex.map(x => {
+        val coverageFacts = configs.zipWithIndex.map(x => {
             val (config, i) = x
-            val run = "singleConf_" + i + "_"
+            val run = "singleConf_" + i
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
-            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run)
+            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
             (solution, config, wallTime)
         })
 
+        // 5. Compare
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
+
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
 
-        // 5. Compare
+        if (unmatchedLiftedFacts.nonEmpty) {
+            println("\n### Following results were not covered by the condition coverage approach: ")
+            println("Size:\t" + unmatchedLiftedFacts.size)
 
-        false
+            unmatchedLiftedFacts.foreach(uc => println("Error:\n" + uc))
+        }
+
+        if (unmatchedCoverageFacts.nonEmpty) {
+            println("\n### Following results were not covered by the lifted approach: ")
+            println("Size:\t" + unmatchedCoverageFacts.foldLeft(0)((i, x) => x._1.size + i))
+
+            unmatchedCoverageFacts.foreach(uc => {
+                println("Configuration:\t" + uc._2)
+                uc._1.foreach(uc2 => {
+                    println("Error:\n" + uc2._1)
+                    println
+                    println(uc2._1.toText)
+                })
+
+                println("###\n")
+            })
+        }
+
+        unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
+    }
+
+    private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]) = {
+        val interestingLiftedFacts = liftedFacts.filter(_._1.isInterestingFact)
+
+        var matchedLiftedFacts = scala.collection.mutable.Map[LiftedCFlowFact[D], Int]()
+        interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
+
+        def unmatchedFacts(samplingFacts: List[(D, Constraint)], liftedFacts: List[(D, Constraint)], config: SimpleConfiguration): List[(D, Constraint)] =
+            samplingFacts.filterNot(fact => liftedFacts.exists(oFact =>
+                if (oFact._1.isEquivalentTo(fact._1, config)) {
+                    // is match, increase vaa match counter
+                    matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
+                    true
+                } else false
+            ))
+
+        val unmatchedSamplingFacts = samplingResults.flatMap(samplingResult => {
+            val (samplingFacts, config) = samplingResult
+            val interestingSamplingFacts = samplingFacts.filter(_._1.isInterestingFact)
+            val satisfiableLiftedFacts = interestingLiftedFacts.filter(fact => isSatisfiableInConfiguration(fact._2, config))
+
+            val unmatched = unmatchedFacts(interestingSamplingFacts, satisfiableLiftedFacts, config)
+
+            if (unmatched.isEmpty) None
+            else {
+                Some((unmatched, config))
+            }
+        })
+
+        val unmatchedLiftedFacts = matchedLiftedFacts.toList.collect { case ((x, 0)) => x }
+
+        (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts)
     }
 
 

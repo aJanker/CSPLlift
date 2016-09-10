@@ -224,6 +224,10 @@ object Frontend extends EnforceTreeHelper {
                     val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
                     cSPLliftFrontend.analyze(opt)
 
+                    println
+                    println(PrettyPrinter.print(ast))
+                    println
+
                     if (opt.isLiftEvaluationModeEnabled) {
                         val cSPLliftEvalFrontend = new CSPLliftEvalFrontend(ast, fullFM)
                         cSPLliftEvalFrontend.evaluate(opt)

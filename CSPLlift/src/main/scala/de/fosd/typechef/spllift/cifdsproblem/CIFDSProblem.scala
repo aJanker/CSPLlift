@@ -24,4 +24,6 @@ trait CFlowFact {
 
     def isInterestingFact : Boolean
 
+    def toText: String
+
 }
