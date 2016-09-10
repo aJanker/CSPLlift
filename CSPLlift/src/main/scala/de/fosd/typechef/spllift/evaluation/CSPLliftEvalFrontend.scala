@@ -1,10 +1,9 @@
 package de.fosd.typechef.spllift.evaluation
 
 import de.fosd.typechef.commons.StopWatch
-import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
-import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
+import de.fosd.typechef.parser.c.TranslationUnit
 import de.fosd.typechef.spllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlow, InformationFlowProblem}
 import de.fosd.typechef.spllift.commons.ConditionTools
 import de.fosd.typechef.spllift.options.CSPLliftOptions
@@ -43,7 +42,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.codeConfigurationCoverage()
 
-        // 3. Run Code Coverage
+        // 3. Run Analysis for every generated config
         val coverageResults = configs.map(config => {
             val cInterCFGOptions = new ConfigurationBasedCInterCFGOptions(config, opt.getCLinkingInterfacePath)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "coverage")
@@ -105,7 +104,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         val (vaaWallTime, (vaaSolution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
         val vaaFacts = vaaSolution.flatMap(_.toList)
 
-        // Collect distinct conditions
+        // 2. Collect distinct conditions
         val (cfgConditions, factConditions) = vaaFacts.foldLeft((Set[BDDFeatureExpr](), Set[BDDFeatureExpr]()))((x, fact) => {
             val (cfgConds, factConds) = x
 
@@ -115,20 +114,16 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
             (cfgConds + cfgCond, factConds ++ factCond)
         })
 
+        // 3. Generate Code Coverage Configurations for all distinct warning conditions
+        val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
+        val configs = sampling.conditionConfigurationCoverage(cfgConditions)
 
-        cfgConditions.map(f => {
-            println(f)
-            val satConf = f.getSatisfiableAssignment(fm, f.collectDistinctFeatureObjects, false)
-            println(satConf)
-
-            println(PrettyPrinter.print(ProductDerivation.deriveProduct(ast, satConf.get._1.map(_.feature).toSet)))
-
-            println("dbg")
+        // 4. Run Analysis for every generated config
+        val coverageResults = configs.map(config => {
+            val cInterCFGOptions = new ConfigurationBasedCInterCFGOptions(config, opt.getCLinkingInterfacePath)
+            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "singleConf")
+            (solution, config, wallTime)
         })
-
-        println(cfgConditions)
-        println(cfgConditions.size)
-
 
         false
     }

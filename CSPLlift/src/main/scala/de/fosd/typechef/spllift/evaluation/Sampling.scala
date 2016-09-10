@@ -3,6 +3,7 @@ package de.fosd.typechef.spllift.evaluation
 import java.io.{File, FileWriter}
 
 import de.fosd.typechef.conditional.{Choice, One, Opt}
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel, SingleFeatureExpr}
 import de.fosd.typechef.parser.c.{AST, TranslationUnit}
 import de.fosd.typechef.spllift.commons.ConditionTools
@@ -23,9 +24,31 @@ class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools
 
     def codeConfigurationCoverage() : List[SimpleConfiguration] = {
         val configs = configurationCoverage(tunit, fm, features)
-        println("### Coverage statistics")
-        println(configs._2)
+        println("\n### Code coverage statistics")
+        println(configs._2 + "\n")
         configs._1
+    }
+
+    def conditionConfigurationCoverage(cfgConditions: Set[BDDFeatureExpr]) : List[SimpleConfiguration] = {
+        val configs = conditionCoverage(cfgConditions)
+        println("\n### Condition coverage statistics")
+        println(configs._2 + "\n")
+        configs._1
+    }
+
+    private def conditionCoverage(conditions: Set[BDDFeatureExpr]) : (List[SimpleConfiguration], String) = {
+        var unsatCombinations = 0
+
+        val configs = conditions.flatMap(condition => {
+            completeConfiguration(condition, features, fm) match {
+                case null =>
+                    unsatCombinations += 1
+                    None
+                case x => Some(x)
+            }
+        }).toList
+
+        (configs, "Combinations:\t" + configs.size + "\n" + "unsatisfiableCombinations:\t" + unsatCombinations)
     }
 
     /*
@@ -214,10 +237,10 @@ class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools
         }
 
         (retList,
-            " unsatisfiableCombinations:" + unsatCombinations + "\n" +
-                " already covered combinations:" + alreadyCoveredCombinations + "\n" +
-                " created combinations:" + retList.size + "\n" +
-                (if (!includeVariabilityFromHeaderFiles) " Features in CFile: " + getFeaturesInCoveredExpressions.size + "\n" else "") +
+            " unsatisfiableCombinations:\t" + unsatCombinations + "\n" +
+                " already covered combinations:\t" + alreadyCoveredCombinations + "\n" +
+                " created combinations:\t" + retList.size + "\n" +
+                (if (!includeVariabilityFromHeaderFiles) " Features in CFile:\t" + getFeaturesInCoveredExpressions.size + "\n" else "") +
                 " found " + nodeExpressions.size + " NodeExpressions\n" +
                 " found " + simpleAndNodes + " simpleAndNodes, " + simpleOrNodes + " simpleOrNodes and " + complexNodes + " complex nodes.\n")
     }
