@@ -54,7 +54,7 @@ object CSPLlift {
 
     def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[Map[D, Constraint]] = {
 
-        val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fm, false)})
+        val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fm, true)})
         StopWatch.measureWallTime("spllift_solve", {solver.solve()})
 
         if (printWarnings && WarningsCache.size() != 0) {

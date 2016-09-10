@@ -54,7 +54,6 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 					if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
 					// TODO Validate
 
-
 					/* List<Opt<AST>> srcSuccs = interCfg.getSuccsOf(src);
 					/* if (interCfg.isFallThroughSuccessor(src, successor)) {
 							// (src --> successor) is a fallThroughEdge (as src has only one successor), currently, this is the only case we can handle precisely 
@@ -69,7 +68,7 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 					Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? Constraint.<String>trueValue() : Constraint.<String>falseValue();
 					Constraint neg = srcNode == tgtNode ? Constraint.<String>trueValue() : Constraint.<String>falseValue();
 					Constraint lifted = pos.or(neg);
-					return new SPLFeatureFunction(lifted, fm);
+					return new SPLFeatureFunction(lifted, fm, useFMInEdgeComputations);
 				}
 				private EdgeFunction<Constraint> preciseBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
 					boolean srcAnnotated = hasFeatureAnnotation(src);
@@ -84,7 +83,7 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 					Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? features : Constraint.<String>falseValue();
 					Constraint neg = srcNode == tgtNode ? features.not() : Constraint.<String>falseValue();
 					Constraint lifted = pos.or(neg);
-					return new SPLFeatureFunction(lifted, fm);
+					return new SPLFeatureFunction(lifted, fm, useFMInEdgeComputations);
 				}
 				
 							
@@ -93,7 +92,7 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 
 			@Override
 			protected EdgeFunction<Constraint> createAllTopFunction() {
-				return new SPLFeatureFunction(Constraint.falseValue(), fm);
+				return new SPLFeatureFunction(Constraint.falseValue(), fm, useFMInEdgeComputations);
 			}
 
 			@Override
