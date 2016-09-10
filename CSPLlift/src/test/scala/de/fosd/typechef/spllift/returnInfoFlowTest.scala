@@ -32,11 +32,11 @@ class ReturnInfoFlowTest extends SPLLiftTestHelper {
 
         var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
 
-        // sink1 : True, (y, True)
+        // sink1 : True, (y, True) //
         expectedReaches ::= (True, List(Opt(True, Id("y"))))
 
-        // sink2 : A&B&C, (y, A&B&C) , (p, A)
-        expectedReaches ::= (fa.and(fb).and(fc), List(Opt(fa.and(fb).and(fc), Id("y")), Opt(fa, Id("p"))))
+        // sink2 : A&B&C, (y, A&B&C) , (p, A&C) //
+        expectedReaches ::= (fa.and(fb).and(fc), List(Opt(fa.and(fb).and(fc), Id("y")), Opt(fa.and(fc), Id("p"))))
 
         // sink3 : B&C, (y, B&C) , (p, C), (x, True)
         expectedReaches ::= (fb.and(fc), List(Opt(fb.and(fc), Id("y")), Opt(fc, Id("p")), Opt(True, Id("x"))))
