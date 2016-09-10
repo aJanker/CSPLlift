@@ -4,16 +4,17 @@ import java.io.{StringWriter, Writer}
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureExprFactory}
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 import de.fosd.typechef.spllift.evaluation.SimpleConfiguration
 
 import scala.collection.mutable.ListBuffer
 
 
-sealed trait InformationFlow extends Product with Cloneable with FlowFact {
+sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
     override def isEquivalent(other: Any, configuration: SimpleConfiguration): Boolean = false
+    override def getConditions : Set[BDDFeatureExpr] = Set()
 }
 
 

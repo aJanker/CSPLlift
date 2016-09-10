@@ -38,7 +38,7 @@ int foo(int value) {
 
     #ifdef A
             x =
-           #if defined(B) && defined(C)
+           #if (defined(B) && defined(C)) || defined(S)
              value;
             #elif defined(B)
                i;
@@ -74,14 +74,28 @@ int main() {
 
     int secret = 6;
     int non = 3;
+    int j1 = 1;
+    int j2 = 2;
     int sink;
 
-#ifdef S
+#ifdef J
     if (secret > 6) {
-        goto DST;
+        secret = j1;
+    } else {
+        secret = j2;
     }
 
+    goto DST;
+
 #endif
+
+    int mergeStmt;
+
+    int statement = 1;
+
+    secret = statement;
+
+    int sink2 = secret;
 
     return 1;
 
@@ -91,13 +105,18 @@ DST:
         secret = non;
     #endif
 
+    int platz;
 
-    sink =
+    platz =
         #ifdef Z
         foo(secret);
         #else
         secret;
         #endif
+
+     int blabla;
+
+     sink = platz;
 
      return 0;
 

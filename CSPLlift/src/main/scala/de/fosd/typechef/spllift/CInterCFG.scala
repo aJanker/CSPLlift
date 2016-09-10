@@ -39,7 +39,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     /**
       * Retrieves the cfg contraint of a given node.
       */
-    def getConstraint(node: N): Constraint[String]
+    def getConstraint(node: N): Constraint
 
     /**
       * Gets the context of a given node.
@@ -78,7 +78,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getOptions = options
 
     // undocumented function call to cifg from spllift -> gets current flow condition
-    override def getConstraint(node: Opt[AST]): Constraint[String] = {
+    override def getConstraint(node: Opt[AST]): Constraint = {
         // val cond = getASTEnv(node).featureExpr(node.entry)
         Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
     }

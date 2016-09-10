@@ -1,10 +1,11 @@
 package de.fosd.typechef.spllift.evaluation
 
 import de.fosd.typechef.commons.StopWatch
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.featureexpr.FeatureModel
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
-import de.fosd.typechef.parser.c.TranslationUnit
-import de.fosd.typechef.spllift.cifdsproblem.{CIFDSProblem, FlowFact, InformationFlow, InformationFlowProblem}
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
+import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
+import de.fosd.typechef.spllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlow, InformationFlowProblem}
 import de.fosd.typechef.spllift.commons.ConditionTools
 import de.fosd.typechef.spllift.options.CSPLliftOptions
 import de.fosd.typechef.spllift.{CInterCFG, CSPLlift, DefaultCInterCFGOptions, _}
@@ -21,12 +22,17 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         successful
     }
 
-    def checkAgainstErrorConfiguration(opt: CSPLliftOptions) = {
+    def checkAgainstErrorConfiguration(opt: CSPLliftOptions) : Boolean  = {
+        var successful = true
 
+        if (opt.liftTaintAnalysis)
+            successful = runErrorConfiguration[InformationFlow, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
+
+        successful
     }
 
 
-    private def runSampling[D <: FlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions) : Boolean = {
+    private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions) : Boolean = {
 
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
         val cInterCFGOptions = new DefaultCInterCFGOptions(opt.getCLinkingInterfacePath)
@@ -45,7 +51,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         })
 
         // 4. Compare
-        var matchedVaaFacts = scala.collection.mutable.Map[(D, Constraint[_]), Int]()
+        var matchedVaaFacts = scala.collection.mutable.Map[(D, Constraint), Int]()
         vaaFacts.foreach(fact => matchedVaaFacts += (fact -> 0))
 
         val unmatchedCoverageFacts = coverageResults.flatMap(c => {
@@ -69,17 +75,19 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
             unmatched.map(um => (um, configuration))
         })
 
+        println("### Generated " + configs.size + " unique variants.")
+
         val unmatchedVAAFacts = matchedVaaFacts.toList.collect { case ((x, 0)) => x }
 
         if (unmatchedVAAFacts.nonEmpty) {
-            println("\n### Following results where not covered by the coverage approach: ")
+            println("\n### Following results were not covered by the coverage approach: ")
             println("Size:\t" +  unmatchedVAAFacts.size)
 
             unmatchedVAAFacts.foreach(uc => println("Error:\n" + uc))
         }
 
         if (unmatchedCoverageFacts.nonEmpty) {
-            println("\n### Following results where not covered by the lifted approach: ")
+            println("\n### Following results were not covered by the lifted approach: ")
             println("Size:\t" + unmatchedCoverageFacts.size)
 
             unmatchedCoverageFacts.foreach(uc => {
@@ -91,7 +99,42 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         unmatchedCoverageFacts.isEmpty
     }
 
-    private def runSPLLift[D <: FlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGOptions, stopWatchMark: String = "None"): (Long, (List[Map[D, Constraint[String]]], CInterCFG)) =
+    private def runErrorConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], opt: CSPLliftOptions) : Boolean = {
+        // 1. Step -> Run VAA first in order to detect all affected features
+        val cInterCFGOptions = new DefaultCInterCFGOptions(opt.getCLinkingInterfacePath)
+        val (vaaWallTime, (vaaSolution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
+        val vaaFacts = vaaSolution.flatMap(_.toList)
+
+        // Collect distinct conditions
+        val (cfgConditions, factConditions) = vaaFacts.foldLeft((Set[BDDFeatureExpr](), Set[BDDFeatureExpr]()))((x, fact) => {
+            val (cfgConds, factConds) = x
+
+            val cfgCond = fact._2.getFeatureExpr
+            val factCond = fact._1.getConditions
+
+            (cfgConds + cfgCond, factConds ++ factCond)
+        })
+
+
+        cfgConditions.map(f => {
+            println(f)
+            val satConf = f.getSatisfiableAssignment(fm, f.collectDistinctFeatureObjects, false)
+            println(satConf)
+
+            println(PrettyPrinter.print(ProductDerivation.deriveProduct(ast, satConf.get._1.map(_.feature).toSet)))
+
+            println("dbg")
+        })
+
+        println(cfgConditions)
+        println(cfgConditions.size)
+
+
+        false
+    }
+
+
+    private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGOptions, stopWatchMark: String = "None"): (Long, (List[Map[D, Constraint]], CInterCFG)) =
         StopWatch.measureUserTime(stopWatchMark, {
             val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions)
             val problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG)

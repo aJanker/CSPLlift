@@ -2,13 +2,16 @@ package soot.spl.ifds;
 
 import soot.util.StringNumberer;
 
+/**
+ * Original FeatureModel Implementation of SPLLift -> Replaced in TypeChef own FeatureModel Implementation
+ */
 public class FeatureModelContext {
 
 	private final StringNumberer featureNumberer = null; // TODO: initialize this in constructor
 	private int numFeaturesPresent;
 	//private final IJavaProject javaProject;
-	private Constraint<String> simplifiedConstraint;
-	private Constraint<String> fullConstraint;
+	private Constraint simplifiedConstraint;
+	private Constraint fullConstraint;
 
 	public FeatureModelContext() {}
 	/*public FeatureModelContext(FeatureModelInstrumentorTransformer transformer, IJavaProject javaProject) {
@@ -26,19 +29,19 @@ public class FeatureModelContext {
 	}
 
 	
-	public Constraint<String> getSimplifiedFMConstraint() {
+	public Constraint getSimplifiedFMConstraint() {
 		return simplifiedConstraint;
 	}
 
-	public void setSimplifiedFMConstraint(Constraint<String> simplifiedConstraint) {
+	public void setSimplifiedFMConstraint(Constraint simplifiedConstraint) {
 		this.simplifiedConstraint = simplifiedConstraint;
 	}
 
-	public Constraint<String> getFullFMConstraint() {
+	public Constraint getFullFMConstraint() {
 		return fullConstraint;
 	}
 
-	public void setFullFMConstraint(Constraint<String> fullConstraint) {
+	public void setFullFMConstraint(Constraint fullConstraint) {
 		this.fullConstraint = fullConstraint;
 	}
 

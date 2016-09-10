@@ -1,32 +1,52 @@
 package soot.spl.ifds;
 
+import de.fosd.typechef.featureexpr.FeatureModel;
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory;
 import net.sf.javabdd.BDDFactory;
-import soot.util.NumberedString;
-import soot.util.StringNumberer;
 
-import java.util.Collection;
-
-import static soot.spl.ifds.Constraint.FeatureModelMode.NO_SINGLETON;
-
-public class Constraint<T> implements Cloneable {
+/**
+ * SPLlifts own FeatureExpr abstraction. Wrapped for TypeChef's BDDFeatureExpr Implementation to represent presence conditions.
+ */
+public class Constraint implements Cloneable {
 
 	private final BDDFeatureExpr bddFeatureExpr;
 
 	public static BDDFactory FACTORY;
-	
-	public enum FeatureModelMode{
-		NONE, 			//do not consider the feature model at all
-		ALL,			//consider all feature constraints
-		NO_SINGLETON	//consider all feature constraints but singleton constraints of the form "A" or "!A"
-	};
 
-	public BDDFeatureExpr getBDDFeatureExpr() {
+	public synchronized static Constraint make(final BDDFeatureExpr bdd) {
+		synchronized (FACTORY) {
+			if (bdd.leak().isOne())
+				return Constraint.trueValue();
+			else if (bdd.leak().isZero())
+				return Constraint.falseValue();
+			else return new Constraint(bdd);
+		}
+	}
+
+	private Constraint(BDDFeatureExpr bdd) {
+		this.bddFeatureExpr = bdd;
+	}
+
+	public BDDFeatureExpr getFeatureExpr() {
 		return this.bddFeatureExpr;
 	}
-	
-	public static FeatureModelMode fmMode = NO_SINGLETON;
+
+	public boolean hasFeatureAnnotation() {
+		return !(getFeatureExpr().leak().isOne());
+	}
+
+	public boolean isSatisfiable(FeatureModel fm) {
+		return getFeatureExpr().isSatisfiable(fm);
+	}
+
+	public static Constraint trueValue() {
+		return TRUE;
+	}
+
+	public static Constraint falseValue() {
+		return FALSE;
+	}
 
 	@SuppressWarnings({ "rawtypes" })
 	private final static Constraint FALSE = new Constraint(BDDFeatureExprFactory.FalseB()) {
@@ -38,30 +58,18 @@ public class Constraint<T> implements Cloneable {
 		public Constraint or(Constraint other) {
 			//false || other == other
 			return other;
-		}		
+		}
+
+		public boolean hasFeatureAnnotation() {
+			return false;
+		}
 
 		public String toString() {
 			return "false";
 		}
-		
-		public String toString(StringNumberer featureNumberer) {
-			return toString();
-		}
 
-		public int hashCode() {
-			return -436534;
-		}
-		
 		public boolean equals(Object obj) {
 			return obj==this;
-		}
-		
-		protected Constraint exists(NumberedString varToQuantify) {
-			return this;
-		}
-		
-		public Constraint simplify(Iterable allFeatures, Collection usedFeatures) {
-			return this;
 		}
 		
 		public int size() {
@@ -81,28 +89,16 @@ public class Constraint<T> implements Cloneable {
 			return this;
 		}
 
+		public boolean hasFeatureAnnotation() {
+			return false;
+		}
+
 		public String toString() {
 			return "true";
 		}
-		
-		public String toString(StringNumberer featureNumberer) {
-			return toString();
-		}
 
-		public int hashCode() {
-			return -23214;
-		}
-		
 		public boolean equals(Object obj) {
 			return obj==this;
-		}
-		
-		protected Constraint exists(NumberedString varToQuantify) {
-			return this;
-		}
-		
-		public Constraint simplify(Iterable allFeatures, Collection usedFeatures) {
-			return this;
 		}
 
 		public int size() {
@@ -110,36 +106,22 @@ public class Constraint<T> implements Cloneable {
 		}
 	};
 
-	public synchronized static <T> Constraint<T> make(BDDFeatureExpr bdd) {
-		synchronized (FACTORY) {
-			if (bdd.leak().isOne())
-				return Constraint.trueValue();
-			else if (bdd.leak().isZero())
-				return Constraint.falseValue();
-			else return new Constraint<T>(bdd);
-		}
-	}
-
-	private Constraint(BDDFeatureExpr bdd) {
-		this.bddFeatureExpr = bdd;
-	}
-	
 	/**
 	 * Computes the constraint representing this OR other.
 	 * The constraint is automatically reduced such that
 	 * a || !a results in true.
 	 * @see Constraint#trueValue()
 	 */
-	public Constraint<T> or(Constraint<T> other) {
+	public Constraint or(Constraint other) {
 		synchronized (FACTORY) {
 			if(other==trueValue()) return other;
 			if(other==falseValue()) return this;
 
-			BDDFeatureExpr disjunction = (BDDFeatureExpr) bddFeatureExpr.or(other.bddFeatureExpr);
+			BDDFeatureExpr disjunction = (BDDFeatureExpr) getFeatureExpr().or(other.getFeatureExpr());
 			if (disjunction.leak().isOne())
 				return trueValue();
 			else
-				return new Constraint<T>(disjunction);
+				return new Constraint(disjunction);
 		}
 	}
 	
@@ -149,38 +131,28 @@ public class Constraint<T> implements Cloneable {
 	 * a && !a results in false.
 	 * @see Constraint#falseValue()
 	 */
-	public Constraint<T> and(Constraint<T> other) {
+	public Constraint and(Constraint other) {
 		synchronized (FACTORY) {
 			if(other==trueValue()) return this;
 			if(other==falseValue()) return other;
 
-			BDDFeatureExpr conjunction = (BDDFeatureExpr) bddFeatureExpr.and(other.bddFeatureExpr);
+			BDDFeatureExpr conjunction = (BDDFeatureExpr) getFeatureExpr().and(other.getFeatureExpr());
 			if (conjunction.leak().isZero())
 				return falseValue();
 			else
-				return new Constraint<T>(conjunction);
+				return new Constraint(conjunction);
 		}
 	}
 	
 	@Override
 	public String toString() {
-		return this.bddFeatureExpr./* toString() */ toTextExpr();
+		return getFeatureExpr()./* toString() */ toTextExpr();
 	}
 
-	public Constraint<T> not() {
-		return Constraint.make((BDDFeatureExpr) this.bddFeatureExpr.not());
+	public Constraint not() {
+		return Constraint.make((BDDFeatureExpr) getFeatureExpr().not());
 	}
 
-
-	@SuppressWarnings("unchecked")
-	public static <T> Constraint<T> trueValue() {
-		return TRUE;
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> Constraint<T> falseValue() {
-		return FALSE;
-	}
 
 	@Override
 	public int hashCode() {
@@ -200,10 +172,10 @@ public class Constraint<T> implements Cloneable {
 				return false;
 			@SuppressWarnings("rawtypes")
 			Constraint other = (Constraint) obj;
-			if (bddFeatureExpr == null) {
-				if (other.bddFeatureExpr != null)
+			if (getFeatureExpr() == null) {
+				if (other.getFeatureExpr() != null)
 					return false;
-			} else if (!bddFeatureExpr.equals(other.bddFeatureExpr))
+			} else if (!getFeatureExpr().equals(other.getFeatureExpr()))
 				return false;
 			return true;
 		}
@@ -211,7 +183,7 @@ public class Constraint<T> implements Cloneable {
 
 	public int size() {
 		synchronized (FACTORY) {
-			return bddFeatureExpr.leak().nodeCount();
+			return getFeatureExpr().leak().nodeCount();
 		}
 	}
 }

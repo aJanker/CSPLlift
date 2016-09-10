@@ -235,6 +235,9 @@ object Frontend extends EnforceTreeHelper {
                         val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
                         cSPLliftFrontend.analyze(opt)
                     }
+
+                    val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
+                    cSPLliftFrontend.analyze(opt)
                 }
 
                 if (opt.staticanalyses) {

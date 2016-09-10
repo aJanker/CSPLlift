@@ -10,15 +10,15 @@ import soot.spl.ifds.Constraint
 
 object Taint {
 
-    def allReaches[T](solverResult: List[Map[InformationFlow, Constraint[T]]]) = matchReaches[T](solverResult, r => true)
+    def allReaches(solverResult: List[Map[InformationFlow, Constraint]]) = matchReaches(solverResult, r => true)
 
-    def findSinks[T](solverResult: List[Map[InformationFlow, Constraint[T]]], isSink: Reach => Boolean) = matchReaches[T](solverResult, isSink)
+    def findSinks(solverResult: List[Map[InformationFlow, Constraint]], isSink: Reach => Boolean) = matchReaches(solverResult, isSink)
 
-    def allSources[T](solverResult: List[Map[InformationFlow, Constraint[T]]]) = matchSources[T, Source](solverResult, s => true)
+    def allSources(solverResult: List[Map[InformationFlow, Constraint]]) = matchSources[Source](solverResult, s => true)
 
-    def prettyPrintSinks(sinks: List[(AST, List[(Constraint[_], Reach)])]): String = prettyPrintSinks(sinks, new StringWriter).toString
+    def prettyPrintSinks(sinks: List[(AST, List[(Constraint, Reach)])]): String = prettyPrintSinks(sinks, new StringWriter).toString
 
-    def prettyPrintSinks(sinks: List[(AST, List[(Constraint[_], Reach)])], writer: Writer): Writer =
+    def prettyPrintSinks(sinks: List[(AST, List[(Constraint, Reach)])], writer: Writer): Writer =
         sinks.foldLeft(writer) {
             (writer, sink) => {
                 sink._1 match {
@@ -31,7 +31,7 @@ object Taint {
             }
         }
 
-    def writeGraphFromSource(icfg: CInterCFG, sinks: List[(AST, List[(Constraint[_], Reach)])], outputDir: String, extension: String) = {
+    def writeGraphFromSource(icfg: CInterCFG, sinks: List[(AST, List[(Constraint, Reach)])], outputDir: String, extension: String) = {
         val uniqueSources = sinks.par.flatMap(sink => sink._2.flatMap(reach => reach._2.sources)).distinct.toList
 
         val sourceToSink = uniqueSources.par.map(source => {
@@ -57,7 +57,7 @@ object Taint {
         }
     }
 
-    def writeGraphToSink(icfg: CInterCFG, sinks: List[(AST, List[(Constraint[_], Reach)])], outputDir: String, extension: String) = {
+    def writeGraphToSink(icfg: CInterCFG, sinks: List[(AST, List[(Constraint, Reach)])], outputDir: String, extension: String) = {
 
         val dir = new File(outputDir)
         if (!dir.exists()) dir.mkdirs()
@@ -92,7 +92,7 @@ object Taint {
     private def getEdge(f: Opt[AST], t: Opt[AST], icfg: CInterCFG): Edge[AST] =
         Edge(getNode(f, icfg), getNode(t, icfg), f.condition.and(t.condition))
 
-    private def getEdges(reach: (Constraint[_], Reach), icfg: CInterCFG): List[Edge[AST]] = {
+    private def getEdges(reach: (Constraint, Reach), icfg: CInterCFG): List[Edge[AST]] = {
         val from = reach._2.from.reverse
 
         from.foldLeft((from, List[Edge[AST]]()))((x, curr) => {
@@ -104,24 +104,24 @@ object Taint {
     }
 
 
-    private def matchSources[T, S <: Source](solverResult: List[Map[InformationFlow, Constraint[T]]], isMatch: S => Boolean)(implicit m: Manifest[S]): List[(Opt[Id], List[(Constraint[T], S)])] =
-        solverResult.foldLeft(Map[Opt[Id], List[(Constraint[T], S)]]()) {
+    private def matchSources[S <: Source](solverResult: List[Map[InformationFlow, Constraint]], isMatch: S => Boolean)(implicit m: Manifest[S]): List[(Opt[Id], List[(Constraint, S)])] =
+        solverResult.foldLeft(Map[Opt[Id], List[(Constraint, S)]]()) {
             (m, result) => result.foldLeft(m) {
-                case (lm, x@(s: S, c: Constraint[T])) if isMatch(s) =>
+                case (lm, x@(s: S, c: Constraint)) if isMatch(s) =>
                     val key = s.name
-                    val swap = x.asInstanceOf[(S, Constraint[T])].swap
+                    val swap = x.asInstanceOf[(S, Constraint)].swap
                     if (lm.contains(key)) lm + (key -> (swap :: lm.get(key).get)) else lm + (key -> List(swap))
                 case (lm, _) => lm
             }
         }.toList
 
 
-    private def matchReaches[T](solverResult: List[Map[InformationFlow, Constraint[T]]], isMatch: Reach => Boolean): List[(AST, List[(Constraint[T], Reach)])] =
-        solverResult.foldLeft(Map[AST, List[(Constraint[T], Reach)]]()) {
+    private def matchReaches[T](solverResult: List[Map[InformationFlow, Constraint]], isMatch: Reach => Boolean): List[(AST, List[(Constraint, Reach)])] =
+        solverResult.foldLeft(Map[AST, List[(Constraint, Reach)]]()) {
             (m, result) => result.foldLeft(m) {
-                case (lm, x@(r: Reach, c: Constraint[T])) if isMatch(r) =>
+                case (lm, x@(r: Reach, c: Constraint)) if isMatch(r) =>
                     val key = r.to.entry
-                    val swap = x.asInstanceOf[(Reach, Constraint[T])].swap
+                    val swap = x.asInstanceOf[(Reach, Constraint)].swap
                     if (lm.contains(key)) lm + (key -> (swap :: lm.get(key).get).distinct) else lm + (key -> List(swap).distinct)
                 case (lm, _) => lm
             }

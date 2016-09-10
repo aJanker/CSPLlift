@@ -23,6 +23,7 @@ class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools
 
     def codeConfigurationCoverage() : List[SimpleConfiguration] = {
         val configs = configurationCoverage(tunit, fm, features)
+        println("### Coverage statistics")
         println(configs._2)
         configs._1
     }

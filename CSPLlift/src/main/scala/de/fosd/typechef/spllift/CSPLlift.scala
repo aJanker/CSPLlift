@@ -7,10 +7,10 @@ import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
-import de.fosd.typechef.spllift.cifdsproblem.{CIFDSProblem, FlowFact, InformationFlowProblem, Source}
+import de.fosd.typechef.spllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlowProblem, Source}
 import de.fosd.typechef.spllift.commons.WarningsCache
 import de.fosd.typechef.spllift.options.CSPLliftOptions
-import soot.spl.ifds.{Constraint, FeatureModelContext, SPLIFDSSolver}
+import soot.spl.ifds.{Constraint, SPLIFDSSolver}
 
 import scala.collection.JavaConverters._
 
@@ -28,7 +28,7 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 CSPLlift.solve(problem)
             })
 
-            val allReaches = Taint.allReaches[String](solution)
+            val allReaches = Taint.allReaches(solution)
 
             def hasName(name: String, source: Source): Boolean = {
                 source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
@@ -41,7 +41,7 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             Taint.writeGraphToSink(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
             Taint.writeGraphFromSource(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
             SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
-            println(Taint.prettyPrintSinks(allKeyReaches))
+            println(Taint.prettyPrintSinks(allReaches))
         }
     }
 
@@ -49,12 +49,12 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
 object CSPLlift {
 
-    def solveCIFDSProblem[D <: FlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fmContext: FeatureModelContext = new FeatureModelContext(), printWarnings: Boolean = false): List[Map[D, Constraint[String]]] =
-        CSPLlift.solve[D](getCIFDSProblemInstance[D, T](ifdsProblem)(cifg), fmContext, printWarnings)
+    def solveCIFDSProblem[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[Map[D, Constraint]] =
+        CSPLlift.solve[D](getCIFDSProblemInstance[D, T](ifdsProblem)(cifg), fm, printWarnings)
 
-    def solve[D <: FlowFact](problem: IFDSProblem[D], fmContext: FeatureModelContext = new FeatureModelContext(), printWarnings: Boolean = false): List[Map[D, Constraint[String]]] = {
+    def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[Map[D, Constraint]] = {
 
-        val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fmContext, false)})
+        val (_, solver) = StopWatch.measureWallTime("spllift_init", {new SPLIFDSSolver(problem, fm, false)})
         StopWatch.measureWallTime("spllift_solve", {solver.solve()})
 
         if (printWarnings && WarningsCache.size() != 0) {

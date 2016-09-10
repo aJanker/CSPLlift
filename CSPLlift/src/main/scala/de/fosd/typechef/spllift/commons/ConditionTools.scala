@@ -7,7 +7,7 @@ import soot.spl.ifds.Constraint
 
 trait ConditionTools {
 
-    def isSatisfiableInConfiguration(cons : Constraint[_], configuration : SimpleConfiguration) : Boolean = cons.getBDDFeatureExpr.evaluate(configuration.getTrueFeatures)
+    def isSatisfiableInConfiguration(cons : Constraint, configuration : SimpleConfiguration) : Boolean = cons.getFeatureExpr.evaluate(configuration.getTrueFeatures)
 
     /**
       * Returns a sorted list of all features in this AST, including Opt and Choice Nodes

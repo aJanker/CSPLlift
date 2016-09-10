@@ -42,7 +42,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
         val problem = new InformationFlowProblem(cInterCFG)
         val solution = CSPLlift.solve(problem)
 
-        val sinks = Taint.findSinks[String](solution, isSink)
+        val sinks = Taint.findSinks(solution, isSink)
 
         // dbg print
         if (dbg) {
@@ -117,7 +117,7 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
     def allSinks(r: Reach): Boolean = true
 
-    def allReachesMatch(reaches: List[(Constraint[_], Reach)], exectedConditonsAndSources: List[(FeatureExpr, List[Opt[Id]])]): Boolean =
+    def allReachesMatch(reaches: List[(Constraint, Reach)], exectedConditonsAndSources: List[(FeatureExpr, List[Opt[Id]])]): Boolean =
         reaches.forall(reach => exectedConditonsAndSources.exists {
             case (condition, sources) => isReachMatch(reach._2, condition, sources)
             case _ => false
