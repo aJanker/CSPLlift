@@ -22,4 +22,6 @@ trait CFlowFact {
 
     def getConditions : Set[BDDFeatureExpr]
 
+    def isInterestingFact : Boolean
+
 }

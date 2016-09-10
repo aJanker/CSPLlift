@@ -10,9 +10,7 @@ import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallG
 import de.fosd.typechef.spllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlowProblem, Source}
 import de.fosd.typechef.spllift.commons.WarningsCache
 import de.fosd.typechef.spllift.options.CSPLliftOptions
-import soot.spl.ifds.{Constraint, SPLIFDSSolver}
-
-import scala.collection.JavaConverters._
+import soot.spl.ifds.SPLIFDSSolver
 
 class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) {
 
@@ -28,13 +26,13 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 CSPLlift.solve(problem)
             })
 
-            val allReaches = Taint.allReaches(solution)
+            val allReaches = Taint.allSinks(solution)
 
             def hasName(name: String, source: Source): Boolean = {
                 source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
             }
 
-            val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._2.sources.exists(s => hasName("key", s))))
+            val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._1.sources.exists(s => hasName("key", s))))
 
             println("#static analysis with spllift - result")
 
@@ -49,10 +47,10 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
 object CSPLlift {
 
-    def solveCIFDSProblem[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[Map[D, Constraint]] =
+    def solveCIFDSProblem[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[LiftedCFlowFact[D]] =
         CSPLlift.solve[D](getCIFDSProblemInstance[D, T](ifdsProblem)(cifg), fm, printWarnings)
 
-    def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[Map[D, Constraint]] = {
+    def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[LiftedCFlowFact[D]] = {
 
         val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new SPLIFDSSolver(problem, fm, true)})
         StopWatch.measureWallTime("wall_lift_solve", {solver.solve()})
@@ -64,7 +62,7 @@ object CSPLlift {
         }
 
         // Looks messy, but requiered for a clean conversion from java collections to scala collections...
-        solver.getAllResults.asScala.map(_.asScala.toMap).toList
+        asScalaLiftedFlowFact(solver.getAllResults)
 
     }
 }

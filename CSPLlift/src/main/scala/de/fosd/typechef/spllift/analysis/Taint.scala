@@ -4,21 +4,21 @@ import java.io.{File, FileWriter, StringWriter, Writer}
 
 import de.fosd.typechef.conditional.{One, Opt}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.spllift.CInterCFG
+import de.fosd.typechef.spllift._
 import de.fosd.typechef.spllift.cifdsproblem.{InformationFlow, Reach, Source}
 import soot.spl.ifds.Constraint
 
 object Taint {
 
-    def allReaches(solverResult: List[Map[InformationFlow, Constraint]]) = matchReaches(solverResult, r => true)
+    def allSinks(solverResult: List[LiftedCFlowFact[InformationFlow]]) = matchReaches(solverResult, r => true)
 
-    def findSinks(solverResult: List[Map[InformationFlow, Constraint]], isSink: Reach => Boolean) = matchReaches(solverResult, isSink)
+    def findSinks(solverResult: List[LiftedCFlowFact[InformationFlow]], isSink: Reach => Boolean) = matchReaches(solverResult, isSink)
 
-    def allSources(solverResult: List[Map[InformationFlow, Constraint]]) = matchSources[Source](solverResult, s => true)
+    def allSources(solverResult: List[LiftedCFlowFact[InformationFlow]]) = matchSources[Source](solverResult, s => true)
 
-    def prettyPrintSinks(sinks: List[(AST, List[(Constraint, Reach)])]): String = prettyPrintSinks(sinks, new StringWriter).toString
+    def prettyPrintSinks(sinks: Traversable[(AST, List[LiftedCFlowFact[Reach]])]): String = prettyPrintSinks(sinks, new StringWriter).toString
 
-    def prettyPrintSinks(sinks: List[(AST, List[(Constraint, Reach)])], writer: Writer): Writer =
+    def prettyPrintSinks(sinks: Traversable[(AST, List[LiftedCFlowFact[Reach]])], writer: Writer): Writer =
         sinks.foldLeft(writer) {
             (writer, sink) => {
                 sink._1 match {
@@ -26,16 +26,17 @@ object Taint {
                     case x => writer.append("Sink at:\t" + PrettyPrinter.print(x) + "\tin:\t" + sink._1.getPositionFrom + "\n")
                 }
 
-                sink._2.foreach { ssink => writer.append("CFGcondition " + ssink._1 + ":\t" + ssink._2.toText + "\n") }
+                sink._2.foreach { ssink => writer.append("CFGcondition " + ssink._2 + ":\t" + ssink._1.toText + "\n") }
                 writer.append("\n")
             }
         }
 
-    def writeGraphFromSource(icfg: CInterCFG, sinks: List[(AST, List[(Constraint, Reach)])], outputDir: String, extension: String) = {
-        val uniqueSources = sinks.par.flatMap(sink => sink._2.flatMap(reach => reach._2.sources)).distinct.toList
+    def writeGraphFromSource(icfg: CInterCFG, sink: Traversable[(AST, List[LiftedCFlowFact[Reach]])], outputDir: String, extension: String) = {
+        val sinks = sink.toList
+        val uniqueSources = sinks.toList.par.flatMap(sink => sink._2.flatMap(reach => reach._1.sources)).distinct.toList
 
         val sourceToSink = uniqueSources.par.map(source => {
-            (source, sinks.flatMap(sink => sink._2.filter(reach => reach._2.sources.exists(_.equals(source)))))
+            (source, sinks.flatMap(sink => sink._2.filter(reach => reach._1.sources.exists(_.equals(source)))))
         })
 
         sourceToSink.zipWithIndex.foreach{
@@ -46,7 +47,7 @@ object Taint {
                 val writer = new InformationFlowGraphWriter(new FileWriter(new File(outputDir + "/" + i + extension)))
                 writer.writeHeader()
 
-                val allUniqueSourceNodes = sinks.flatMap(reach => reach._2.to :: reach._2.from).map(getNode(_, icfg)).distinct
+                val allUniqueSourceNodes = sinks.flatMap(reach => reach._1.to :: reach._1.from).map(getNode(_, icfg)).distinct
                 allUniqueSourceNodes.foreach(writer.writeNode)
 
                 val allUniqueDataFlowEdges = sinks.flatMap(getEdges(_, icfg)).distinct
@@ -57,7 +58,7 @@ object Taint {
         }
     }
 
-    def writeGraphToSink(icfg: CInterCFG, sinks: List[(AST, List[(Constraint, Reach)])], outputDir: String, extension: String) = {
+    def writeGraphToSink(icfg: CInterCFG, sinks: Traversable[(AST, List[LiftedCFlowFact[Reach]])], outputDir: String, extension: String) = {
 
         val dir = new File(outputDir)
         if (!dir.exists()) dir.mkdirs()
@@ -69,7 +70,7 @@ object Taint {
                 writer.writeHeader()
 
                 // write nodes first
-                val allUniqueSourceNodes = sink._2.flatMap(reach => reach._2.to :: reach._2.from).map(getNode(_, icfg)).distinct
+                val allUniqueSourceNodes = sink._2.flatMap(reach => reach._1.to :: reach._1.from).map(getNode(_, icfg)).distinct
                 allUniqueSourceNodes.foreach(writer.writeNode)
 
                 val allUniqueDataFlowEdges = sink._2.flatMap(getEdges(_, icfg)).distinct
@@ -92,38 +93,33 @@ object Taint {
     private def getEdge(f: Opt[AST], t: Opt[AST], icfg: CInterCFG): Edge[AST] =
         Edge(getNode(f, icfg), getNode(t, icfg), f.condition.and(t.condition))
 
-    private def getEdges(reach: (Constraint, Reach), icfg: CInterCFG): List[Edge[AST]] = {
-        val from = reach._2.from.reverse
+    private def getEdges(reach: LiftedCFlowFact[Reach], icfg: CInterCFG): List[Edge[AST]] = {
+        val from = reach._1.from.reverse
 
         from.foldLeft((from, List[Edge[AST]]()))((x, curr) => {
             val (r, edges) = x
             val remaining = r.tail
-            val edge = getEdge(curr, remaining.headOption.getOrElse(reach._2.to), icfg)
+            val edge = getEdge(curr, remaining.headOption.getOrElse(reach._1.to), icfg)
             (remaining, edge :: edges)
         })._2
     }
 
 
-    private def matchSources[S <: Source](solverResult: List[Map[InformationFlow, Constraint]], isMatch: S => Boolean)(implicit m: Manifest[S]): List[(Opt[Id], List[(Constraint, S)])] =
-        solverResult.foldLeft(Map[Opt[Id], List[(Constraint, S)]]()) {
-            (m, result) => result.foldLeft(m) {
-                case (lm, x@(s: S, c: Constraint)) if isMatch(s) =>
-                    val key = s.name
-                    val swap = x.asInstanceOf[(S, Constraint)].swap
-                    if (lm.contains(key)) lm + (key -> (swap :: lm.get(key).get)) else lm + (key -> List(swap))
-                case (lm, _) => lm
-            }
-        }.toList
+    private def matchSources[S <: Source](solverResult: List[LiftedCFlowFact[InformationFlow]], isMatch: S => Boolean)(implicit m: Manifest[S]): Map[Opt[Id], List[LiftedCFlowFact[S]]] =
+        solverResult.foldLeft(Map[Opt[Id], List[LiftedCFlowFact[S]]]()) {
+            case (rm, x@(s: S, c: Constraint)) if isMatch(s) =>
+                val key = s.name
+                val v = x.asInstanceOf[LiftedCFlowFact[S]]
+                rm + (key -> (v :: rm.getOrElse(key, List(v))).distinct)
+            case (rm, _) => rm
+        }
 
-
-    private def matchReaches[T](solverResult: List[Map[InformationFlow, Constraint]], isMatch: Reach => Boolean): List[(AST, List[(Constraint, Reach)])] =
-        solverResult.foldLeft(Map[AST, List[(Constraint, Reach)]]()) {
-            (m, result) => result.foldLeft(m) {
-                case (lm, x@(r: Reach, c: Constraint)) if isMatch(r) =>
-                    val key = r.to.entry
-                    val swap = x.asInstanceOf[(Reach, Constraint)].swap
-                    if (lm.contains(key)) lm + (key -> (swap :: lm.get(key).get).distinct) else lm + (key -> List(swap).distinct)
-                case (lm, _) => lm
-            }
-        }.toList
+    private def matchReaches(solverResult: List[LiftedCFlowFact[InformationFlow]], isMatch: Reach => Boolean): Map[AST, List[LiftedCFlowFact[Reach]]] =
+        solverResult.foldLeft(Map[AST, List[LiftedCFlowFact[Reach]]]()) {
+            case (m, x@(r: Reach, c: Constraint)) if isMatch(r) =>
+                val key = r.to.entry
+                val v = x.asInstanceOf[LiftedCFlowFact[Reach]]
+                m + (key -> (v :: m.getOrElse(key, List(v))).distinct)
+            case (m, _) => m
+        }
 }

@@ -11,7 +11,6 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
 import de.fosd.typechef.spllift.cifdsproblem.{InformationFlowProblem, Reach}
 import org.scalatest.Matchers
-import soot.spl.ifds.Constraint
 
 trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers {
 
@@ -117,9 +116,9 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
 
     def allSinks(r: Reach): Boolean = true
 
-    def allReachesMatch(reaches: List[(Constraint, Reach)], exectedConditonsAndSources: List[(FeatureExpr, List[Opt[Id]])]): Boolean =
+    def allReachesMatch(reaches: Traversable[LiftedCFlowFact[Reach]], exectedConditonsAndSources: List[(FeatureExpr, List[Opt[Id]])]): Boolean =
         reaches.forall(reach => exectedConditonsAndSources.exists {
-            case (condition, sources) => isReachMatch(reach._2, condition, sources)
+            case (condition, sources) => isReachMatch(reach._1, condition, sources)
             case _ => false
         })
 

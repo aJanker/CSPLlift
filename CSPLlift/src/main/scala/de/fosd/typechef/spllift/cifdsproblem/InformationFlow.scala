@@ -13,8 +13,9 @@ import scala.collection.mutable.ListBuffer
 
 sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
-    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = true
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = false
     override def getConditions : Set[BDDFeatureExpr] = Set()
+    override def isInterestingFact: Boolean = false
 }
 
 
@@ -48,6 +49,7 @@ case class PointerSource(override val name: Opt[Id], override val stmt: Opt[_], 
 
 
 case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) extends InformationFlow {
+    override def isInterestingFact: Boolean = true
     def toText: String = toText(new StringWriter).toString
 
     def toText(writer: Writer) : Writer = {

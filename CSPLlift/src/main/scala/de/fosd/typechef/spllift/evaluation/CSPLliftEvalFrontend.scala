@@ -48,8 +48,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
 
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
-        val (vaaWallTime, (vaaSolution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
-        val vaaFacts = vaaSolution.flatMap(_.toList)
+        val (vaaWallTime, (vaaFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
@@ -69,7 +68,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         vaaFacts.foreach(fact => matchedVaaFacts += (fact -> 0))
 
         val unmatchedCoverageFacts = coverageResults.flatMap(c => {
-            val covFacts = c._1.flatMap(_.toList)
+            val covFacts = c._1
             val configuration = c._2
 
             // Check if for every coverage based result a corresponding vaa based result was found.
@@ -116,8 +115,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
     private def runErrorConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], opt: CSPLliftOptions) : Boolean = {
         // 1. Step -> Run VAA first in order to detect all affected features
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
-        val (vaaUserTime, (vaaSolution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
-        val vaaFacts = vaaSolution.flatMap(_.toList)
+        val (vaaUserTime, (vaaFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
         // 2. Collect distinct conditions
         val (cfgConditions, factConditions) = vaaFacts.foldLeft((Set[BDDFeatureExpr](), Set[BDDFeatureExpr]()))((x, fact) => {
@@ -152,7 +150,7 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
     }
 
 
-    private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGConfiguration, stopWatchMark: String = "None"): (Long, (List[Map[D, Constraint]], CInterCFG)) =
+    private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGConfiguration, stopWatchMark: String = "None"): (Long, (List[LiftedCFlowFact[D]], CInterCFG)) =
         StopWatch.measureUserTime(stopWatchMark, {
             val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions)
             val problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG)
