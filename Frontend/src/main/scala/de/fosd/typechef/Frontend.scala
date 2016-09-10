@@ -33,8 +33,7 @@ object Frontend extends EnforceTreeHelper {
             }
 
             if (opt.isMergeLinkingInterfacesEnabled) {
-                CModuleInterfaceGenerator.mergeInterfaces(opt.getCModuleInterfaceMergeDir)
-
+                CModuleInterfaceGenerator.mergeAndWriteInterfaces(opt.getCModuleInterfaceMergeDir)
                 return
             }
 
@@ -220,15 +219,15 @@ object Frontend extends EnforceTreeHelper {
                 }
 
                 if (opt.isLiftAnalysisEnabled) {
+                    println("#static analysis with spllift")
+
+                    val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
+                    cSPLliftFrontend.analyze(opt)
+
                     if (opt.isLiftEvaluationModeEnabled) {
                         val cSPLliftEvalFrontend = new CSPLliftEvalFrontend(ast, fullFM)
                         cSPLliftEvalFrontend.evaluate(opt)
-                    } //else {
-                        println("#static analysis with spllift")
-
-                        val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
-                        cSPLliftFrontend.analyze(opt)
-                    //}
+                    }
                 }
 
                 if (opt.staticanalyses) {
@@ -273,8 +272,11 @@ object Frontend extends EnforceTreeHelper {
         }
         stopWatch.start("done")
         errorXML.write()
+
         if (opt.recordTiming) {
+            println("\n### Classic stopwatch.")
             println(stopWatch)
+            println("\n### Fancy stopwatch.")
             println(StopWatch.toCSV)
         }
 

@@ -16,33 +16,37 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     def analyze(opt: CSPLliftOptions) = {
 
-        val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
+        val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
 
-        if (opt.liftTaintAnalysis) {
-            val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions)
-
-            val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
-                val problem = new InformationFlowProblem(cInterCFG)
-                CSPLlift.solve(problem)
-            })
-
-            val allReaches = Taint.allSinks(solution)
-
-            def hasName(name: String, source: Source): Boolean = {
-                source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
-            }
-
-            val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._1.sources.exists(s => hasName("key", s))))
-
-            println("#static analysis with spllift - result")
-
-            Taint.writeGraphToSink(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
-            Taint.writeGraphFromSource(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
-            SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
-            println(Taint.prettyPrintSinks(allReaches))
-        }
+        if (opt.liftTaintAnalysis)
+            taintCheck(opt, cInterCFGConfiguration)
     }
 
+    private def taintCheck(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+
+        val cInterCFG = new CInterCFG(ast, fm, cInterCFGConfiguration)
+
+        val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
+            val problem = new InformationFlowProblem(cInterCFG)
+            CSPLlift.solve(problem)
+        })
+
+        val allReaches = Taint.allSinks(solution)
+
+        def hasName(name: String, source: Source): Boolean = {
+            source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
+        }
+
+        val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._1.sources.exists(s => hasName("key", s))))
+
+        println("#static analysis with spllift - result")
+
+        Taint.writeGraphToSink(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
+        Taint.writeGraphFromSource(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
+        SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
+        println(Taint.prettyPrintSinks(allReaches))
+
+    }
 }
 
 object CSPLlift {

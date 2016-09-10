@@ -144,8 +144,6 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
 
         // 5. Compare
 
-        println(StopWatch.toString)
-
         false
     }
 
