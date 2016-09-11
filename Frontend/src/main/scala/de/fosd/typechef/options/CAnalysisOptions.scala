@@ -6,11 +6,12 @@ import de.fosd.typechef.typesystem.{ICTypeSysOptions, LinuxDefaultOptions}
 import gnu.getopt.{Getopt, LongOpt}
 
 trait AnalysisOptions {
-    def getOutputStem : String
+    def getOutputStem: String
 
     case class SecurityOption(param: String, expl: String, dflt: Boolean) {
         var isSelected = dflt
     }
+
 }
 
 abstract class CAnalysisOptions extends CInterAnalysisOptions
@@ -22,7 +23,7 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
 
     private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
 
-    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, mergeCLinkingInterfaces : Boolean = false
+    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, mergeCLinkingInterfaces: Boolean = false
 
     private val F_MERGELINKINTERFACE: Char = Options.genOptionId()
     private val F_LINKINTERFACE: Char = Options.genOptionId()
@@ -49,7 +50,7 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
     override def isLiftSamplingEvaluationEnabled: Boolean = liftEvalSampling
     override def isLiftSingleEvaluationEnabled: Boolean = liftEvalSingle
 
-    override def liftTaintAnalysis : Boolean = SPLLIFT_Taint.isSelected
+    override def liftTaintAnalysis: Boolean = SPLLIFT_Taint.isSelected
 
     protected override def getOptionGroups: java.util.List[Options.OptionGroup] = {
         val r: java.util.List[Options.OptionGroup] = super.getOptionGroups
@@ -61,14 +62,14 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
                     "\n(Analyses with * are activated by default)."
             ),
             new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions."),
-            new Options.Option("mergeLinkingInterface", LongOpt.OPTIONAL_ARGUMENT, F_MERGELINKINTERFACE, "dir", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
+            new Options.Option("mergeLinkingInterface", LongOpt.REQUIRED_ARGUMENT, F_MERGELINKINTERFACE, "file", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
         ))
 
         r
     }
 
     protected override def interpretOption(c: Int, g: Getopt): Boolean = {
-        def interpretLiftOpts() : Unit = {
+        def interpretLiftOpts(): Unit = {
             val arg: String = g.getOptarg.replace('_', '-')
 
             if (arg.equalsIgnoreCase("ALL")) opts.foreach(_.isSelected = true)
@@ -88,13 +89,9 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
             checkIfFileExists(g.getOptarg)
             cLinkingInterfacePath = Some(g.getOptarg)
         } else if (c == F_MERGELINKINTERFACE) {
-            if (g.getOptarg != null) {
-                checkIfDirectoryExists(g.getOptarg)
-                cLinkingInterfaceMergeDir = Some(g.getOptarg)
-            }
-
-            mergeCLinkingInterfaces = true
-        } else if(c == F_SPLLIFT) {
+            checkIfDirectoryExists(g.getOptarg)
+            cLinkingInterfaceMergeDir = Some(g.getOptarg)
+        } else if (c == F_SPLLIFT) {
             lift = true
             interpretLiftOpts()
         } else return super.interpretOption(c, g)
