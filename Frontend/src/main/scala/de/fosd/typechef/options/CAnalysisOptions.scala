@@ -91,6 +91,7 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
         } else if (c == F_MERGELINKINTERFACE) {
             checkIfDirectoryExists(g.getOptarg)
             cLinkingInterfaceMergeDir = Some(g.getOptarg)
+            mergeCLinkingInterfaces = true
         } else if (c == F_SPLLIFT) {
             lift = true
             interpretLiftOpts()
