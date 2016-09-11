@@ -21,7 +21,7 @@ object CModuleInterfaceGenerator extends App with InterfaceWriter {
     mergeAndWriteInterfaces(startDir, fm)
 
     def mergeInterfaces(dir : String, fm : FeatureModel = FeatureExprFactory.default.featureModelFactory.empty, strictness: Strictness = LINK_RELAXED) : CInterface = {
-        val fileList = getFileTree(new File(startDir)).filter(f => f.isFile && f.getPath.endsWith(".interface"))
+        val fileList = getFileTree(new File(dir)).filter(f => f.isFile && f.getPath.endsWith(".interface"))
 
         val interfaces = fileList.par.map(f => {
             val interface = SystemLinker.linkStdLib(readInterface(f))
