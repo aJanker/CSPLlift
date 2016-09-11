@@ -19,6 +19,7 @@ import de.fosd.typechef.xtclexer.XtcPreprocessor;
 
 import java.io.*;
 import java.util.*;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Frontend/Facade for the lexer subsystem. All external communication with the lexer (for xtc and the original lexer)
@@ -128,7 +129,7 @@ public class LexerFrontend {
 
         PrintWriter output = null;
         if (options.getLexOutputFile() != null && options.getLexOutputFile().length() > 0) {
-            output = new PrintWriter(new BufferedWriter(new FileWriter(options.getLexOutputFile())));
+            output = new PrintWriter(new GZIPOutputStream(new FileOutputStream(options.getLexOutputFile())));
             pp.openDebugFiles(options.getLexOutputFile());
         } else if (options.isLexPrintToStdout())
             output = new PrintWriter(new OutputStreamWriter(System.out));
