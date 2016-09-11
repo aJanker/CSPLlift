@@ -61,7 +61,7 @@ abstract class CInterAnalysisOptions extends CIntraAnalysisOptions with CSPLlift
                     "\n(Analyses with * are activated by default)."
             ),
             new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions."),
-            new Options.Option("mergeLinkingInterface", LongOpt.OPTIONAL_ARGUMENT, F_LINKINTERFACE, "dir", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
+            new Options.Option("mergeLinkingInterface", LongOpt.OPTIONAL_ARGUMENT, F_MERGELINKINTERFACE, "dir", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
         ))
 
         r
