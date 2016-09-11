@@ -24,7 +24,7 @@ object Frontend extends EnforceTreeHelper {
             try {
                 opt.parseOptions(args)
             } catch {
-                case o: OptionException => if (!opt.isPrintVersion || !opt.isMergeLinkingInterfacesEnabled) throw o
+                case o: OptionException => if (!(opt.isPrintVersion || opt.isMergeLinkingInterfacesEnabled)) throw o
             }
 
             if (opt.isPrintVersion) {
