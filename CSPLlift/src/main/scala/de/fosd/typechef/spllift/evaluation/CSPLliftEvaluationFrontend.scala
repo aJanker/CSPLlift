@@ -1,16 +1,17 @@
 package de.fosd.typechef.spllift.evaluation
 
 import de.fosd.typechef.commons.StopWatch
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
-import de.fosd.typechef.parser.c.TranslationUnit
+import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
 import de.fosd.typechef.spllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlow, InformationFlowProblem}
 import de.fosd.typechef.spllift.commons.ConditionTools
 import de.fosd.typechef.spllift.options.CSPLliftOptions
 import de.fosd.typechef.spllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
 import soot.spl.ifds.Constraint
 
-class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools {
+class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools {
 
     def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
@@ -66,6 +67,8 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
         println("\n### Tested " + configs.size + " unique variants for code coverage.")
+        configs.foreach(println)
+        println
 
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the coverage approach: ")
@@ -124,13 +127,18 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
+        println(cfgConditions)
+
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
+        configs.foreach(println)
+        configs.foreach(c => println(PrettyPrinter.print(ProductDerivation.deriveProduct(ast, c.getTrueFeatures))))
+        println
 
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the condition coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
 
-            unmatchedLiftedFacts.foreach(uc => println("Error:\n" + uc))
+            unmatchedLiftedFacts.foreach(uc => println("Error:\n" + "\tCondition:" + uc._2 + "\n\t" + uc._1.toText))
         }
 
         if (unmatchedCoverageFacts.nonEmpty) {
@@ -154,17 +162,18 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
 
     private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]) = {
         val interestingLiftedFacts = liftedFacts.filter(_._1.isInterestingFact)
+        val interestingSamplingFacts = samplingResults.map(res => (res._1.filter(_._1.isInterestingFact) ,res._2))
 
         var matchedLiftedFacts = scala.collection.mutable.Map[LiftedCFlowFact[D], Int]()
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
         def unmatchedFacts(samplingFacts: List[(D, Constraint)], liftedFacts: List[(D, Constraint)], config: SimpleConfiguration): List[(D, Constraint)] =
-            samplingFacts.filterNot(fact => liftedFacts.exists(oFact =>
+            samplingFacts.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
                 if (oFact._1.isEquivalentTo(fact._1, config)) {
                     // is match, increase vaa match counter
                     matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
                     true
-                } else false
+                } else found
             ))
 
         val unmatchedSamplingFacts = samplingResults.flatMap(samplingResult => {
@@ -175,12 +184,15 @@ class CSPLliftEvalFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureMo
             val unmatched = unmatchedFacts(interestingSamplingFacts, satisfiableLiftedFacts, config)
 
             if (unmatched.isEmpty) None
-            else {
-                Some((unmatched, config))
-            }
+            else Some((unmatched, config))
         })
 
         val unmatchedLiftedFacts = matchedLiftedFacts.toList.collect { case ((x, 0)) => x }
+
+       interestingSamplingFacts.foreach(s => {
+           println(s._2)
+           s._1.foreach(x => println(x._1.toText))
+       })
 
         (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts)
     }

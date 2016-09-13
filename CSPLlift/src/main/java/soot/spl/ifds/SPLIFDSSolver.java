@@ -38,55 +38,66 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 				}
 			
 				public EdgeFunction<Constraint> getCallEdgeFunction(Opt<AST> callStmt, D srcNode, Opt<FunctionDef> destinationMethod,D destNode) {
-					return buildFlowFunction(callStmt, destinationMethod.copy(destinationMethod.condition(), (AST) destinationMethod.entry()), srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(callStmt, destinationMethod), true);
+					destinationMethod = icfg.getLiftedMethodOf(callStmt, destinationMethod);
+					Opt<AST> liftedCallStmt = callStmt.copy(callStmt.condition().and(destinationMethod.condition()), callStmt.entry());
+					Opt<AST> liftedDestinationMethod = destinationMethod.copy(destinationMethod.condition(), (AST) destinationMethod.entry());
+					return buildFlowFunction(liftedCallStmt, liftedDestinationMethod, srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(liftedCallStmt, destinationMethod), true);
 				}
 			
 				public EdgeFunction<Constraint> getReturnEdgeFunction(Opt<AST> callSite, Opt<FunctionDef> calleeMethod, Opt<AST> exitStmt,D exitNode, Opt<AST> returnSite,D retNode) {
-					return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite), false);
+					Opt<FunctionDef> liftedCalleeMethod = icfg.getLiftedMethodOf(callSite, calleeMethod);
+					return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, icfg.getConstraint(liftedCalleeMethod.copy(liftedCalleeMethod.condition(), (AST) liftedCalleeMethod.entry())));
 				}
 			
 				public EdgeFunction<Constraint> getCallToReturnEdgeFunction(Opt<AST> callSite, D callNode, Opt<AST> returnSite, D returnSideNode) {
 					return buildFlowFunction(callSite, returnSite, callNode, returnSideNode, zeroedFlowFunctions.getCallToReturnFlowFunction(callSite, returnSite), false);
 				}
 				private EdgeFunction<Constraint> buildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
+					return buildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall, Constraint.falseValue());
+				}
+				private EdgeFunction<Constraint> buildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
 					boolean srcAnnotated = hasFeatureAnnotation(src);
 					boolean succAnnotated = hasFeatureAnnotation(successor);
 					if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
-					// TODO Validate
 
+					// TODO Validate
 					/* List<Opt<AST>> srcSuccs = interCfg.getSuccsOf(src);
 					/* if (interCfg.isFallThroughSuccessor(src, successor)) {
 							// (src --> successor) is a fallThroughEdge (as src has only one successor), currently, this is the only case we can handle precisely 
 							return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
 					} */
-					return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
+
+					return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall, flow);
 				}
 				private EdgeFunction<Constraint> conservativeBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
 					//boolean srcAnnotated = hasFeatureAnnotation(src);
 					//boolean succAnnotated = hasFeatureAnnotation(successor);
 					//if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
 					Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? Constraint.<String>trueValue() : Constraint.<String>falseValue();
-					Constraint neg = srcNode == tgtNode ? Constraint.<String>trueValue() : Constraint.<String>falseValue();
+					Constraint neg = srcNode == tgtNode ? Constraint.trueValue() : Constraint.falseValue();
 					Constraint lifted = pos.or(neg);
 					return new SPLFeatureFunction(lifted, fm, useFMInEdgeComputations);
 				}
-				private EdgeFunction<Constraint> preciseBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
+				private EdgeFunction<Constraint> preciseBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
 					boolean srcAnnotated = hasFeatureAnnotation(src);
 					boolean succAnnotated = hasFeatureAnnotation(successor);
 					//if (!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
 
 					Constraint features = Constraint.falseValue();
+
 					if(srcAnnotated)
 						features = features.or(icfg.getConstraint(src));
 					if(isCall && succAnnotated)
 						features = features.or(icfg.getConstraint(successor));
-					Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? features : Constraint.<String>falseValue();
-					Constraint neg = srcNode == tgtNode ? features.not() : Constraint.<String>falseValue();
+					if (!(flow.equals(Constraint.falseValue()))) {
+						features = features.equals(Constraint.falseValue()) ? features.or(flow) : features.and(flow);
+					}
+
+					Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? features : Constraint.falseValue();
+					Constraint neg = srcNode == tgtNode ? features.not() : Constraint.falseValue();
 					Constraint lifted = pos.or(neg);
 					return new SPLFeatureFunction(lifted, fm, useFMInEdgeComputations);
 				}
-				
-							
 			}
 
 

@@ -40,7 +40,7 @@ class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools
         var unsatCombinations = 0
 
         val configs = conditions.flatMap(condition => {
-            completeConfiguration(condition, features, fm) match {
+            completeConfiguration(condition, features, fm, preferDisabledFeatures = true) match {
                 case null =>
                     unsatCombinations += 1
                     None

@@ -10,7 +10,7 @@ import de.fosd.typechef.options.{FrontendOptions, FrontendOptionsWithConfigFiles
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c.{TranslationUnit, _}
 import de.fosd.typechef.spllift.CSPLliftFrontend
-import de.fosd.typechef.spllift.evaluation.CSPLliftEvalFrontend
+import de.fosd.typechef.spllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.spllift.setup.CModuleInterfaceGenerator
 import de.fosd.typechef.typesystem._
 
@@ -229,7 +229,7 @@ object Frontend extends EnforceTreeHelper {
                     println
 
                     if (opt.isLiftEvaluationModeEnabled) {
-                        val cSPLliftEvalFrontend = new CSPLliftEvalFrontend(ast, fullFM)
+                        val cSPLliftEvalFrontend = new CSPLliftEvaluationFrontend(ast, fullFM)
                         cSPLliftEvalFrontend.evaluate(opt)
                     }
                 }

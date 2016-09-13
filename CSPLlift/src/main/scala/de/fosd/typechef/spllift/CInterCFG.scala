@@ -55,6 +55,16 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
       * Gets the typesystem of a given node.
       */
     def getTS(node: N): CTypeSystemFrontend with CTypeCache with CDeclUse
+
+    /**
+      * Gets the correctly annotated (lifted) call edge between a call site and its corresponding target callee.
+      * With the use of this method, SPLlift is able to resolve the constraint of an call and call-to-return edge.
+      *
+      * @param callSite the statment where the call occurred
+      * @param callee the target of the call
+      * @return the correctly annotated callee target.
+      */
+    def getLiftedMethodOf(callSite: Opt[AST], callee: Opt[FunctionDef]) : Opt[FunctionDef]
 }
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
@@ -104,6 +114,11 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
         }
 
+    override def getLiftedMethodOf(callSite: Opt[AST], callee: Opt[FunctionDef]) : Opt[FunctionDef] = {
+        val pointsTo = getCalleesOfCallAtS(callSite)
+
+        pointsTo.find(pointTo => pointTo.entry == callee.entry).getOrElse(callee)
+    }
     /**
       * Returns the method containing a node.
       *
@@ -142,8 +157,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns all callee methods for a given call.
       */
-    override def getCalleesOfCallAt(call: Opt[AST]): util.Set[Opt[FunctionDef]] = {
-        if (!isCallStmt(call)) return java.util.Collections.emptySet[Opt[FunctionDef]]
+    override def getCalleesOfCallAt(call: Opt[AST]): util.Set[Opt[FunctionDef]] = asJavaIdentitySet(getCalleesOfCallAtS(call))
+
+    private def getCalleesOfCallAtS(call: Opt[AST]): List[Opt[FunctionDef]] = {
+        if (!isCallStmt(call)) return List[Opt[FunctionDef]]()
 
         val calleeNames = getCalleeNames(call)
         val tunit = getTUnit(call)
@@ -158,7 +175,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (callees.isEmpty)
             WarningsCache.add("No function destinations found for:\t" +  call)
 
-        asJavaIdentitySet(callees)
+        callees
     }
 
     /**

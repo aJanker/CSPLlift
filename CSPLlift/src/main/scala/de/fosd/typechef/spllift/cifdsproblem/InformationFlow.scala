@@ -76,7 +76,7 @@ case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) exten
 
         if (from.nonEmpty) {
             writer.append("\tFrom:\t")
-            from.foreach(entry => writer.append(entry.entry.name + " (" + entry.entry.getPositionFrom + ") when " + entry.condition.toTextExpr + ";\t"))
+            from.foreach(entry => writer.append("\n\t" + entry.entry.name + " (" + entry.entry.getPositionFrom + ") when " + entry.condition.toTextExpr + ";"))
         }
 
         //if (sources.nonEmpty) writer.append("\n\tSources: " + sources)
