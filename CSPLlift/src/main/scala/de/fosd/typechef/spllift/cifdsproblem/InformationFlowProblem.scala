@@ -34,6 +34,7 @@ trait InformationFlowProblemOperations extends CInterCFGCommons with Information
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
 
+// TODO Clean up sat checks.
 class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlow](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {
 
     private var initialGlobalsFile: String = ""
@@ -44,11 +45,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       * We consider global variables as initial sources.
       */
     override def initialSeeds(): util.Map[Opt[AST], util.Set[InformationFlow]] =
-        interproceduralCFG.getEntryFunctions.foldLeft(new util.HashMap[Opt[AST], util.Set[InformationFlow]])((res, entry) => {
-            interproceduralCFG.getStartPointsOf(entry).asScala.foreach(res.put(_, globalsAsInitialSeeds(entry)))
-            initialGlobalsFile = entry.entry.getFile.getOrElse("")
-            res
-        })
+    interproceduralCFG.getEntryFunctions.foldLeft(new util.HashMap[Opt[AST], util.Set[InformationFlow]])((res, entry) => {
+        interproceduralCFG.getStartPointsOf(entry).asScala.foreach(res.put(_, globalsAsInitialSeeds(entry)))
+        initialGlobalsFile = entry.entry.getFile.getOrElse("")
+        res
+    })
 
 
     /**
@@ -145,13 +146,13 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                     // deal with variadic functions
                     def defParamHasVarArgs: Boolean =
-                        defPs.lastOption match {
-                            case Some(l) if l.exists {
-                                case Opt(_, v: VarArgs) => true
-                                case _ => false
-                            } => true
+                    defPs.lastOption match {
+                        case Some(l) if l.exists {
+                            case Opt(_, v: VarArgs) => true
                             case _ => false
-                        }
+                        } => true
+                        case _ => false
+                    }
 
                     def defParamIsVoidSpecifier: Boolean =
                         (defPs.size == 1) && defPs.head.exists {
@@ -173,35 +174,38 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
 
                 new InfoFlowFunction(callStmt, destinationMethod) {
-                    override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
-                            flowFact match {
-                                case v@VarSource(x, _, _, global) =>
-                                    val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam =>
-                                        uses(callParamToDefParam._1).exists(
-                                            use => use.name.equalsIgnoreCase(x.entry.name) && isImplication(x, Opt(callEnv.featureExpr(use), use))))
 
-                                    val res = callParamMatches.flatMap(callParamMatch => {
-                                        callParamMatch._1.foldLeft(List[InformationFlow]())((genSrc, expr) => {
-                                            callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
-                                                val condition = pDef.condition.and(flowCondition).and(expr.condition)
-                                                val source = VarSource(Opt(condition, pDef.entry.decl.getId), fCallOpt, ListBuffer(v) ++ v.reachingSources)
-                                                val reach = Reach(Opt(condition, pDef.entry.decl.getId), v.name :: v.reachingSources.toList.map(_.name), List(v))
-                                                reach :: source :: genSrc
-                                            })
+                    override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
+                        val res = flowFact match {
+                            case v@VarSource(x, _, _, global) =>
+                                val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam =>
+                                    uses(callParamToDefParam._1).exists(
+                                        use => use.name.equalsIgnoreCase(x.entry.name) && isImplication(x, Opt(callEnv.featureExpr(use), use))))
+
+                                val res = callParamMatches.flatMap(callParamMatch => {
+                                    callParamMatch._1.foldLeft(List[InformationFlow]())((genSrc, expr) => {
+                                        callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
+                                            val condition = pDef.condition.and(flowCondition).and(expr.condition)
+                                            val source = VarSource(Opt(condition, pDef.entry.decl.getId), fCallOpt, ListBuffer(v) ++ v.reachingSources)
+                                            val reach = Reach(Opt(condition, pDef.entry.decl.getId), v.name :: v.reachingSources.toList.map(_.name), List(v))
+                                            reach :: source :: genSrc
                                         })
                                     })
-                                    if (callParamMatches.isEmpty && global.isDefined) GEN(v) else GEN(res)
-                                case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s.copy(name = s.name.and(flowCondition))) // TODO
-                                case z: Zero if !initialSeedsExists(destinationMethod.entry) =>
-                                    // Introduce Global Variables from linked file
-                                    filesWithSeeds ::= destinationMethod.entry.getFile.getOrElse("")
-                                    val globals = globalsAsInitialSeedsL(destinationMethod)
-                                    GEN(globals ::: defaultZero(z))
-                                case z: Zero => GEN(defaultZero(z))
-                                case r: Reach => KILL
-                                case _ => default
-                            }
+                                })
+                                if (callParamMatches.isEmpty && global.isDefined) GEN(v) else GEN(res)
+
+                            case s@StructSource(x, _, _, _, global) if global.isDefined => GEN(s.copy(name = s.name.and(flowCondition))) // TODO
+                            case z: Zero if !initialSeedsExists(destinationMethod.entry) =>
+                                // Introduce Global Variables from linked file
+                                filesWithSeeds ::= destinationMethod.entry.getFile.getOrElse("")
+                                val globals = globalsAsInitialSeedsL(destinationMethod)
+                                GEN(globals ::: defaultZero(z))
+                            case z: Zero => GEN(defaultZero(z))
+                            case r: Reach => KILL
+                            case _ => default
                         }
+                        res
+                    }
 
                     // map all constants and add the current flow condition to the zero value for the next target computations
                     def defaultZero(z: Zero): List[InformationFlow] = {
@@ -281,10 +285,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 new InfoFlowFunction(callSite, returnSite, Some(defines(callSite)), Some(uses(exitStmt)), Some(assignsReturnVariablesTo(callSite.entry, exitStmt.entry))) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
-                        var res = KILL
-                        flowFact match {
-                            case r: Reach => res = GEN(r.copy(to = r.to.copy(r.to.condition.and(flowCondition))))
-                            case s: StructSource if pointerParamNames.exists(_.entry.equals(s.name.entry)) => res = GEN(s)
+                        val res = flowFact match {
+                            case r: Reach => GEN(r.copy(to = r.to.copy(r.to.condition.and(flowCondition))))
+                            case s: StructSource if pointerParamNames.exists(_.entry.equals(s.name.entry)) => GEN(s)
                             case s@VarSource(sId, _, _, global) if useIsSatisfiable(sId) =>
                                 val reachCondition = sId.condition.and(currOpt.condition).and(exitOpt.condition).and(flowCondition)
                                 val reach = Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)) // Announce the fact, that this source reaches a new source generation
@@ -296,16 +299,16 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                             case _ => None
                                         }
                                 }
-                                res = if (global.isDefined) GEN(sources ::: List(s, reach)) else GEN(sources ::: List(reach)) // Pass global variables back to original flow
+                                if (global.isDefined) GEN(sources ::: List(s, reach)) else GEN(sources ::: List(reach)) // Pass global variables back to original flow
 
                             case z: Zero if currUses.isEmpty => // Return is something like return 0; -> we generate a new source
                                 val sources = currAssignments.flatMap {
                                     case (target, assignment) if assignment.isEmpty => genVarSource(target, reachCondition = currOpt.condition.and(exitOpt.condition).and(z.condition)) // Apply only when assignment is really empty
                                     case _ => None
                                 }
-                                res = GEN(z :: sources)
-                            case z: Zero => res = GEN(z)
-                            case _ => res = default(flowFact) // Do default flow action
+                                GEN(z :: sources)
+                            case z: Zero => GEN(z)
+                            case _ => default(flowFact) // Do default flow action
                         }
                         res
                     }
@@ -329,9 +332,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 new InfoFlowFunction(curr, succ) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
-                        var res = KILL
-
-                        flowFact match {
+                        val res = flowFact match {
                             case s@VarSource(sId, _, _, global) if useIsSatisfiable(sId) =>
 
                                 val reachCondition = sId.condition.and(currOpt.condition)
@@ -362,19 +363,19 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                                         singleVisitOnSourceTypes(target, assignToStruct, assignToVar)
                                 }
-                                res = GEN(s :: reach :: sources) //TODO x = x + 1
+                                GEN(s :: reach :: sources) //TODO x = x + 1
 
-                            case s@VarSource(id, _, _, None) if defineIsImplication(id) => res = KILL // Kill previously known local source as it is now no longer valid
-                            case s@VarSource(id, _, _, global) if global.isDefined && defineIsImplication(id) && globalNameScopeIsSatisfiable(id, global) => res = KILL // Kill previously known global source as it is now no longer valid , only kill this source in case the name scope is globally visible
+                            case s@VarSource(id, _, _, None) if localDefineIsImplication(id) => KILL // Kill previously known local source as it is now no longer valid
+                            case s@VarSource(id, _, _, global) if global.isDefined && defineIsImplication(id) && globalNameScopeIsSatisfiable(id, global) => KILL // Kill previously known global source as it is now no longer valid , only kill this source in case the name scope is globally visible
 
-                            case s@StructSource(_, _, _, _, None) if structFieldDefineIsImplication(s) => res = KILL // Kill previously known local source as it is now no longer valid
+                            case s@StructSource(_, _, _, _, None) if structFieldDefineIsImplication(s) => KILL // Kill previously known local source as it is now no longer valid
                             case s: StructSource =>
                                 val currRes = if (structUseIsSatisfiable(s)) {
                                     val reachCondition = s.name.condition.and(currOpt.condition)
                                     List(Reach(currOpt.copy(condition = reachCondition), s.name :: s.reachingSources.toList.map(_.name), List(s)))
                                 } else List()
 
-                                res = GEN(s :: currRes)
+                                GEN(s :: currRes)
 
                             case z: Zero if currDefines.nonEmpty =>
 
@@ -392,16 +393,15 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                             singleVisitOnSourceTypes(id, zeroStructSource, zeroVarSource)
                                         }))
 
-                                res = GEN(z :: facts)
+                                GEN(z :: facts)
 
                             case z: Zero if currStructFieldDefines.nonEmpty && currUses.isEmpty =>
                                 // TODO Scoping
                                 val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition.and(z.condition)))
-                                res = GEN(z :: facts)
-                            case r: Reach => res = default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
-                            case _ => res = default(flowFact)
+                                GEN(z :: facts)
+                            case r: Reach => default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
+                            case _ => default(flowFact)
                         }
-
                         res
                     }
                 }
@@ -432,14 +432,15 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     override def computeTargets(infoFlowFact: InformationFlow): util.Set[InformationFlow] =
                         infoFlowFact match {
                             case s: Source if s.globalFile.isDefined => KILL
-                            case _ => default(infoFlowFact)  // TODO LAST Statement
+                            case s@VarSource(sId, _, _, global) if defines(callSite).exists(_.name.equalsIgnoreCase(sId.entry.name)) => KILL
+                            case _ => default(infoFlowFact) // TODO LAST Statement
                         }
                 }
             }
         }
 
-    private def globalsAsInitialSeeds(f: Opt[FunctionDef]): util.Set[InformationFlow] =  GEN(globalsAsInitialSeedsL(f) :+ zeroValue())
-    private def globalsAsInitialSeedsL(f: Opt[FunctionDef]) : List[InformationFlow] = {
+    private def globalsAsInitialSeeds(f: Opt[FunctionDef]): util.Set[InformationFlow] = GEN(globalsAsInitialSeedsL(f) :+ zeroValue())
+    private def globalsAsInitialSeedsL(f: Opt[FunctionDef]): List[InformationFlow] = {
         val globalVariables = interproceduralCFG.getTUnit(f).defs.filterNot {
             // Ignore function and typedef definitions
             case Opt(_, f: FunctionDef) => true //
@@ -468,10 +469,10 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
         lazy val currOpt: Opt[AST] = parentOpt(curr.entry, currASTEnv).asInstanceOf[Opt[AST]]
         lazy val currTS = interproceduralCFG.getTS(curr)
 
-        lazy val succVarEnv =  succ.entry match {
-                case f : FunctionDef => interproceduralCFG.getTS(succ).lookupEnv(f.stmt.innerStatements.headOption.getOrElse(currOpt).entry)
-                case _ => currTS.lookupEnv(succ.entry)
-            }
+        lazy val succVarEnv = succ.entry match {
+            case f: FunctionDef => interproceduralCFG.getTS(succ).lookupEnv(f.stmt.innerStatements.headOption.getOrElse(currOpt).entry)
+            case _ => currTS.lookupEnv(succ.entry)
+        }
         val currDefines = definedIds match {
             case None => defines(curr)
             case Some(x) => x
@@ -498,7 +499,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
         def isStructOrUnion(cType: CType): Boolean =
             cType.atype match {
                 case CPointer(t) => isStructOrUnion(t) // simple pointer detection - really, really worse coding
-                case _: CStruct | _: CAnonymousStruct  => true
+                case _: CStruct | _: CAnonymousStruct => true
                 case _ => false
             }
 
@@ -514,6 +515,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
         def structFieldDefineIsSatisfiable(x: Opt[Id]): Boolean = occurrenceFulfills(x, currStructFieldDefines.flatMap(_._2.headOption), isSatisfiable)
 
         def defineIsImplication(x: Opt[Id]): Boolean = occurrenceFulfills(x, currDefines, isImplication)
+
+        def localDefineIsImplication(x: Opt[Id]): Boolean = occurrenceFulfills(x, currDefines, isImplication)
 
         def structFieldDefineIsImplication(s: StructSource): Boolean = currStructFieldDefines.exists(structFieldMatch(s, _, _.equals(_)))
 
@@ -565,7 +568,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     val res = if (reachingSource.isDefined) genSource.map(genS => {
                         genS.reachingSources.+=(reachingSource.get) ++ reachingSource.get.reachingSources
                         genS
-                    }) else genSource// Update new reaching sources
+                    })
+                    else genSource // Update new reaching sources
                     //List()
                     List()
             }

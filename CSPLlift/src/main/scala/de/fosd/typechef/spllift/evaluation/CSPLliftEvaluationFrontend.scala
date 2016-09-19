@@ -91,7 +91,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
                 println("###\n")
             })
-        }
+        } else println("\n### All results were covered by the lifted approach!")
 
         unmatchedCoverageFacts.isEmpty
     }
@@ -130,8 +130,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         println(cfgConditions)
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
-        configs.foreach(println)
-        configs.foreach(c => println(PrettyPrinter.print(ProductDerivation.deriveProduct(ast, c.getTrueFeatures))))
+        configs.foreach(config => {
+            println("### Current Config:\t" + config + "\n")
+            println(PrettyPrinter.print(ProductDerivation.deriveProduct(ast, config.getTrueFeatures)))
+        })
         println
 
         if (unmatchedLiftedFacts.nonEmpty) {
@@ -139,7 +141,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             println("Size:\t" + unmatchedLiftedFacts.size)
 
             unmatchedLiftedFacts.foreach(uc => println("Error:\n" + "\tCondition:" + uc._2 + "\n\t" + uc._1.toText))
-        }
+        } else println("\n### All results were covered by the condition coverage approach!")
+
 
         if (unmatchedCoverageFacts.nonEmpty) {
             println("\n### Following results were not covered by the lifted approach: ")
@@ -155,7 +158,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
                 println("###\n")
             })
-        }
+        } else println("\n### All condition coverage results were covered by the lifted approach!")
 
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }

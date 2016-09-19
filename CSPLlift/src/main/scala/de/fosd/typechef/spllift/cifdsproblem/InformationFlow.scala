@@ -29,7 +29,7 @@ sealed abstract class Source(val name: Opt[Id], val stmt: Opt[_], val reachingSo
 
 case class VarSource(override val name: Opt[Id], override val stmt: Opt[_], override val reachingSources: ListBuffer[Source] = ListBuffer(), override val globalFile: Option[String] = None) extends Source(name, stmt, reachingSources, globalFile) {
     override def equals(other: Any) = other match {
-        case s@VarSource(oName, oStmt, _, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile)
+        case s@VarSource(oName, oStmt, oReachingSources, oGlobalFile) => oName.equals(name) && oStmt.equals(stmt) && oGlobalFile.equals(globalFile) && oReachingSources.diff(reachingSources).isEmpty
         case _ => false
     }
 }
