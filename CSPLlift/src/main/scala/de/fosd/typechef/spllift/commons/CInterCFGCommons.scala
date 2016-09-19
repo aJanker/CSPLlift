@@ -2,14 +2,14 @@ package de.fosd.typechef.spllift.commons
 
 import java.util
 
+import de.fosd.typechef.commons.crewrite.AssignDeclDefUse
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.crewrite.UsedDefinedDeclaredVariables
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, _}
 
 import scala.collection.JavaConverters._
 
-trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation with ConditionalNavigation with TUnitRewriteEngine {
+trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with ConditionalNavigation with TUnitRewriteEngine {
 
     def getFileName(originalFilePath: Option[String]): Option[String] =
         originalFilePath match {
@@ -85,4 +85,13 @@ trait CInterCFGCommons extends UsedDefinedDeclaredVariables with ASTNavigation w
         })
     }
 
+    // checks reference equality of e in a given structure t (either product or list)
+    def isPartOfTerm(subterm: Product, term: Any): Boolean = {
+        term match {
+            case _: Product if subterm.asInstanceOf[AnyRef].eq(term.asInstanceOf[AnyRef]) => true
+            case l: List[_] => l.exists(isPartOfTerm(subterm, _))
+            case p: Product => p.productIterator.toList.exists(isPartOfTerm(subterm, _))
+            case _ => false
+        }
+    }
 }

@@ -4,6 +4,7 @@ import java.io._
 import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.commons.StopWatch
+import de.fosd.typechef.commons.parser.TestHelper
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}

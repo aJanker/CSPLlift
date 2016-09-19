@@ -1,10 +1,7 @@
 package de.fosd.typechef.cpointeranalysis
 
-import de.fosd.typechef.conditional.ConditionalSet
+import de.fosd.typechef.commons.conditional.ConditionalSet
 import de.fosd.typechef.featureexpr.FeatureExpr
-
-import scala.pickling.Defaults._
-import scala.pickling.json._
 
 /**
  * Created by gferreir on 11/25/14.

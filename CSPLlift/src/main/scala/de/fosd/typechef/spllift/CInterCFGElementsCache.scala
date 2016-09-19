@@ -5,6 +5,7 @@ import java.util
 import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.commons.StopWatch
+import de.fosd.typechef.commons.clinking.CModuleInterface
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
@@ -12,7 +13,6 @@ import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.commons.{CInterCFGCommons, WarningsCache}
-import de.fosd.typechef.typesystem.linker.CModuleInterface
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 
 import scala.collection.JavaConversions._

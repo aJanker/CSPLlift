@@ -2,6 +2,7 @@ package de.fosd.typechef.spllift.setup
 
 import java.io.File
 
+import de.fosd.typechef.commons.clinking.CInterfaceWriter
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.typesystem.linker._
 
@@ -9,7 +10,7 @@ import de.fosd.typechef.typesystem.linker._
 /**
   * Interface for generating linking information of a whole project
   */
-object CModuleInterfaceGenerator extends App with InterfaceWriter {
+object CModuleInterfaceGenerator extends App with CInterfaceWriter {
 
     val startDir = args(0)
     val featureModel_DIMACS: String = if (args.length > 3) args(1) else " "

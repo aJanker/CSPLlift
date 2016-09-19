@@ -32,10 +32,7 @@ trait InformationFlowConfiguration extends SolverConfiguration {
       *
       * @see #zeroValue()
       */
-    override def autoAddZero(): Boolean = {
-        println("auto")
-        true
-    }
+    override def autoAddZero(): Boolean =  true
 
     /**
       * If true, then the solver will cache flow functions and edge functions.

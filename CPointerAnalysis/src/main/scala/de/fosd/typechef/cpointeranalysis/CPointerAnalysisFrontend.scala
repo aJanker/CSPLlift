@@ -2,6 +2,7 @@ package de.fosd.typechef.cpointeranalysis
 
 import java.util
 
+import de.fosd.typechef.commons.conditional.ConditionalSet
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
