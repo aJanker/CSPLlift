@@ -88,10 +88,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getOptions = options
 
     // undocumented function call to cifg from spllift -> gets current flow condition
-    override def getConstraint(node: Opt[AST]): Constraint = {
-        // val cond = getASTEnv(node).featureExpr(node.entry)
-        Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
-    }
+    override def getConstraint(node: Opt[AST]): Constraint = Constraint.make(node.condition.asInstanceOf[BDDFeatureExpr])
 
     override def getASTEnv(node: Opt[AST]): ASTEnv = getASTEnv(node.entry)
     private def getASTEnv(node: AST): ASTEnv =
@@ -226,6 +223,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = {
         val succs = getSuccsOfS(stmt)
+        /* if (defines(stmt).exists(x => x.name.equalsIgnoreCase("platz")))
+            {
+                println(stmt)
+
+                println(succs)
+            println} */
+
         cInterCFGNodes.++=(succs)
         succs.asJava
     }
