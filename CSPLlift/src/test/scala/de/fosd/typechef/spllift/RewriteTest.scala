@@ -1,20 +1,14 @@
 package de.fosd.typechef.spllift
 
-import de.fosd.typechef.commons.StopWatch
 import org.junit.Test
 
-class RewriteTest extends SPLLiftTestHelper {
+class RewriteTest extends CSPLliftTestHelper {
 
     @Test def rewriteNestedFunctionCallsAndReturns(): Unit = {
 
         var successful = true
 
         val (tunit, _, _, sinks) = defaultTestInit("rewrite.c", allSinks)
-
-
-        println(sinks)
-
-        println(StopWatch.toCSV)
 
         successful should be(true)
 
@@ -25,11 +19,6 @@ class RewriteTest extends SPLLiftTestHelper {
         var successful = true
 
         val (tunit, _, _, sinks) = defaultTestInit("rewriteMinimal.c", allSinks)
-
-
-        println(sinks)
-
-        println(StopWatch.toCSV)
 
         successful should be(true)
 

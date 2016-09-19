@@ -1,21 +1,22 @@
 package de.fosd.typechef.spllift
 
-import de.fosd.typechef.parser.c.PrettyPrinter
 import de.fosd.typechef.spllift.analysis.Taint
+import de.fosd.typechef.spllift.evaluation.CSPLliftEvaluationFrontend
 import org.junit.Test
 
-class extensible_PointerFunctionFlow extends SPLLiftTestHelper {
+class extensible_PointerFunctionFlow extends CSPLliftTestHelper {
 
     @Test def defaultFlows() = {
         var successful = true
 
         val (tunit, _, _, sinks) = defaultTestInit("simplePointerFunctionFlow.c", allSinks)
 
+        val evaluation = new CSPLliftEvaluationFrontend(tunit)
+        val eval = evaluation.evaluate(new CSPLliftTestOptions)
+
         println(Taint.prettyPrintSinks(sinks))
 
-        println(PrettyPrinter.print(tunit))
-
-        successful should be(true)
+        successful && eval should be(true)
 
     }
 
@@ -24,9 +25,12 @@ class extensible_PointerFunctionFlow extends SPLLiftTestHelper {
 
         val (tunit, _, _, sinks) = defaultTestInit("extensible_PointerFunctionFlow.c", allSinks)
 
-        println(PrettyPrinter.print(tunit))
+        val evaluation = new CSPLliftEvaluationFrontend(tunit)
+        val eval = evaluation.evaluate(new CSPLliftTestOptions)
 
-        successful should be(true)
+        println(Taint.prettyPrintSinks(sinks))
+
+        successful && eval should be(true)
 
     }
 }

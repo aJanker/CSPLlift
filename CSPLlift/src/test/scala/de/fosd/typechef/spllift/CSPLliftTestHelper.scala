@@ -13,11 +13,11 @@ import de.fosd.typechef.spllift.analysis.{InformationFlowGraphWriter, SuperCallG
 import de.fosd.typechef.spllift.cifdsproblem.{InformationFlowProblem, Reach}
 import org.scalatest.Matchers
 
-trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers {
+trait CSPLliftTestHelper extends TestHelper with EnforceTreeHelper with Matchers {
 
     de.fosd.typechef.featureexpr.FeatureExprFactory.setDefault(de.fosd.typechef.featureexpr.FeatureExprFactory.bdd)
 
-    val dbg = true
+    val dbg = false
 
     override val fa = FeatureExprFactory.createDefinedExternal("A")
     override val fb = FeatureExprFactory.createDefinedExternal("B")
@@ -49,9 +49,6 @@ trait SPLLiftTestHelper extends TestHelper with EnforceTreeHelper with Matchers 
             Taint.writeGraphToSink(cInterCFG, sinks, dbgWriterDir + filename, ".ifg")
             Taint.writeGraphFromSource(cInterCFG, sinks, dbgWriterDir + filename, "_sourceToSink.ifg")
             SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(dbgWriterDir  + filename + "/callGraph.dot")))
-            println("#### Pointer EQ")
-            println(cInterCFG.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses())
-            println("\n### Taints:")
 
             println(Taint.prettyPrintSinks(sinks))
         }

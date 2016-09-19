@@ -3,7 +3,7 @@ package de.fosd.typechef.spllift
 import org.junit.Test
 
 
-class StructDereference extends SPLLiftTestHelper {
+class StructDereference extends CSPLliftTestHelper {
 
 
     @Test def structDerefernce(): Unit = {

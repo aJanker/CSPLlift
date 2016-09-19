@@ -8,7 +8,7 @@ import de.fosd.typechef.spllift.cifdsproblem.Reach
 import org.junit.Test
 
 
-class ReturnInfoFlowTest extends SPLLiftTestHelper {
+class ReturnInfoFlowTest extends CSPLliftTestHelper {
 
     @Test def testMultipleExitReturnFlows() = {
         def isSink(r: Reach): Boolean = {

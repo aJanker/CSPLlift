@@ -127,8 +127,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
-        println(cfgConditions)
-
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
         configs.foreach(config => {
             println("### Current Config:\t" + config + "\n")

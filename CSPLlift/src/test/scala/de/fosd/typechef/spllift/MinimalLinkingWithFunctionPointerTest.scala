@@ -4,7 +4,7 @@ import de.fosd.typechef.parser.c.PrettyPrinter
 import org.junit.Test
 
 
-class MinimalLinkingWithFunctionPointerTest extends SPLLiftTestHelper {
+class MinimalLinkingWithFunctionPointerTest extends CSPLliftTestHelper {
 
         @Test def minimalLinkingWithFunctionPointerTest() = {
             var successful = true

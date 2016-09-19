@@ -7,7 +7,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.spllift.analysis.Taint
 import org.junit.Test
 
-class StructsTest extends SPLLiftTestHelper {
+class StructsTest extends CSPLliftTestHelper {
 
     /**
       * Tests the correct assignment from variables to struct fields (x.y = z);

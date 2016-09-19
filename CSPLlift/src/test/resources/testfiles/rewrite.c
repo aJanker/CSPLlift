@@ -16,8 +16,9 @@ int inner(int value) {
 }
 
 int testing() {
-int value = 5;
-return value;}
+    int value = 5;
+    return value;
+}
 
 int main() {
     int point;
@@ -38,7 +39,7 @@ int main() {
     int bla2 = foo(mi, 2);
     int bla = foo(mi, 5);
 
-    //int mj = foo(sizeof(point), mi);
+    int mj = foo(sizeof(point), mi);
     long li = 10l;
 
     int between = 2;
@@ -53,8 +54,8 @@ int main() {
     #endif
     , testing());
 
-#ifdef A
-    //int bla3 = inner(5);
+    #ifdef A
+    int bla3 = inner(5);
     #endif
 
     int res2 = bla2;

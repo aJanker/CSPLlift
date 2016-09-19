@@ -3,7 +3,7 @@ package de.fosd.typechef.spllift
 import org.junit.Test
 
 
-class SingleStatements extends SPLLiftTestHelper {
+class SingleStatements extends CSPLliftTestHelper {
 
 
     @Test def singleStatements(): Unit = {
