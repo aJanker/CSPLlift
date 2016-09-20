@@ -1,10 +1,10 @@
 package soot.spl.ifds;
 
 import de.fosd.typechef.conditional.Opt;
+import de.fosd.typechef.cspllift.CInterCFG;
 import de.fosd.typechef.featureexpr.FeatureModel;
 import de.fosd.typechef.parser.c.AST;
 import de.fosd.typechef.parser.c.FunctionDef;
-import de.fosd.typechef.spllift.CInterCFG;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import heros.solver.IDESolver;

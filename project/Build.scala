@@ -151,7 +151,7 @@ object SPLlift extends Build {
   import BuildSettings._
 
   lazy val spllift = Project(
-    "SPLlift",
+    "TypeChef-SPLlift",
     file("."),
     settings = buildSettings
   ) aggregate(commons,
