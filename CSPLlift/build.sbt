@@ -14,7 +14,7 @@ java -ea -Xmx8g -Xms1g -Xss32m -classpath "%s" %s "$@"
 """
   val mainStr = main getOrElse sys.error("No main class specified")
   val contents = template.format(cp.files.absString, mainStr)
-  val out = base / "lift.sh"
+  val out = base / "../lift.sh"
   IO.write(out, contents)
   out.setExecutable(true)
   out
