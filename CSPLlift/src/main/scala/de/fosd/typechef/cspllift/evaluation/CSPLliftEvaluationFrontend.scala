@@ -6,8 +6,8 @@ import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem, Informat
 import de.fosd.typechef.cspllift.commons.ConditionTools
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
-import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
 import soot.spl.ifds.Constraint
 
@@ -113,7 +113,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 3. Generate Condition Coverage Configurations for all distinct warning conditions
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
-        val configs = sampling.conditionConfigurationCoverage(cfgConditions)
+        val configs = sampling.conditionConfigurationCoverage(cfgConditions.asInstanceOf[Set[FeatureExpr]])
 
         // 4. Run Analysis for every generated config
         val coverageFacts = configs.zipWithIndex.map(x => {

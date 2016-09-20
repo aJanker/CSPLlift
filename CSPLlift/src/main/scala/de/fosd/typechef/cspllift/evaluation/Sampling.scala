@@ -4,7 +4,6 @@ import java.io.{File, FileWriter}
 
 import de.fosd.typechef.conditional.{Choice, One, Opt}
 import de.fosd.typechef.cspllift.commons.ConditionTools
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel, SingleFeatureExpr}
 import de.fosd.typechef.parser.c.{AST, TranslationUnit}
 
@@ -24,19 +23,15 @@ class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools
 
     def codeConfigurationCoverage() : List[SimpleConfiguration] = {
         val configs = configurationCoverage(tunit, fm, features)
-        println("\n### Code coverage statistics")
-        println(configs._2 + "\n")
         configs._1
     }
 
-    def conditionConfigurationCoverage(cfgConditions: Set[BDDFeatureExpr]) : List[SimpleConfiguration] = {
+    def conditionConfigurationCoverage(cfgConditions: Set[FeatureExpr]) : List[SimpleConfiguration] = {
         val configs = conditionCoverage(cfgConditions)
-        println("\n### Condition coverage statistics")
-        println(configs._2 + "\n")
         configs._1
     }
 
-    private def conditionCoverage(conditions: Set[BDDFeatureExpr]) : (List[SimpleConfiguration], String) = {
+    private def conditionCoverage(conditions: Set[FeatureExpr]) : (List[SimpleConfiguration], String) = {
         var unsatCombinations = 0
 
         val configs = conditions.flatMap(condition => {

@@ -1,6 +1,7 @@
 package de.fosd.typechef.cspllift.commons
 
-import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.conditional.{Choice, Opt}
+import de.fosd.typechef.cspllift.evaluation.Sampling
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
@@ -37,9 +38,60 @@ trait KiamaRewritingRules {
     }
 }
 
-trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with KiamaRewritingRules {
+trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with KiamaRewritingRules with EnforceTreeHelper {
 
     private var tmpVariablesCount = 0
+
+    /**
+      * Moves variability nested in CFG-Statements up to the CFG Statement by code duplication.
+      * We are otherwise unable use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
+      */
+    def removeInStatementVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+        assert(ast != null, "ast should not be null")
+
+        val astEnv = CASTEnv.createASTEnv(ast)
+        val sampling = new Sampling(ast.asInstanceOf[TranslationUnit], fm)
+
+        val cfgStmts = filterAllASTElems[Statement](ast).flatMap(filterASTElems[CFGStmt]).distinct
+        val replacements = cfgStmts.flatMap {
+
+            case c: CFGStmt if isVariable(c) =>
+                val parentCondition = parentOpt(c, astEnv).condition
+                val stmtConditions = filterAllFeatureExpr(c)
+                val allStmtConditions = stmtConditions.foldLeft(FeatureExprFactory.True)(_ and _)
+
+                if (!allStmtConditions.equivalentTo(parentCondition, fm)) {
+                    val configs = sampling.conditionConfigurationCoverage(stmtConditions.toSet)
+                    val products = configs.flatMap(config => {
+
+                        val trueCond = config.getTrueSet.foldLeft(FeatureExprFactory.True)(_ and _)
+                        val falseCond = config.getFalseSet.foldLeft(FeatureExprFactory.True)(_ and _).not()
+                        val finalCond = if (falseCond.isSatisfiable(fm)) trueCond.and(falseCond) else trueCond
+
+                        val product = deriveProductwithCondition(c, config.getTrueFeatures, finalCond)
+                        Some(Opt(finalCond, product))
+                    })
+
+                    Some((c, products))
+                } else None
+
+            case _ => None
+        }
+
+        replacements.foldLeft(ast)((currAST, r) => {
+            val currASTEnv = CASTEnv.createASTEnv(currAST)
+
+            val cc = findPriorASTElem[CompoundStatement](r._1, currASTEnv)
+
+            if (cc.isEmpty)
+                return currAST // return not part of a compound statement -> can not rewrite
+
+            val ccReplacement =
+                replaceStmtWithStmtsListInCCStmt(cc.get, parentOpt(r._1, currASTEnv).asInstanceOf[Opt[Statement]], r._2.asInstanceOf[List[Opt[Statement]]])
+
+            replace(currAST, cc.get, ccReplacement)
+        })
+    }
 
     /**
       * Rewrites all function calls nested in return statements from:
@@ -85,6 +137,30 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
         allReturnStatementsWithFunctionCall.foldLeft(tunit) {
             (currentTUnit, returnStatementWithFCall) => replaceSingleNestedFCallInReturnStmt(currentTUnit, returnStatementWithFCall)
         }
+    }
+
+    private def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr): T = {
+        assert(ast != null)
+
+        val prod = manytd(rule[Product] {
+            case l: List[_] if l.forall(_.isInstanceOf[Opt[_]]) => {
+                var res: List[Opt[_]] = List()
+                // use l.reverse here to omit later reverse on res or use += or ++= in the thenBranch
+                for (o <- l.reverse.asInstanceOf[List[Opt[_]]])
+                    if (o.condition.evaluate(selectedFeatures)) {
+                        res ::= o.copy(condition = condition)
+                    }
+                res
+            }
+            case Choice(feature, thenBranch, elseBranch) => {
+                if (feature.evaluate(selectedFeatures)) thenBranch
+                else elseBranch
+            }
+            case a: AST => a.clone()
+        })
+        val cast = prod(ast).get.asInstanceOf[T]
+        copyPositions(ast, cast)
+        cast
     }
 
     /**

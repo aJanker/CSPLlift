@@ -88,12 +88,14 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     override def prepareAST[T <: Product](t: T): T = {
         var tunit = super.prepareAST(t.asInstanceOf[TranslationUnit])
-        if (options.getConfiguration.isDefined)
-            tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
 
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
+        tunit = removeInStatementVariability(tunit, fm)
         copyPositions(t.asInstanceOf[TranslationUnit], tunit)
+
+        if (options.getConfiguration.isDefined)
+            tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
 
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
         tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit

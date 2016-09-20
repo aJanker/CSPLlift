@@ -7,7 +7,7 @@ import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureExprFactory}
-import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
+import de.fosd.typechef.parser.c._
 
 import scala.collection.mutable.ListBuffer
 
@@ -72,7 +72,7 @@ case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) exten
     override def toText: String = toText(new StringWriter).toString
 
     def toText(writer: Writer) : Writer = {
-        writer.append("Reach under condition " + to.condition.toTextExpr + " at " + PrettyPrinter.print(to.entry) + "\n")
+        writer.append("Reach under condition " + to.condition.toTextExpr + " at " + PrettyPrinter.print(CompoundStatement(List(to.asInstanceOf[Opt[Statement]]))) + "\n")
 
         if (from.nonEmpty) {
             writer.append("\tFrom:\t")

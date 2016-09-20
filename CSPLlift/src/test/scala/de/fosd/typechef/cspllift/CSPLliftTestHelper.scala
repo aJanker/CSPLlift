@@ -50,6 +50,8 @@ trait CSPLliftTestHelper extends TestHelper with EnforceTreeHelper with Matchers
             Taint.writeGraphFromSource(cInterCFG, sinks, dbgWriterDir + filename, "_sourceToSink.ifg")
             SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(dbgWriterDir  + filename + "/callGraph.dot")))
 
+            cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(x => println(PrettyPrinter.print(x)))
+
             println(Taint.prettyPrintSinks(sinks))
         }
 
@@ -67,6 +69,8 @@ trait CSPLliftTestHelper extends TestHelper with EnforceTreeHelper with Matchers
         }
 
         val (tunit, _, _, sinks) = defaultTestInit(filename, isSink)
+
+        println(Taint.prettyPrintSinks(sinks))
 
         var successful = true
 
