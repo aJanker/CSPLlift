@@ -43,6 +43,8 @@ int main() {
 
     sink_m = res_m;
 
+    printf("%i\n", sink_m);
+
     return 0;
 };
 

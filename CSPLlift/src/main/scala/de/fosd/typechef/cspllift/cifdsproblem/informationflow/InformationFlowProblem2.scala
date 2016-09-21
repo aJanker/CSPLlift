@@ -25,11 +25,6 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         val destinationMethodFile = destinationMethod.getFile.getOrElse("")
         initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
     }
-
-    private val SCOPE_UNKNOWN: Int = -1
-    private val SCOPE_GLOBAL: Int = 0
-    private val SCOPE_LOCAL: Int = 1
-
     private val zeroVal = Zero()
 
     /**
@@ -106,7 +101,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 else if (currAssignments.nonEmpty && currUses.contains(source)) {
                                     val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(source) }
 
-                                    val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, List(), List(), SCOPE_UNKNOWN) } // TODO Correct Scoping
+                                    val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, List(), List(), SCOPE_UNKNOWN) }
                                     val sourcesOf = sources.map(newSource => VarSourceOf(newSource.name, currOpt, v, List(), scope))
                                     val sinks = assignees.map(assignment => SinkToAssignment(currOpt, v, assignment._1))
                                     val updatedVarSource = v.copy(usedIn = currOpt :: usedIn, isSourceOf = sources ::: isSourceOf)
@@ -132,7 +127,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 else if (currAssignments.nonEmpty && currUses.contains(id)) {
                                     val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
 
-                                    val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, List(), List(), SCOPE_UNKNOWN) } // TODO Correct Scoping
+                                    val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, List(), List(), SCOPE_UNKNOWN) }
                                     val sourcesOf = sources.map(newSource => VarSourceOf(newSource.name, currOpt, source, List(), scope))
                                     val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source, assignment._1))
                                     val updatedVarSource = vo.copy(usedIn = currOpt :: usedIn)
@@ -178,11 +173,8 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 val destinationOpt = parentOpt(destinationMethod.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
                 SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt)), Node(destinationOpt), flowCondition))
 
-                // TODO Implement
-                /*
-                if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
-                  && destinationMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
-                    return pseudoSystemFunctionCallCallFlowFunction(callStmt, callEnv, interproceduralCFG) */
+                if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && destinationMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    return pseudoSystemFunctionCallCallFlowFunction(callStmt, interproceduralCFG.getASTEnv(callStmt), interproceduralCFG)
 
                 def default(flowFact: InformationFlow2) = KILL
                 def getZeroFactWithFlow(zero: Zero): Zero = zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
@@ -260,10 +252,8 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 lazy val pointerParamNames = getPointerFDefParamNames(calleeMethod)
 
 
-                // TODO Implement
-                /* if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions
-                  && calleeMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
-                    return pseudoSystemFunctionCallReturnFlow */
+                if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && calleeMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
+                    return pseudoSystemFunctionCallReturnFlow
 
                 exitStmt.entry match {
                     case ReturnStatement(_) =>

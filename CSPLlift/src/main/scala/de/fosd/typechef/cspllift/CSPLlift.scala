@@ -5,7 +5,7 @@ import java.io.FileWriter
 import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2Problem, SinkToAssignment, VarSourceOf}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlowProblem, Source}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
@@ -33,15 +33,22 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case x@(s@SinkToAssignment(o@Opt(_, ExprStatement(AssignExpr(Id("sink_m"), _, Id("res_m")))),_,_),_) => true
             case _ => false
         }
+
+        val allSinks = solution.filter {
+            case (_: SinkToUse, _) => true
+            case _ => false
+        }
+
         val varsourceOf = solution.filter {
             case (_: VarSourceOf, _) => true
             case _ => false
         }
 
         for (ast <- cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits) println(PrettyPrinter.print(ast))
-        println(solution)
+        println(allSinks)
         println(varsourceOf)
         println(sinks)
+        println(solution)
 
         if (opt.liftTaintAnalysis)
             taintCheck(opt, cInterCFGConfiguration)

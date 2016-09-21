@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
 import heros.SolverConfiguration
 
-trait InformationFlow2Configuration extends SolverConfiguration {
+trait InformationFlow2Configuration extends SolverConfiguration with InformationFlowPseudoVistingSystemLibFunctions {
     /**
       * If false, then the solver will only compute the exploded super graph but not propagate values.
       * This can save time for IFDS problems where all of the interesting results are collected already

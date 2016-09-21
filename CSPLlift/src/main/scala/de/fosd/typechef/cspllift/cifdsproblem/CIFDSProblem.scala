@@ -43,7 +43,7 @@ trait CFlowFact {
 
 }
 
-trait CFlowOperations[D <: CFlowFact] {
+trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {
 
     def GEN(fact: D): util.Set[D] = Collections.singleton(fact)
 
@@ -55,10 +55,12 @@ trait CFlowOperations[D <: CFlowFact] {
 
 trait CFlowConstants {
 
+    lazy val SCOPE_UNKNOWN: Int = -1
+    lazy val SCOPE_GLOBAL: Int = 0
+    lazy val SCOPE_LOCAL: Int = 1
+
     lazy val SPLLIFT_CONSTANT_VALUE = "SPLLIFT_CONSTANT_VALUE"
-
     lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
-
     lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
 
 }
