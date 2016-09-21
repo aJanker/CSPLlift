@@ -21,7 +21,7 @@ sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
 }
 
 
-case class Zero(condition : FeatureExpr = BDDFeatureExprFactory.TrueB) extends InformationFlow {
+case class Zero(override val flowCondition : FeatureExpr = BDDFeatureExprFactory.TrueB) extends InformationFlow with CZeroFact {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = other.isInstanceOf[Zero]
 }
 

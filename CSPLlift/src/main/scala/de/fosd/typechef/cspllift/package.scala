@@ -20,6 +20,6 @@ package object cspllift {
 
     type LiftedCFlowFact[D] = (D, Constraint)
 
-    def asScalaLiftedFlowFact[D](javaFacts: util.List[util.Map[D, Constraint]]): List[LiftedCFlowFact[D]] = javaFacts.asScala.toList.flatMap(_.asScala.toList).distinct
+    def liftedFlowFactsAsScala[D](javaFacts: util.List[util.Map[D, Constraint]]): List[LiftedCFlowFact[D]] = javaFacts.asScala.toList.flatMap(_.asScala.toList).distinct
 
 }

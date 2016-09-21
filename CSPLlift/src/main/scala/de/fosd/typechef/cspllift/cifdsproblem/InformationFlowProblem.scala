@@ -19,7 +19,7 @@ import scala.collection.mutable.ListBuffer
 trait InformationFlowProblemOperations extends CFlowOperations[InformationFlow] with CFlowConstants with CInterCFGPseudoVistingSystemLibFunctions {
     def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
-    def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
+    def GEN(res: TraversableOnce[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
 
     def KILL: util.Set[InformationFlow] = Collections.emptySet()
 }
@@ -52,7 +52,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def zeroValue(): InformationFlow = zeroVal
+    override def zeroValue(): InformationFlow with CZeroFact = zeroVal
 
     /**
       * Returns a set of flow functions. Those functions are used to compute data-flow facts
@@ -215,7 +215,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                         val constantParameterSources = paramsWithConstants.flatMap(callParamConstantsToFDefParams)
 
-                        z.copy(condition = z.condition.and(flowCondition)) :: constantParameterSources
+                        z.copy(flowCondition = z.flowCondition.and(flowCondition)) :: constantParameterSources
                     }
                 }
             }
@@ -293,7 +293,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                             case z: Zero if currUses.isEmpty => // Return is something like return 0; -> we generate a new source
                                 val sources = currAssignments.flatMap {
-                                    case (target, assignment) if assignment.isEmpty => genVarSource(target, reachCondition = currOpt.condition.and(exitOpt.condition).and(z.condition)) // Apply only when assignment is really empty
+                                    case (target, assignment) if assignment.isEmpty => genVarSource(target, reachCondition = currOpt.condition.and(exitOpt.condition).and(z.flowCondition)) // Apply only when assignment is really empty
                                     case _ => None
                                 }
                                 GEN(z :: sources)
@@ -376,8 +376,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                             // is completly new introduced declaration without usage (e.g int x = 50;)
                                             val file = if ((scope.entry == 0) && scope.condition.isSatisfiable(interproceduralCFG.getFeatureModel)) getFileName(id.getFile) else None
 
-                                            def zeroStructSource(i: Id) = List(StructSource(Opt(currOpt.condition.and(scope.condition).and(z.condition), id), None, currOpt, ListBuffer(), file))
-                                            def zeroVarSource(i: Id) = List(VarSource(Opt(currOpt.condition.and(scope.condition), id).and(z.condition), currOpt, ListBuffer(), file))
+                                            def zeroStructSource(i: Id) = List(StructSource(Opt(currOpt.condition.and(scope.condition).and(z.flowCondition), id), None, currOpt, ListBuffer(), file))
+                                            def zeroVarSource(i: Id) = List(VarSource(Opt(currOpt.condition.and(scope.condition), id).and(z.flowCondition), currOpt, ListBuffer(), file))
 
                                             singleVisitOnSourceTypes(id, zeroStructSource, zeroVarSource)
                                         }))
@@ -386,7 +386,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                             case z: Zero if currStructFieldDefines.nonEmpty && currUses.isEmpty =>
                                 // TODO Scoping
-                                val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition.and(z.condition)))
+                                val facts: List[InformationFlow] = currStructFieldDefines.flatMap(field => genStructSource(field._1, field, None, currOpt.condition.and(z.flowCondition)))
                                 GEN(z :: facts)
                             case r: Reach => default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
                             case _ => default(flowFact)

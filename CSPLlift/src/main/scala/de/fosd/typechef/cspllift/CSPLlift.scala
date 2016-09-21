@@ -3,7 +3,9 @@ package de.fosd.typechef.cspllift
 import java.io.FileWriter
 
 import de.fosd.typechef.commons.StopWatch
+import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2Problem, SinkToAssignment, VarSourceOf}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlowProblem, Source}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
@@ -17,6 +19,27 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     def analyze(opt: CSPLliftOptions) = {
 
         val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
+
+        val cInterCFG = new CInterCFG(ast, fm, cInterCFGConfiguration)
+
+        val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
+            val problem = new InformationFlow2Problem(cInterCFG)
+            CSPLlift.solve(problem)
+        })
+
+        val sinks = solution.filter {
+            case x@(s@SinkToAssignment(o@Opt(_, ExprStatement(AssignExpr(Id("sink_m"), _, Id("res_m")))),_,_),_) => true
+            case _ => false
+        }
+        val varsourceOf = solution.filter {
+            case (_: VarSourceOf, _) => true
+            case _ => false
+        }
+
+        for (ast <- cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits) println(PrettyPrinter.print(ast))
+        println(solution)
+        println(varsourceOf)
+        println(sinks)
 
         if (opt.liftTaintAnalysis)
             taintCheck(opt, cInterCFGConfiguration)
@@ -39,13 +62,18 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._1.sources.exists(s => hasName("key", s))))
 
+
         println("#static analysis with spllift - result")
 
         Taint.writeGraphToSink(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
         Taint.writeGraphFromSource(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
         SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
-        println(Taint.prettyPrintSinks(allReaches))
 
+        println("\n#used tunits\n")
+        cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(x => println(PrettyPrinter.print(x)))
+
+        println("\n#sinks\n")
+        println(Taint.prettyPrintSinks(allReaches))
     }
 }
 
@@ -66,7 +94,7 @@ object CSPLlift {
         }
 
         // Looks messy, but requiered for a clean conversion from java collections to scala collections...
-        asScalaLiftedFlowFact(solver.getAllResults)
+        liftedFlowFactsAsScala(solver.getAllResults)
 
     }
 }

@@ -26,9 +26,9 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 				private final FlowFunctions<Opt<AST>, D, Opt<FunctionDef>> zeroedFlowFunctions;
 				private final CInterCFG icfg;
 
-				public IFDSEdgeFunctions(CInterCFG icfg) {
+				private IFDSEdgeFunctions(CInterCFG icfg) {
 					this.icfg = icfg;
-					zeroedFlowFunctions = new ZeroedFlowFunctions<Opt<AST>, D, Opt<FunctionDef>>(ifdsProblem.flowFunctions(),ifdsProblem.zeroValue());
+					zeroedFlowFunctions = new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(),ifdsProblem.zeroValue());
 				}
 
 				public EdgeFunction<Constraint> getNormalEdgeFunction(Opt<AST> currStmt, D currNode, Opt<AST> succStmt, D succNode) {
@@ -61,26 +61,9 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 
 					if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
 
-					// TODO Document isFallThroughSuccessor
-
-					/* List<Opt<AST>> srcSuccs = interCfg.getSuccsOf(src);
-					/* if (interCfg.isFallThroughSuccessor(src, successor)) {
-							// (src --> successor) is a fallThroughEdge (as src has only one successor), currently, this is the only case we can handle precisely 
-							return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall);
-					} */
-
 					return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall, flow);
 				}
-				private EdgeFunction<Constraint> conservativeBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
-					boolean srcAnnotated = hasFeatureAnnotation(src);
-					boolean succAnnotated = hasFeatureAnnotation(successor);
-					if(!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
 
-					Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? Constraint.<String>trueValue() : Constraint.<String>falseValue();
-					Constraint neg = srcNode == tgtNode ? Constraint.trueValue() : Constraint.falseValue();
-					Constraint lifted = pos.or(neg);
-					return new SPLFeatureFunction(lifted, fm, useFMInEdgeComputations);
-				}
 				private EdgeFunction<Constraint> preciseBuildFlowFunction(Opt<AST> src, Opt<AST> successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
 					boolean srcAnnotated = hasFeatureAnnotation(src);
 					boolean succAnnotated = hasFeatureAnnotation(successor);
@@ -135,7 +118,6 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 			protected FlowFunctions<Opt<AST>, D, Opt<FunctionDef>> createFlowFunctionsFactory() {
 
 				// TODO Document removal of wrapper.
-
 				return new FlowFunctions<Opt<AST>, D, Opt<FunctionDef>>() {
 
 					@Override
@@ -144,7 +126,7 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 						FlowFunction<D> original = ifdsProblem.flowFunctions().getNormalFlowFunction(curr, succ);
 
 
-						/* if(hasFeatureAnnotation(curr) && interproceduralCFG().isFallThroughSuccessor(curr, succ)) {
+						 /*if(hasFeatureAnnotation(curr) && interproceduralCFG().isFallThroughSuccessor(curr, succ)) {
 							return new WrappedFlowFunction<D>(original);
 						} else */
 							return original;
