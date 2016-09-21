@@ -1,7 +1,6 @@
 package de.fosd.typechef.cspllift.cifdsproblem
 
 import java.util
-import java.util.Collections
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
@@ -16,13 +15,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 
-trait InformationFlowProblemOperations extends CFlowOperations[InformationFlow] with CFlowConstants with CInterCFGPseudoVistingSystemLibFunctions {
-    def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
-
-    def GEN(res: TraversableOnce[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
-
-    def KILL: util.Set[InformationFlow] = Collections.emptySet()
-}
+trait InformationFlowProblemOperations extends CFlowOperations[InformationFlow] with CFlowConstants with CInterCFGPseudoVistingSystemLibFunctions
 
 // TODO Clean up sat checks.
 class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlow](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {

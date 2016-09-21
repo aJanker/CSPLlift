@@ -22,10 +22,12 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         val cInterCFG = new CInterCFG(ast, fm, cInterCFGConfiguration)
 
-        val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
+        val (time, (solution)) = StopWatch.measureUserTime("taint_lift", {
             val problem = new InformationFlow2Problem(cInterCFG)
             CSPLlift.solve(problem)
         })
+
+        println(time)
 
         val sinks = solution.filter {
             case x@(s@SinkToAssignment(o@Opt(_, ExprStatement(AssignExpr(Id("sink_m"), _, Id("res_m")))),_,_),_) => true

@@ -80,6 +80,6 @@ public abstract class DefaultIFDSTabulationProblem<N,D,M, I extends Interprocedu
 
 	@Override
 	public boolean cacheFlowFunctions() {
-		return true;
+		return false;
 	}
 }

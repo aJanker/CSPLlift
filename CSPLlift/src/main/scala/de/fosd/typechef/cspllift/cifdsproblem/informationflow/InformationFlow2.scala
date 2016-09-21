@@ -22,11 +22,13 @@ case class SinkToUse(override val stmt : Opt[AST], override val source : Source)
 
 case class SinkToAssignment(override val stmt : Opt[AST], override val source : Source, assignee : Id) extends Sink(stmt, source)
 
-sealed abstract class Source(scope : Int) extends InformationFlow2 {
+sealed abstract class Source(id : Id, stmt : Opt[AST], scope : Int) extends InformationFlow2 {
     def getScope = scope
+    def getId = id
+    def getStmt = stmt
 }
 
-case class VarSource(name : Id, stmt : Opt[AST], isSourceOf : List[Source], usedIn : List[Opt[AST]], scope : Int) extends Source(scope)
+case class VarSource(name : Id, stmt : Opt[AST], isSourceOf : List[Source], usedIn : List[Opt[AST]], scope : Int) extends Source(name, stmt, scope)
 
-case class VarSourceOf(name : Id, stmt : Opt[AST], source : Source, usedIn : List[Opt[AST]], scope : Int) extends Source(scope)
+case class VarSourceOf(name : Id, stmt : Opt[AST], source : Source, usedIn : List[Opt[AST]], scope : Int) extends Source(name, stmt, scope)
 

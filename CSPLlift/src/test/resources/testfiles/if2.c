@@ -1,9 +1,14 @@
+int secret = 666;
+
+
 int foo(int value) {
    int i = 20;
    int j = 1000;
 
    int res = 0;
    int sink;
+
+   secret = i;
 
    #ifdef B
      j = value;
@@ -29,7 +34,6 @@ int foo(int value) {
 };
 
 int main() {
-   int secret = 30;
     int res_m = 0;
     int sink_m;
 
@@ -41,35 +45,5 @@ int main() {
 
     return 0;
 };
-
-
-/*int main()  {
-  int secret =  30;
-  int i =  20;
-  int j =  1000;
-  int res =  0;
-  int sink;
-
-  #ifdef A
-  (j = secret);
-  #endif
-
-  (i = j);
-  if ((i < 10)) {
-   res =
-    #ifdef B
-    i
-    #else
-    secret
-    #endif
-    ;
-
-int merge;
-  }
-
-  (sink = res);
-  return sink;
-}
-; */
 
 
