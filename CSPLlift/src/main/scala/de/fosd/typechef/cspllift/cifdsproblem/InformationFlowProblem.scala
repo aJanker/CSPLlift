@@ -4,10 +4,9 @@ import java.util
 import java.util.Collections
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.CInterCFG
 import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
-import de.fosd.typechef.featureexpr.bdd.True
+import de.fosd.typechef.cspllift.commons.WarningsCache
+import de.fosd.typechef.cspllift.{CInterCFG, CInterCFGPseudoVistingSystemLibFunctions}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
@@ -16,17 +15,8 @@ import heros.{FlowFunction, FlowFunctions}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-trait InformationFlowConstants {
 
-    lazy val SPLLIFT_CONSTANT_VALUE = "SPLLIFT_CONSTANT_VALUE"
-
-    lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
-
-    lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
-
-}
-
-trait InformationFlowProblemOperations extends CInterCFGCommons with InformationFlowConstants {
+trait InformationFlowProblemOperations extends CFlowOperations[InformationFlow] with CFlowConstants with CInterCFGPseudoVistingSystemLibFunctions {
     def GEN(fact: InformationFlow): util.Set[InformationFlow] = Collections.singleton(fact)
 
     def GEN(res: List[InformationFlow]): util.Set[InformationFlow] = res.toSet.asJava
@@ -329,7 +319,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             override def getNormalFlowFunction(curr: Opt[AST], succ: Opt[AST]): FlowFunction[InformationFlow] = {
                 def default(flowFact: InformationFlow) = GEN(flowFact)
 
-
                 new InfoFlowFunction(curr, succ) {
                     override def computeTargets(flowFact: InformationFlow): util.Set[InformationFlow] = {
                         val res = flowFact match {
@@ -402,6 +391,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                             case r: Reach => default(r) // Keep all reaches - some corner cases causes SPLLift to forget generated reaches, do not know why. However, this behaviour may cause some duplicate elements, which are filtered afterwards.
                             case _ => default(flowFact)
                         }
+
+                        if (assignsVariables(curr).exists(p => p._1.name.equalsIgnoreCase("res"))) {
+                            println("")
+                        }
+
                         res
                     }
                 }

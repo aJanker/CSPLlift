@@ -21,7 +21,9 @@ sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
 }
 
 
-case class Zero(condition : FeatureExpr = BDDFeatureExprFactory.TrueB) extends InformationFlow
+case class Zero(condition : FeatureExpr = BDDFeatureExprFactory.TrueB) extends InformationFlow {
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = other.isInstanceOf[Zero]
+}
 
 sealed abstract class Source(val name: Opt[Id], val stmt: Opt[_], val reachingSources: ListBuffer[Source] = ListBuffer(), val globalFile: Option[String] = None) extends InformationFlow {
     override def hashCode() = name.hashCode + stmt.hashCode() + globalFile.hashCode()

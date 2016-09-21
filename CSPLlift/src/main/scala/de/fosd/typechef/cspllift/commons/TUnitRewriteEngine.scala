@@ -8,7 +8,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 import org.kiama.rewriting.Rewriter._
 
-trait KiamaRewritingRules {
+trait KiamaRewritingRules extends EnforceTreeHelper {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manybu(rule[Any] {
@@ -36,9 +36,33 @@ trait KiamaRewritingRules {
         })
         r(c).get.asInstanceOf[CompoundStatement]
     }
+
+    def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr): T = {
+        assert(ast != null)
+
+        val prod = manytd(rule[Product] {
+            case l: List[_] if l.forall(_.isInstanceOf[Opt[_]]) => {
+                var res: List[Opt[_]] = List()
+                // use l.reverse here to omit later reverse on res or use += or ++= in the thenBranch
+                for (o <- l.reverse.asInstanceOf[List[Opt[_]]])
+                    if (o.condition.evaluate(selectedFeatures)) {
+                        res ::= o.copy(condition = condition)
+                    }
+                res
+            }
+            case Choice(feature, thenBranch, elseBranch) => {
+                if (feature.evaluate(selectedFeatures)) thenBranch
+                else elseBranch
+            }
+            case a: AST => a.clone()
+        })
+        val cast = prod(ast).get.asInstanceOf[T]
+        copyPositions(ast, cast)
+        cast
+    }
 }
 
-trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with KiamaRewritingRules with EnforceTreeHelper {
+trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with KiamaRewritingRules {
 
     private var tmpVariablesCount = 0
 
@@ -68,7 +92,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
                         val falseCond = config.getFalseSet.foldLeft(FeatureExprFactory.True)(_ and _).not()
                         val finalCond = if (falseCond.isSatisfiable(fm)) trueCond.and(falseCond) else trueCond
 
-                        val product = deriveProductwithCondition(c, config.getTrueFeatures, finalCond)
+                        val product = deriveProductWithCondition(c, config.getTrueFeatures, finalCond)
                         Some(Opt(finalCond, product))
                     })
 
@@ -80,7 +104,6 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
 
         replacements.foldLeft(ast)((currAST, r) => {
             val currASTEnv = CASTEnv.createASTEnv(currAST)
-
             val cc = findPriorASTElem[CompoundStatement](r._1, currASTEnv)
 
             if (cc.isEmpty)
@@ -137,30 +160,6 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
         allReturnStatementsWithFunctionCall.foldLeft(tunit) {
             (currentTUnit, returnStatementWithFCall) => replaceSingleNestedFCallInReturnStmt(currentTUnit, returnStatementWithFCall)
         }
-    }
-
-    private def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr): T = {
-        assert(ast != null)
-
-        val prod = manytd(rule[Product] {
-            case l: List[_] if l.forall(_.isInstanceOf[Opt[_]]) => {
-                var res: List[Opt[_]] = List()
-                // use l.reverse here to omit later reverse on res or use += or ++= in the thenBranch
-                for (o <- l.reverse.asInstanceOf[List[Opt[_]]])
-                    if (o.condition.evaluate(selectedFeatures)) {
-                        res ::= o.copy(condition = condition)
-                    }
-                res
-            }
-            case Choice(feature, thenBranch, elseBranch) => {
-                if (feature.evaluate(selectedFeatures)) thenBranch
-                else elseBranch
-            }
-            case a: AST => a.clone()
-        })
-        val cast = prod(ast).get.asInstanceOf[T]
-        copyPositions(ast, cast)
-        cast
     }
 
     /**

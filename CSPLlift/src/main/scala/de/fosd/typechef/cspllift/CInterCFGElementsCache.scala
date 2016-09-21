@@ -9,6 +9,7 @@ import de.fosd.typechef.commons.clinking.CModuleInterface
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
+import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
@@ -66,7 +67,7 @@ trait CInterCFGElementsCache {
     }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends EnforceTreeHelper with CInterCFGPseudoVistingSystemLibFunctions with CInterCFGCommons with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends EnforceTreeHelper with CFlowConstants with CInterCFGCommons with PointerContext {
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
