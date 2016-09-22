@@ -160,8 +160,8 @@ object SPLlift extends Build {
     )
 
   lazy val customization = Project(
-    "customization",
-    file("customization"),
+    "Customization",
+    file("Customization"),
     settings = buildSettings
   )
 
