@@ -3,10 +3,10 @@ package de.fosd.typechef.cspllift
 import java.io.File
 
 import de.fosd.typechef.Frontend._
-import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.cspllift.options.CInterAnalysisOptions
 import de.fosd.typechef.cspllift.setup.CModuleInterfaceGenerator
+import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.options.{FrontendOptions, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c._

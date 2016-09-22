@@ -160,8 +160,8 @@ object SPLlift extends Build {
     )
 
   lazy val commons = Project(
-    "Commons",
-    file("Commons"),
+    "customization",
+    file("customization"),
     settings = buildSettings
   )
 

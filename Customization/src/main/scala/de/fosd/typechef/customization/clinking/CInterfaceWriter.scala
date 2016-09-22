@@ -1,4 +1,4 @@
-package de.fosd.typechef.commons.clinking
+package de.fosd.typechef.customization.clinking
 
 import java.io.{File, FileWriter}
 

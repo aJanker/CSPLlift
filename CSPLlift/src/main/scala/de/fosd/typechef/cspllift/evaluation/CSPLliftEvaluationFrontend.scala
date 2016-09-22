@@ -1,12 +1,12 @@
 package de.fosd.typechef.cspllift.evaluation
 
-import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.ConditionTools
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
+import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}

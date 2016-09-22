@@ -41,5 +41,4 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends CFlowOperations[Inf
                     case _ => KILL
                 }
         }
-
 }

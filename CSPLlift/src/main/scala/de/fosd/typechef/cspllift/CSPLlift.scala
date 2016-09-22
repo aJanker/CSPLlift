@@ -1,11 +1,11 @@
 package de.fosd.typechef.cspllift
 
-import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.cspllift.analysis.Taint2
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
+import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._

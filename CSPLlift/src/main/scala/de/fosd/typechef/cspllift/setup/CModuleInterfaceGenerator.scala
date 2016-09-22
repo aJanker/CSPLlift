@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift.setup
 
 import java.io.File
 
-import de.fosd.typechef.commons.clinking.CInterfaceWriter
+import de.fosd.typechef.customization.clinking.CInterfaceWriter
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.typesystem.linker._
 

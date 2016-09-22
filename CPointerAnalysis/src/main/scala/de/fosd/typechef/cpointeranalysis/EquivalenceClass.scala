@@ -1,6 +1,6 @@
 package de.fosd.typechef.cpointeranalysis
 
-import de.fosd.typechef.commons.conditional.ConditionalSet
+import de.fosd.typechef.customization.conditional.ConditionalSet
 import de.fosd.typechef.featureexpr.FeatureExpr
 
 /**

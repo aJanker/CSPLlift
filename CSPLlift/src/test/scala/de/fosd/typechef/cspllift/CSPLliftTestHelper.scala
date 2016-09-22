@@ -3,11 +3,11 @@ package de.fosd.typechef.cspllift
 import java.io._
 import java.util.zip.GZIPInputStream
 
-import de.fosd.typechef.commons.StopWatch
-import de.fosd.typechef.commons.parser.TestHelper
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
 import de.fosd.typechef.cspllift.cifdsproblem.{InformationFlowProblem, Reach}
+import de.fosd.typechef.customization.StopWatch
+import de.fosd.typechef.customization.parser.TestHelper
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._

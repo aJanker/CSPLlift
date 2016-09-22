@@ -1,4 +1,4 @@
-package de.fosd.typechef.commons
+package de.fosd.typechef.customization
 
 import java.io.{StringWriter, Writer}
 import java.lang.management.ManagementFactory

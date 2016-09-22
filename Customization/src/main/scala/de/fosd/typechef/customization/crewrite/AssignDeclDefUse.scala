@@ -1,4 +1,4 @@
-package de.fosd.typechef.commons.crewrite
+package de.fosd.typechef.customization.crewrite
 
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.parser.c._

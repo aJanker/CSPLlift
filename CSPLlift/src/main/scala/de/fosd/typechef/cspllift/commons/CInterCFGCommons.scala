@@ -2,8 +2,8 @@ package de.fosd.typechef.cspllift.commons
 
 import java.util
 
-import de.fosd.typechef.commons.crewrite.AssignDeclDefUse
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.customization.crewrite.AssignDeclDefUse
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, _}
 

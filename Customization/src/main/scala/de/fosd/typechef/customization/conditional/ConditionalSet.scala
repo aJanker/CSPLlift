@@ -1,4 +1,4 @@
-package de.fosd.typechef.commons.conditional
+package de.fosd.typechef.customization.conditional
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.featureexpr.FeatureExpr

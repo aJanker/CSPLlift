@@ -4,13 +4,13 @@ import java.io._
 import java.util
 import java.util.zip.GZIPInputStream
 
-import de.fosd.typechef.commons.StopWatch
-import de.fosd.typechef.commons.clinking.CModuleInterface
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
+import de.fosd.typechef.customization.StopWatch
+import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._

@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift.commons
 import de.fosd.typechef.conditional.Opt
 import org.kiama.rewriting.Rewriter._
 
-trait TunitRewriteRules {
+trait TUnitRewriteRules {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manybu(rule[Any] {

@@ -1,4 +1,4 @@
-package de.fosd.typechef.commons.parser
+package de.fosd.typechef.customization.parser
 
 import java.io.InputStream
 import java.util.Collections
