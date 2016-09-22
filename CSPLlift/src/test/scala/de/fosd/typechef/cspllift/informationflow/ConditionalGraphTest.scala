@@ -1,7 +1,6 @@
 package de.fosd.typechef.cspllift.informationflow
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
 import org.junit.Test
@@ -50,12 +49,6 @@ class ConditionalGraphTest extends InformationFlowTestHelper {
         expectedReaches ::= (fa.and(fb.not()), List(Opt(fa.and(fb.not()), Id("bound")), Opt(fa.and(fb.not()), Id("foo")), Opt(True, Id("z")))) */
 
 
-        val sinks = defaultSingleSinkTest("if2.c", sinkStmt, List())
-
-        val tunit = parseTUnitFromFile("if2.c")
-        val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(new InformationFlowTestOptions)
-
-        eval should be(true)
+        defaultTest("if2.c", List()) should be(true)
     }
 }

@@ -22,10 +22,10 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends CFlowOperations[Inf
                 flowFact match {
                     case v@VarSource(source, _, isSourceOf, usedIn, scope) if callUses.contains(source) =>
                         val sink = SinkToUse(fCallNode, v)
-                        GEN(sink)
+                        if (scope == SCOPE_GLOBAL) GEN(List(v, sink)) else GEN(sink)
                     case vo@VarSourceOf(id, _, source, usedIn, scope) if callUses.contains(id) =>
                         val sink = SinkToUse(fCallNode, source)
-                        GEN(sink)
+                        if (scope == SCOPE_GLOBAL) GEN(List(vo, sink)) else GEN(sink)
                     case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                     case _ => KILL
                 }
