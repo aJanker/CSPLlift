@@ -3,7 +3,7 @@ package soot.spl.ifds;
 import soot.util.StringNumberer;
 
 /**
- * Original FeatureModel Implementation of SPLLift -> Replaced in TypeChef own FeatureModel Implementation
+ * Original FeatureModel Implementation of SPLLift -> Replaced by TypeChef's own FeatureModel Implementation
  */
 public class FeatureModelContext {
 

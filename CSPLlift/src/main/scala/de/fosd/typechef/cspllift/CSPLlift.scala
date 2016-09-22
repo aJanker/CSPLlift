@@ -3,8 +3,7 @@ package de.fosd.typechef.cspllift
 import java.io.FileWriter
 
 import de.fosd.typechef.commons.StopWatch
-import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
+import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint, Taint2}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlowProblem, Source}
 import de.fosd.typechef.cspllift.commons.WarningsCache
@@ -20,38 +19,32 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
 
+        if (opt.liftTaintAnalysis)
+            taintCheck2(opt, cInterCFGConfiguration)
+
+        if (opt.liftTaintAnalysis)
+            taintCheck(opt, cInterCFGConfiguration)
+    }
+
+    private def taintCheck2(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+
         val cInterCFG = new CInterCFG(ast, fm, cInterCFGConfiguration)
 
-        val (time, (solution)) = StopWatch.measureUserTime("taint_lift", {
+        val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
             val problem = new InformationFlow2Problem(cInterCFG)
             CSPLlift.solve(problem)
         })
 
-        println(time)
+        val allSinks = Taint2.allSinks(solution)
 
-        val sinks = solution.filter {
-            case x@(s@SinkToAssignment(o@Opt(_, ExprStatement(AssignExpr(Id("sink_m"), _, Id("res_m")))),_,_),_) => true
-            case _ => false
-        }
+        println("#static taint analysis with spllift - result")
 
-        val allSinks = solution.filter {
-            case (_: SinkToUse, _) => true
-            case _ => false
-        }
+        println("\n#used tunits\n")
+        cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(x => println(PrettyPrinter.print(x)))
 
-        val varsourceOf = solution.filter {
-            case (_: VarSourceOf, _) => true
-            case _ => false
-        }
-
-        for (ast <- cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits) println(PrettyPrinter.print(ast))
-        println(allSinks)
-        println(varsourceOf)
-        println(sinks)
-        println(solution)
-
-        if (opt.liftTaintAnalysis)
-            taintCheck(opt, cInterCFGConfiguration)
+        println("\n#sinks\n")
+        println(Taint2.prettyPrintSinks(allSinks))
+        println("#static taint analysis with spllift - finished")
     }
 
     private def taintCheck(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
@@ -70,7 +63,6 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         }
 
         val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._1.sources.exists(s => hasName("key", s))))
-
 
         println("#static analysis with spllift - result")
 
@@ -104,6 +96,5 @@ object CSPLlift {
 
         // Looks messy, but requiered for a clean conversion from java collections to scala collections...
         liftedFlowFactsAsScala(solver.getAllResults)
-
     }
 }
