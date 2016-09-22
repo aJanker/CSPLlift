@@ -8,7 +8,9 @@ import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 
-trait InformationFlow2 extends CFlowFact {
+trait InformationFlow2 extends Product with Cloneable with CFlowFact {
+    override def clone(): InformationFlow2.this.type = super.clone().asInstanceOf[InformationFlow2.this.type]
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = equals(other)
 
     override def isInterestingFact: Boolean = false
@@ -26,8 +28,9 @@ sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) exte
 
     override def toText: String = {
         val from = "\t\tFrom:\t" + source.getId.name + " at: " + source.getId.getPositionFrom
-        val stmt = "\t\tStatement:\t" + PrettyPrinter.print(source.getStmt.entry)
-        from + "\n" + stmt
+        val stmt = "\t\tSourcestatement:\t" + PrettyPrinter.print(source.getStmt.entry)
+        val stmt2 = "\t\tSinkstatement:\t" + PrettyPrinter.print(this.stmt.entry)
+        from + "\n" + stmt + "\n" + stmt2
     }
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
@@ -81,10 +84,34 @@ case class VarSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Sou
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSource]) false
         else super.isEquivalentTo(other, configuration)
+
+    override def equals(other: scala.Any): Boolean = {
+        if (!other.isInstanceOf[VarSource]) return false
+
+        val otherSource = other.asInstanceOf[VarSource]
+
+        lazy val eqStmt = getStmt.equals(otherSource.getStmt)
+
+        otherSource.getId.equals(getId) && eqStmt && scope.equals(otherSource.getScope)
+    }
+
+    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode()
 }
 
 case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSourceOf]) false
         else super.isEquivalentTo(other, configuration)
+
+    override def equals(other: scala.Any): Boolean = {
+        if (!other.isInstanceOf[VarSourceOf]) return false
+
+        val otherSource = other.asInstanceOf[VarSourceOf]
+
+        lazy val eqStmt = getStmt.equals(otherSource.getStmt)
+
+        otherSource.getId.equals(getId) && eqStmt && scope.equals(otherSource.getScope)
+    }
+
+    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + source.hashCode()
 }

@@ -25,6 +25,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         val destinationMethodFile = destinationMethod.getFile.getOrElse("")
         initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
     }
+
     private val zeroVal = Zero()
 
     /**
@@ -102,7 +103,10 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(source) }
 
                                     val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, List(), List(), SCOPE_UNKNOWN) }
-                                    val sourcesOf = sources.map(newSource => VarSourceOf(newSource.name, currOpt, v, List(), scope))
+                                    val sourcesOf = sources.map(newSource => {
+                                        val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(newSource.name.name).select(currOpt.condition.collectDistinctFeatures)
+                                        VarSourceOf(newSource.name, currOpt, v, List(), scope)
+                                    })
                                     val sinks = assignees.map(assignment => SinkToAssignment(currOpt, v, assignment._1))
                                     val updatedVarSource = v.copy(usedIn = currOpt :: usedIn, isSourceOf = sources ::: isSourceOf)
 
@@ -128,7 +132,10 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
 
                                     val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, List(), List(), SCOPE_UNKNOWN) }
-                                    val sourcesOf = sources.map(newSource => VarSourceOf(newSource.name, currOpt, source, List(), scope))
+                                    val sourcesOf = sources.map(newSource => {
+                                        val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(newSource.name.name).select(currOpt.condition.collectDistinctFeatures)
+                                        VarSourceOf(newSource.name, currOpt, source, List(), scope)
+                                    })
                                     val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source, assignment._1))
                                     val updatedVarSource = vo.copy(usedIn = currOpt :: usedIn)
 
