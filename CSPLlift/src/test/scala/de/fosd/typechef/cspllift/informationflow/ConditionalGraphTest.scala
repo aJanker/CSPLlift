@@ -1,7 +1,6 @@
 package de.fosd.typechef.cspllift.informationflow
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.analysis.Taint
 import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
@@ -23,35 +22,14 @@ class ConditionalGraphTest extends InformationFlowTestHelper {
     }
 
     @Test def ifTest1() = {
-        /*val sinkStmt = ExprStatement(AssignExpr(Id("sink"),"=",Id("res")))
+        var expectedSinks : List[(AST, List[Opt[Id]])] = List()
 
-        var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
+        val sinkStmt1 = ExprStatement(AssignExpr(Id("sink"),"=",Id("res")))
 
-        // sink1 : True, (sink = bound = 2 (true))
-        expectedReaches ::= (True, List(Opt(True, Id("bound"))))
+        expectedSinks ::= (sinkStmt1, List(Opt(fb.and(fc), Id("secret"))))
 
-        // sink2 : True, (sink = bound = foo = 1 (true))
-        expectedReaches ::= (True, List(Opt(True, Id("bound")), Opt(True, Id("foo"))))
+        defaultTest("if1.c", expectedSinks) should be(true)
 
-        // sink3 : A&&B, (sink = bound = foo = z = 0 (A&&B))
-        expectedReaches ::= (fa.and(fb), List(Opt(fa.and(fb), Id("bound")), Opt(fa.and(fb), Id("foo")), Opt(True, Id("z"))))
-
-        // sink4 : A&&!B, (sink = bound = foo = z = 0 (A&&!B)) // duplication of for -loop
-        expectedReaches ::= (fa.and(fb.not()), List(Opt(fa.and(fb.not()), Id("bound")), Opt(fa.and(fb.not()), Id("foo")), Opt(True, Id("z"))))
-
-        val sinks = defaultSingleSinkTest("if.c", sinkStmt, expectedReaches) */
-
-        val all = defaultTestInit("if1.c", allSinks)
-
-        println("Result:")
-        println(Taint.prettyPrintSinks(all._4))
-        println(PrettyPrinter.print(all._1))
-
-        val tunit = parseTUnitFromFile("if1.c")
-        val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(new InformationFlowTestOptions)
-
-        eval should be(true)
     }
 
     @Test def ifTest2() = {

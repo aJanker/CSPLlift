@@ -101,7 +101,7 @@ case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, us
         if (!other.isInstanceOf[VarSourceOf]) false
         else super.isEquivalentTo(other, configuration)
 
-    override def equals(other: scala.Any): Boolean = {
+     override def equals(other: scala.Any): Boolean = {
         if (!other.isInstanceOf[VarSourceOf]) return false
 
         val otherSource = other.asInstanceOf[VarSourceOf]

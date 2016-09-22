@@ -74,7 +74,6 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
         assert(ast != null, "ast should not be null")
 
         val astEnv = CASTEnv.createASTEnv(ast)
-        val sampling = new Sampling(ast.asInstanceOf[TranslationUnit], fm)
 
         val cfgStmts = filterAllASTElems[Statement](ast).flatMap(filterASTElems[CFGStmt]).distinct
         val replacements = cfgStmts.flatMap {
@@ -85,6 +84,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
                 val allStmtConditions = stmtConditions.foldLeft(FeatureExprFactory.True)(_ and _)
 
                 if (!allStmtConditions.equivalentTo(parentCondition, fm)) {
+                    val sampling = new Sampling(c, fm)
                     val configs = sampling.conditionConfigurationCoverage(stmtConditions.toSet)
                     val products = configs.flatMap(config => {
 

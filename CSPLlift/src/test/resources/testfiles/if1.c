@@ -1,20 +1,24 @@
 int secret = 30;
 
+
 int main() {
+
    int i = 20;
    int j = 1000;
 
-   int res = 0;
+   int value = 0;
+   int id = 0;
+   int res = value;
    int sink;
 
    #ifdef B
-     j = secret;
+     id = secret;
    #endif
 
     if (i < 10) {
             res = i + j
         #ifdef C
-             + secret
+             + id
         #endif
         ;
     }

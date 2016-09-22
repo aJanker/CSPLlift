@@ -5,7 +5,7 @@ import java.io.{File, FileWriter}
 import de.fosd.typechef.conditional.{Choice, One, Opt}
 import de.fosd.typechef.cspllift.commons.ConditionTools
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel, SingleFeatureExpr}
-import de.fosd.typechef.parser.c.{AST, TranslationUnit}
+import de.fosd.typechef.parser.c.AST
 
 import scala.collection.immutable.HashMap
 import scala.io.Source
@@ -13,7 +13,7 @@ import scala.io.Source
 /**
   * Adapted from the sampling infrastructure of Jörg Liebig, Alex von Rhein, and me.
   */
-class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools {
+class Sampling(tunit : AST, fm: FeatureModel) extends ConditionTools {
 
     /** List of all features found in the currently processed file */
     private val features: List[SingleFeatureExpr] = getAllFeatures(tunit)
@@ -65,7 +65,7 @@ class Sampling(tunit : TranslationUnit, fm: FeatureModel) extends ConditionTools
       *                                          This corresponds to the view of the developer of a ".c" file.
       * @return
       */
-    private def configurationCoverage(astRoot: TranslationUnit, fm: FeatureModel, features: List[SingleFeatureExpr],
+    private def configurationCoverage(astRoot: AST, fm: FeatureModel, features: List[SingleFeatureExpr],
                               existingConfigs: List[SimpleConfiguration] = List(), preferDisabledFeatures: Boolean = false,
                               includeVariabilityFromHeaderFiles: Boolean = false):
     (List[SimpleConfiguration], String) = {
