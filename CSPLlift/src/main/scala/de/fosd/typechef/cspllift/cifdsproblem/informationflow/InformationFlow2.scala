@@ -1,6 +1,7 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CZeroFact}
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.featureexpr.FeatureExpr
@@ -30,23 +31,32 @@ sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) exte
     }
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
-        if (!other.isInstanceOf[Sink])
-            return false
+        if (!other.isInstanceOf[Sink]) return false
 
         val otherSink = other.asInstanceOf[Sink]
 
-        println()
-        println(this.toText)
-        println("###")
-        println(otherSink.toText)
+        lazy val stmtProduct = ProductDerivation.deriveProduct(stmt.entry, configuration.getTrueFeatures)
+        lazy val eqStmt = stmtProduct.equals(otherSink.stmt.entry)
 
-        false
+        source.isEquivalentTo(otherSink.source, configuration) && eqStmt
     }
 }
 
-case class SinkToUse(override val stmt: Opt[AST], override val source: Source) extends Sink(stmt, source)
+case class SinkToUse(override val stmt: Opt[AST], override val source: Source) extends Sink(stmt, source) {
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
+        if (!other.isInstanceOf[SinkToUse]) false
+        else super.isEquivalentTo(other, configuration)
+}
 
-case class SinkToAssignment(override val stmt: Opt[AST], override val source: Source, assignee: Id) extends Sink(stmt, source)
+case class SinkToAssignment(override val stmt: Opt[AST], override val source: Source, assignee: Id) extends Sink(stmt, source) {
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
+        if (!other.isInstanceOf[SinkToAssignment]) return false
+
+        val otherSink = other.asInstanceOf[SinkToAssignment]
+
+        assignee.equals(otherSink.assignee) && super.isEquivalentTo(other, configuration)
+    }
+}
 
 sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int) extends InformationFlowFact(stmt) {
     def getScope = scope
@@ -54,9 +64,27 @@ sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int) extends Informa
     def getId = id
 
     def getStmt = stmt
+
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
+        if (!other.isInstanceOf[Source]) return false
+
+        val otherSource = other.asInstanceOf[Source]
+
+        lazy val stmtProduct = ProductDerivation.deriveProduct(getStmt.entry, configuration.getTrueFeatures)
+        lazy val eqStmt = stmtProduct.equals(otherSource.getStmt.entry)
+
+        otherSource.getId.equals(getId) && eqStmt
+    }
 }
 
-case class VarSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Source], usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope)
+case class VarSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Source], usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope) {
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
+        if (!other.isInstanceOf[VarSource]) false
+        else super.isEquivalentTo(other, configuration)
+}
 
-case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope)
-
+case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope) {
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
+        if (!other.isInstanceOf[VarSourceOf]) false
+        else super.isEquivalentTo(other, configuration)
+}

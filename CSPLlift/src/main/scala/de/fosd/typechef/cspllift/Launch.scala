@@ -114,7 +114,9 @@ object Launch extends App {
 
                     if (opt.isLiftEvaluationModeEnabled) {
                         val cSPLliftEvalFrontend = new CSPLliftEvaluationFrontend(ast, fullFM)
-                        cSPLliftEvalFrontend.evaluate(opt)
+                        val successful = cSPLliftEvalFrontend.evaluate(opt)
+
+                        println("\n###static analysis evaluation with spllift was complete:\t" + successful)
                     }
                 }
 
@@ -136,4 +138,3 @@ object Launch extends App {
 
     private def loadSerializedAST(filename: String): TranslationUnit = Frontend.loadSerializedAST(filename)
 }
-

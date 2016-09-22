@@ -18,10 +18,10 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
 
         if (opt.liftTaintAnalysis)
-            taintCheck2(opt, cInterCFGConfiguration)
+            taintCheck(opt, cInterCFGConfiguration)
     }
 
-    private def taintCheck2(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+    private def taintCheck(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
 
         val cInterCFG = new CInterCFG(ast, fm, cInterCFGConfiguration)
 
