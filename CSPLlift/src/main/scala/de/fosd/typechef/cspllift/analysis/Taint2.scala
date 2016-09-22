@@ -25,7 +25,9 @@ object Taint2 {
                     case x => writer.append("Sink at:\t" + PrettyPrinter.print(x) + "\tin:\t" + sink._1.entry.getPositionFrom + "\n")
                 }
 
-                sink._2.foreach { ssink => writer.append("\tCFGcondition " + ssink._2 + ":\n" + ssink._1.toText + "\n") }
+                sink._2.foreach { ssink => writer.append("\tCFGcondition: " + ssink._2 + "\n" +
+                  "\tCFGcondition (simplified): " + ssink._2.simplify() + "\n" +
+                  ssink._1.toText + "\n") }
                 writer.append("\n")
             }
         }

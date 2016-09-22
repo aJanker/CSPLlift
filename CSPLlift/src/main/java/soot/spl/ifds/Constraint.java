@@ -106,6 +106,10 @@ public class Constraint implements Cloneable {
 		}
 	};
 
+	public Constraint simplify() {
+		return new Constraint((BDDFeatureExpr) getFeatureExpr().simplify(BDDFeatureExprFactory.TrueB()));
+	}
+
 	/**
 	 * Computes the constraint representing this OR other.
 	 * The constraint is automatically reduced such that
@@ -152,7 +156,6 @@ public class Constraint implements Cloneable {
 	public Constraint not() {
 		return Constraint.make((BDDFeatureExpr) getFeatureExpr().not());
 	}
-
 
 	@Override
 	public int hashCode() {

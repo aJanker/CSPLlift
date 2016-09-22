@@ -85,11 +85,11 @@ int main() {
         secret = j2;
     }
 
-    goto DST;
+    //goto DST;
 
 #endif
 
-    int mergeStmt;
+ /*   int mergeStmt;
 
     int statement = 1;
 
@@ -99,7 +99,7 @@ int main() {
 
     return 1;
 
-DST:
+DST: */
 
     #ifdef X
         secret = non;
