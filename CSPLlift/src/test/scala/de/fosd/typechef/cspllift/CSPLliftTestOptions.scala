@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 
 
-class CSPLliftTestOptions(interface : Option[String] = None) extends CSPLliftOptions {
+abstract class CSPLliftTestOptions(interface : Option[String] = None) extends CSPLliftOptions {
   override def getCLinkingInterfacePath: Option[String] = interface
 
   override def getInformationFlowGraphExtension: String = ""
@@ -24,7 +24,4 @@ class CSPLliftTestOptions(interface : Option[String] = None) extends CSPLliftOpt
 
   override def isLiftSamplingEvaluationEnabled: Boolean = true
 
-  override def isLiftSingleEvaluationEnabled: Boolean = true
-
-  override def liftTaintAnalysis: Boolean = true
-}
+  override def isLiftSingleEvaluationEnabled: Boolean = true}

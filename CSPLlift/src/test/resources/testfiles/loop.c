@@ -7,7 +7,11 @@ int loopfunction(int inner) {
 int main() {
     int foo, sink;
 
-    foo = 1;
+    int start = 1;
+
+    foo = start;
+
+    int sink2 = 0;
     int bound = 10;
     int z = 0;
     int low = 1;
@@ -19,17 +23,18 @@ int main() {
 #ifdef B
     loopfunction(low)
 #else
-     1
+     start
 #endif
      ; i < bound; i++) {
         foo = z;
+        sink2 = i;
     }
 
 #endif
     if (1)
     bound = foo;
     else
-    bound = 2;
+    bound = low;
 
 
     sink = bound; // sink 1 (true) bound = 2; sink 2 (true) bound = foo; sink 3 condition A bound = foo = z;

@@ -3,39 +3,23 @@ package de.fosd.typechef.cspllift.informationflow
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.analysis.Taint
 import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
-import de.fosd.typechef.cspllift.{CSPLliftTestHelper, CSPLliftTestOptions}
-import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.parser.c._
 import org.junit.Test
 
 
-class ConditionalGraphTest extends CSPLliftTestHelper {
+class ConditionalGraphTest extends InformationFlowTestHelper {
 
     @Test def loopTest() = {
-        val sinkStmt = ExprStatement(AssignExpr(Id("sink"),"=",Id("bound")))
+        var expectedSinks : List[(AST, List[Opt[Id]])] = List()
 
-        var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
+        val sinkStmt1 = ExprStatement(AssignExpr(Id("sink"),"=",Id("bound")))
+        val sinkStmt2 = ExprStatement(AssignExpr(Id("sink2"),"=",Id("i")))
 
-        // sink1 : True, (sink = bound = 2 (true))
-        expectedReaches ::= (True, List(Opt(True, Id("bound"))))
+        expectedSinks ::= (sinkStmt1, List(Opt(True, Id("start")), Opt(True, Id("low")), Opt(fa, Id("z"))))
+        expectedSinks ::= (sinkStmt2, List(Opt(fa.and(fb.not()), Id("start")), Opt(fa.and(fb), Id("low"))))
 
-        // sink2 : True, (sink = bound = foo = 1 (true))
-        expectedReaches ::= (True, List(Opt(True, Id("bound")), Opt(True, Id("foo"))))
-
-        // sink3 : A&&B, (sink = bound = foo = z = 0 (A&&B))
-        expectedReaches ::= (fa.and(fb), List(Opt(fa.and(fb), Id("bound")), Opt(fa.and(fb), Id("foo")), Opt(True, Id("z"))))
-
-        // sink4 : A&&!B, (sink = bound = foo = z = 0 (A&&!B)) // duplication of for -loop
-        expectedReaches ::= (fa.and(fb.not()), List(Opt(fa.and(fb.not()), Id("bound")), Opt(fa.and(fb.not()), Id("foo")), Opt(True, Id("z"))))
-
-        val sinks = defaultSingleSinkTest("loop.c", sinkStmt, expectedReaches)
-
-        val tunit = parseTUnitFromFile("loop.c")
-        val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(new CSPLliftTestOptions)
-
-        (eval && sinks) should be(true)
+        defaultTest("loop.c", expectedSinks) should be(true)
     }
 
     @Test def ifTest1() = {
@@ -65,7 +49,7 @@ class ConditionalGraphTest extends CSPLliftTestHelper {
 
         val tunit = parseTUnitFromFile("if1.c")
         val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(new CSPLliftTestOptions)
+        val eval = evaluation.evaluate(new InformationFlowTestOptions)
 
         eval should be(true)
     }
@@ -92,7 +76,7 @@ class ConditionalGraphTest extends CSPLliftTestHelper {
 
         val tunit = parseTUnitFromFile("if2.c")
         val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(new CSPLliftTestOptions)
+        val eval = evaluation.evaluate(new InformationFlowTestOptions)
 
         eval should be(true)
     }
