@@ -3,8 +3,8 @@ package de.fosd.typechef.cspllift
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 
 
-class CSPLliftTestOptions extends CSPLliftOptions {
-  override def getCLinkingInterfacePath: Option[String] = None
+class CSPLliftTestOptions(interface : Option[String] = None) extends CSPLliftOptions {
+  override def getCLinkingInterfacePath: Option[String] = interface
 
   override def getInformationFlowGraphExtension: String = ""
 

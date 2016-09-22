@@ -1,5 +1,6 @@
-package de.fosd.typechef.cspllift
+package de.fosd.typechef.cspllift.informationflow
 
+import de.fosd.typechef.cspllift.CSPLliftTestHelper
 import org.junit.Test
 
 class RewriteTest extends CSPLliftTestHelper {

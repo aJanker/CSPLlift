@@ -1,6 +1,7 @@
-package de.fosd.typechef.cspllift
+package de.fosd.typechef.cspllift.informationflow
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.cspllift.CSPLliftTestHelper
 import de.fosd.typechef.cspllift.analysis.Taint
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.True

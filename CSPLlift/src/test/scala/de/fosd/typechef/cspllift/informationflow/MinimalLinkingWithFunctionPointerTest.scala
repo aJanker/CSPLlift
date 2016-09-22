@@ -1,5 +1,7 @@
-package de.fosd.typechef.cspllift
+package de.fosd.typechef.cspllift.informationflow
 
+import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
+import de.fosd.typechef.cspllift.{CSPLliftTestHelper, CSPLliftTestOptions}
 import de.fosd.typechef.parser.c.PrettyPrinter
 import org.junit.Test
 
@@ -18,7 +20,10 @@ class MinimalLinkingWithFunctionPointerTest extends CSPLliftTestHelper {
 
             //defaultTestInit("simplePointerFunctionFlow.c", allSinks)
 
-            successful should be(true)
+            val evaluation = new CSPLliftEvaluationFrontend(tunit)
+            val eval = evaluation.evaluate(new CSPLliftTestOptions(Some(interface)))
+
+            eval && successful should be(true)
 
         }
 

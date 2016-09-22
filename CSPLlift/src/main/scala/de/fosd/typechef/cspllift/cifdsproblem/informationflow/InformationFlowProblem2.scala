@@ -277,7 +277,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if source.equals(x) =>
                                         val assignee = assignment._1
-                                        val scope = currTS.lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
+                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.entry).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
                                         val newSource = VarSource(assignee, fCallOpt, List(), List(), scope)
                                         val sourceOf = VarSourceOf(assignee, fCallOpt, v, List(), scope)
                                         val sink = SinkToAssignment(fCallOpt, v, assignee)
@@ -291,7 +291,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if id.equals(x) =>
                                         val assignee = assignment._1
-                                        val scope = currTS.lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
+                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
                                         val newSource = VarSource(assignee, fCallOpt, List(), List(), scope)
                                         val sourceOf = VarSourceOf(assignee, fCallOpt, source, List(), scope)
                                         val sink = SinkToAssignment(fCallOpt, source, assignee)

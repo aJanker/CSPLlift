@@ -1,7 +1,8 @@
-package de.fosd.typechef.cspllift
+package de.fosd.typechef.cspllift.informationflow
 
 import de.fosd.typechef.cspllift.analysis.Taint
 import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
+import de.fosd.typechef.cspllift.{CSPLliftTestHelper, CSPLliftTestOptions}
 import org.junit.Test
 
 class extensible_PointerFunctionFlow extends CSPLliftTestHelper {
