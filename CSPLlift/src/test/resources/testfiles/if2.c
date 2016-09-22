@@ -43,7 +43,11 @@ int main() {
 
     sink_m = res_m;
 
+    printf("%i\n", secret);
+
     printf("%i\n", sink_m);
+
+    printf("%i\n", foo(secret));
 
     return 0;
 };
