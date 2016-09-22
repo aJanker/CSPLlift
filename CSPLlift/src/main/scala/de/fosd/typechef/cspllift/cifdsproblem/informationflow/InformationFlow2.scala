@@ -43,29 +43,6 @@ sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) exte
 
         source.isEquivalentTo(otherSink.source, configuration) && eqStmt
     }
-
-   /*  override def equals(other: scala.Any): Boolean = {
-        if (!other.isInstanceOf[Sink]) return false
-
-        val otherSink = other.asInstanceOf[Sink]
-
-        lazy val eqStmt = stmt.equals(otherSink.stmt)
-
-        source.equals(otherSink.source) && eqStmt
-    } */
-
-    /* override def hashCode() = stmt.hashCode() + source.hashCode()
-
-    override def equals(other: scala.Any): Boolean = {
-        if (!other.isInstanceOf[Sink])
-            return false
-
-        val otherSink = other.asInstanceOf[Sink]
-
-        val res = otherSink.stmt.eq(stmt) && otherSink.source.equals(source) && otherSink.stmt.condition.equivalentTo(otherSink.stmt.condition)
-
-        res
-    } */
 }
 
 case class SinkToUse(override val stmt: Opt[AST], override val source: Source) extends Sink(stmt, source) {
