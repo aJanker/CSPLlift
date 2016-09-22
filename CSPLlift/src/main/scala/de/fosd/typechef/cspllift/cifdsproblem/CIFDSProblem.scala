@@ -7,7 +7,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.cspllift.{CInterCFG, IFDSProblem}
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, True}
+import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 
@@ -34,8 +34,6 @@ trait CZeroFact {
 trait CFlowFact {
 
     def isEquivalentTo(other : CFlowFact, configuration: SimpleConfiguration) : Boolean
-
-    def getConditions : Set[BDDFeatureExpr]
 
     def isInterestingFact : Boolean
 

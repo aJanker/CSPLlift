@@ -6,7 +6,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureExprFactory}
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c._
 
 import scala.collection.mutable.ListBuffer
@@ -16,7 +16,6 @@ sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = false
     override def isInterestingFact: Boolean = false
-    override def getConditions : Set[BDDFeatureExpr] = Set()
     override def toText: String = toString
 }
 

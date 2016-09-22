@@ -2,7 +2,8 @@ package de.fosd.typechef.cspllift.evaluation
 
 import de.fosd.typechef.commons.StopWatch
 import de.fosd.typechef.crewrite.ProductDerivation
-import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlow, InformationFlowProblem}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
+import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.ConditionTools
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
@@ -30,7 +31,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         var successful = true
 
         if (opt.liftTaintAnalysis)
-            successful = runSampling[InformationFlow, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
+            successful = runSampling[InformationFlow2, InformationFlow2Problem](classOf[InformationFlow2Problem], opt: CSPLliftOptions) && successful
 
         successful
     }
@@ -39,7 +40,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         var successful = true
 
         if (opt.liftTaintAnalysis)
-            successful = runErrorConfiguration[InformationFlow, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
+            successful = runErrorConfiguration[InformationFlow2, InformationFlow2Problem](classOf[InformationFlow2Problem], opt: CSPLliftOptions) && successful
 
         successful
     }
@@ -102,13 +103,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
         // 2. Collect distinct conditions
-        val (cfgConditions, factConditions) = liftedFacts.foldLeft((Set[BDDFeatureExpr](), Set[BDDFeatureExpr]()))((x, fact) => {
-            val (cfgConds, factConds) = x
-
+        val cfgConditions = liftedFacts.foldLeft(Set[BDDFeatureExpr]())((cfgConds, fact) => {
             val cfgCond = fact._2.getFeatureExpr
-            val factCond = fact._1.getConditions
-
-            (cfgConds + cfgCond, factConds ++ factCond)
+            cfgConds + cfgCond
         })
 
         // 3. Generate Condition Coverage Configurations for all distinct warning conditions

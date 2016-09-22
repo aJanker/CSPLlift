@@ -762,6 +762,11 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
         });
     }
 
+    /**
+     * Returns the resulting environment for all visited statements.
+     * The artificial zero value is automatically stripped. TOP values are
+     * never returned.
+     */
     public List<Map<D, V>> getAllResults() {
         return val.rowKeySet().stream().map(this::resultsAt).collect(Collectors.toCollection(LinkedList::new));
     }

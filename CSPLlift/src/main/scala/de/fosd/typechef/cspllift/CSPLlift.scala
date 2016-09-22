@@ -1,11 +1,9 @@
 package de.fosd.typechef.cspllift
 
-import java.io.FileWriter
-
 import de.fosd.typechef.commons.StopWatch
-import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint, Taint2}
+import de.fosd.typechef.cspllift.analysis.Taint2
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
-import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem, InformationFlowProblem, Source}
+import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -21,9 +19,6 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         if (opt.liftTaintAnalysis)
             taintCheck2(opt, cInterCFGConfiguration)
-
-        if (opt.liftTaintAnalysis)
-            taintCheck(opt, cInterCFGConfiguration)
     }
 
     private def taintCheck2(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
@@ -47,7 +42,7 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         println("#static taint analysis with spllift - finished")
     }
 
-    private def taintCheck(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+    /* private def taintCheck(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
 
         val cInterCFG = new CInterCFG(ast, fm, cInterCFGConfiguration)
 
@@ -75,7 +70,7 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         println("\n#sinks\n")
         println(Taint.prettyPrintSinks(allReaches))
-    }
+    } */
 }
 
 object CSPLlift {
