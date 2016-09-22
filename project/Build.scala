@@ -154,12 +154,12 @@ object SPLlift extends Build {
     "TypeChef-SPLlift",
     file("."),
     settings = buildSettings
-  ) aggregate(commons,
+  ) aggregate(customization,
     cpointeranalysis,
     cspllift
     )
 
-  lazy val commons = Project(
+  lazy val customization = Project(
     "customization",
     file("customization"),
     settings = buildSettings
@@ -169,13 +169,13 @@ object SPLlift extends Build {
     "CPointerAnalysis",
     file("CPointerAnalysis"),
     settings = buildSettings
-  ) dependsOn(commons)
+  ) dependsOn(customization)
 
   lazy val cspllift = Project(
     "CSPLlift",
     file("CSPLlift"),
     settings = buildSettings
-  ) dependsOn(cpointeranalysis, commons)
+  ) dependsOn(cpointeranalysis, customization)
 
 }
 
