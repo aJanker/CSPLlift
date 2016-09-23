@@ -18,14 +18,23 @@ int foo(int p) {
 #endif
 }
 
-
 int main() {
+    int defaultValue = 0;
+    int secret = 666;
+
     int x, y, sink;
-    x = 1;
-    y = 0;
+
+    x = defaultValue;
+    y = defaultValue;
+
+#ifdef E
+    x = secret;
+#endif
+
 #ifdef C
     y = foo(x);
 #endif
+
     sink = y;
     return 0;
 }

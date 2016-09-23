@@ -1,6 +1,7 @@
 package de.fosd.typechef.cspllift.evaluation
 
 import de.fosd.typechef.crewrite.ProductDerivation
+import de.fosd.typechef.cspllift.analysis.Taint2
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.ConditionTools
@@ -154,6 +155,14 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                 println("###\n")
             })
         } else println("\n### All condition coverage results were covered by the lifted approach!")
+
+        if (!(unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty)) {
+            val interestingCoverageFacts = coverageFacts.map {
+                fact => (Taint2.allSinks(fact._1.asInstanceOf[List[LiftedCFlowFact[InformationFlow2]]]), fact._2)
+            }
+            // debug purpose only
+            println(interestingCoverageFacts.size)
+        }
 
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }

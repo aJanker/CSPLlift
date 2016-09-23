@@ -44,7 +44,8 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 			
 				public EdgeFunction<Constraint> getReturnEdgeFunction(Opt<AST> callSite, Opt<FunctionDef> calleeMethod, Opt<AST> exitStmt,D exitNode, Opt<AST> returnSite,D retNode) {
 					Opt<FunctionDef> liftedCalleeMethod = icfg.getLiftedMethodOf(callSite, calleeMethod);
-					return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, icfg.getConstraint(liftedCalleeMethod.copy(liftedCalleeMethod.condition(), (AST) liftedCalleeMethod.entry())));
+					Constraint flow = icfg.getConstraint(liftedCalleeMethod.copy(liftedCalleeMethod.condition(), (AST) liftedCalleeMethod.entry())).and(icfg.getConstraint(exitStmt));
+					return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, flow);
 				}
 			
 				public EdgeFunction<Constraint> getCallToReturnEdgeFunction(Opt<AST> callSite, D callNode, Opt<AST> returnSite, D returnSideNode) {
