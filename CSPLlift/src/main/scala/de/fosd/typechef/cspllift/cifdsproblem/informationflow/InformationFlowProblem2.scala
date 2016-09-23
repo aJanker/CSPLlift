@@ -194,9 +194,9 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = callParamMatches.flatMap(callParamMatch =>
                                     callParamMatch._1.foldLeft(List[InformationFlow2]())((genSrc, expr) =>
                                         callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
-                                            val source = VarSource(pDef.entry.decl.getId, currOpt, List(), List(), SCOPE_LOCAL)
+                                            val genSource = VarSource(pDef.entry.decl.getId, currOpt, List(), List(), SCOPE_LOCAL)
                                             val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, v, List(), SCOPE_LOCAL)
-                                            source :: sourceOf :: genSrc
+                                            genSource :: sourceOf :: genSrc
                                         })))
                                 GEN(genSet)
                             }
@@ -205,9 +205,9 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = callParamMatches.flatMap(callParamMatch =>
                                     callParamMatch._1.foldLeft(List[InformationFlow2]())((genSrc, expr) =>
                                         callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
-                                            val source = VarSource(pDef.entry.decl.getId, currOpt, List(), List(), SCOPE_LOCAL)
+                                            val genSource = VarSource(pDef.entry.decl.getId, currOpt, List(), List(), SCOPE_LOCAL)
                                             val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, source, List(), SCOPE_LOCAL)
-                                            source :: sourceOf :: genSrc
+                                            genSource :: sourceOf :: genSrc
                                         })))
                                 GEN(genSet)
                             }

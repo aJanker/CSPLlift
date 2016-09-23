@@ -28,7 +28,6 @@ class ConditionalGraphTest extends InformationFlowTestHelper {
         expectedSinks ::= (sinkStmt1, List(Opt(fb.and(fc), Id("secret"))))
 
         defaultTest("if1.c", expectedSinks) should be(true)
-
     }
 
     @Test def ifTest2() = {
