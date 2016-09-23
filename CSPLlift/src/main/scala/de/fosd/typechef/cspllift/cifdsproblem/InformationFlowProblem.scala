@@ -385,10 +385,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                             case _ => default(flowFact)
                         }
 
-                        if (assignsVariables(curr).exists(p => p._1.name.equalsIgnoreCase("res"))) {
-                            println("")
-                        }
-
                         res
                     }
                 }

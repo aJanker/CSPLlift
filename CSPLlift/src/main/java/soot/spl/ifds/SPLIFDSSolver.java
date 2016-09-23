@@ -8,15 +8,14 @@ import de.fosd.typechef.parser.c.FunctionDef;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import heros.solver.IDESolver;
-import heros.template.DefaultIDETabulationProblem;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, Constraint, CInterCFG> {
+
     public SPLIFDSSolver(final IFDSTabulationProblem<Opt<AST>, D, Opt<FunctionDef>, CInterCFG> ifdsProblem, final FeatureModel fm, final boolean useFMInEdgeComputations) {
-        super(new DefaultIDETabulationProblem<Opt<AST>, D, Opt<FunctionDef>, Constraint, CInterCFG>(ifdsProblem.interproceduralCFG()) {
+        super(new DefaultSPLIFDSTabulationProblem<D>(ifdsProblem) {
 
             @Override
             public Map<Opt<AST>, Set<D>> initialSeeds() {
@@ -37,15 +36,29 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
                 }
 
                 public EdgeFunction<Constraint> getCallEdgeFunction(Opt<AST> callStmt, D srcNode, Opt<FunctionDef> destinationMethod, D destNode) {
+                    /*
+                     * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
+                     * Otherwise we would assume this flow has the presence condition of true.
+                     * Further, we manipulate the presence condition of the current call statement and the corresponding destination method with the help of
+                     * the icfg. The concrete analysis is now able to generate a custom zero element with current flow condition to propagate the correct
+                     * flow presence condition along the normal-flow edges.
+                     */
                     destinationMethod = icfg.getLiftedMethodOf(callStmt, destinationMethod);
                     Opt<AST> liftedCallStmt = callStmt.copy(callStmt.condition().and(destinationMethod.condition()), callStmt.entry());
                     Opt<AST> liftedDestinationMethod = destinationMethod.copy(destinationMethod.condition(), destinationMethod.entry());
-                    return buildFlowFunction(liftedCallStmt, liftedDestinationMethod, srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(liftedCallStmt, destinationMethod), true);
+
+                    Constraint flow = icfg.getConstraint(liftedDestinationMethod.copy(liftedDestinationMethod.condition(), liftedDestinationMethod.entry())).and(icfg.getConstraint(liftedCallStmt));
+
+                    return buildFlowFunction(liftedCallStmt, liftedDestinationMethod, srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(liftedCallStmt, destinationMethod), true, flow);
                 }
 
                 public EdgeFunction<Constraint> getReturnEdgeFunction(Opt<AST> callSite, Opt<FunctionDef> calleeMethod, Opt<AST> exitStmt, D exitNode, Opt<AST> returnSite, D retNode) {
+                    /*
+                     * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
+                     * Otherwise we would assume this flow has the presence condition of true.
+                     */
                     Opt<FunctionDef> liftedCalleeMethod = icfg.getLiftedMethodOf(callSite, calleeMethod);
-                    Constraint flow = icfg.getConstraint(liftedCalleeMethod.copy(liftedCalleeMethod.condition(), (AST) liftedCalleeMethod.entry())).and(icfg.getConstraint(exitStmt));
+                    Constraint flow = icfg.getConstraint(liftedCalleeMethod.copy(liftedCalleeMethod.condition(), liftedCalleeMethod.entry())).and(icfg.getConstraint(exitStmt));
                     return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, flow);
                 }
 
@@ -121,19 +134,14 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
             @Override
             protected FlowFunctions<Opt<AST>, D, Opt<FunctionDef>> createFlowFunctionsFactory() {
 
-                // TODO Document removal of wrapper.
+                // See git history for removed wrapper code.
+                // Not sure why some flow functions were wrapped into a another flowfunction without being able to kill flow facts.
                 return new FlowFunctions<Opt<AST>, D, Opt<FunctionDef>>() {
 
                     @Override
                     public FlowFunction<D> getNormalFlowFunction(Opt<AST> curr,
                                                                  Opt<AST> succ) {
-                        FlowFunction<D> original = ifdsProblem.flowFunctions().getNormalFlowFunction(curr, succ);
-
-
-						 /*if(hasFeatureAnnotation(curr) && interproceduralCFG().isFallThroughSuccessor(curr, succ)) {
-                            return new WrappedFlowFunction<D>(original);
-						} else */
-                        return original;
+                        return ifdsProblem.flowFunctions().getNormalFlowFunction(curr, succ);
                     }
 
                     @Override
@@ -152,14 +160,7 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
                     @Override
                     public FlowFunction<D> getCallToReturnFlowFunction(
                             Opt<AST> callSite, Opt<AST> returnSite) {
-                        FlowFunction<D> original = ifdsProblem.flowFunctions().getCallToReturnFlowFunction(callSite, returnSite);
-
-						/* if(hasFeatureAnnotation(callSite)) {
-							return new WrappedFlowFunction<D>(original);
-						} else */
-                        return original;
-
-
+                        return ifdsProblem.flowFunctions().getCallToReturnFlowFunction(callSite, returnSite);
                     }
                 };
             }
@@ -175,21 +176,4 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
 
         });
     }
-
-    private static class WrappedFlowFunction<D> implements FlowFunction<D> {
-
-        private FlowFunction<D> del;
-
-        private WrappedFlowFunction(FlowFunction<D> del) {
-            this.del = del;
-        }
-
-        @Override
-        public Set<D> computeTargets(D source) {
-            Set<D> targets = new HashSet<D>(del.computeTargets(source));
-            targets.add(source);
-            return targets;
-        }
-    }
-
 }
