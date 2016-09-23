@@ -124,7 +124,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
-            updateCaches(tunit, env, ts)
+            updateCaches(tunit, _tunit.defs.last.entry.getFile.get, env, ts)
             println("#Calculating Pointer Equivalence Realations...")
             calculatePointerEquivalenceRelations
         })
@@ -134,10 +134,10 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit
     }
 
-    private def updateCaches(tunit: TranslationUnit, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {
+    private def updateCaches(tunit: TranslationUnit, file: String, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {
         envToTUnit.put(env, tunit)
         envToTS.put(env, ts)
-        fileToTUnit.put(tunit.defs.last.entry.getPositionFrom.getFile, tunit) // Workaround as usually the first definitions are external includes
+        fileToTUnit.put(file, tunit) // Workaround as usually the first definitions are external includes
     }
     private def calculatePointerEquivalenceRelations = {
         StopWatch.measureUserTime(options.getStopWatchPrefix + "pointsToAnalysis", {
