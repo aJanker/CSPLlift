@@ -39,6 +39,9 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         println("\n#sinks\n")
         println(Taint2.prettyPrintSinks(allSinks))
+
+        println("\n#used tunits number: \n")
+        println(cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size)
         println("#static taint analysis with spllift - finished")
     }
 

@@ -4,6 +4,7 @@ import java.io.{File, FileWriter}
 
 import de.fosd.typechef.conditional.{Choice, One, Opt}
 import de.fosd.typechef.cspllift.commons.ConditionTools
+import de.fosd.typechef.featureexpr.bdd.BDDNoFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel, SingleFeatureExpr}
 import de.fosd.typechef.parser.c.AST
 
@@ -13,7 +14,7 @@ import scala.io.Source
 /**
   * Adapted from the sampling infrastructure of Jörg Liebig, Alex von Rhein, and me.
   */
-class Sampling(tunit : AST, fm: FeatureModel) extends ConditionTools {
+class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends ConditionTools {
 
     /** List of all features found in the currently processed file */
     private val features: List[SingleFeatureExpr] = getAllFeatures(tunit)

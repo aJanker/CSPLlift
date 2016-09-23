@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.cspllift.evaluation.Sampling
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
@@ -75,7 +75,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
 
         val astEnv = CASTEnv.createASTEnv(ast)
 
-        val cfgStmts = filterAllASTElems[Statement](ast).flatMap(filterASTElems[CFGStmt]).distinct
+        val cfgStmts = filterAllASTElems[CFGStmt](ast).flatMap(filterAllASTElems[Statement]).distinct
         val replacements = cfgStmts.flatMap {
 
             case c: CFGStmt if isVariable(c) =>
@@ -84,7 +84,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
                 val allStmtConditions = stmtConditions.foldLeft(FeatureExprFactory.True)(_ and _)
 
                 if (!allStmtConditions.equivalentTo(parentCondition, fm)) {
-                    val sampling = new Sampling(c, fm)
+                    val sampling = new Sampling(c, BDDNoFeatureModel)
                     val configs = sampling.conditionConfigurationCoverage(stmtConditions.toSet)
                     val products = configs.flatMap(config => {
 
@@ -95,7 +95,6 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
                         val product = deriveProductWithCondition(c, config.getTrueFeatures, finalCond)
                         Some(Opt(finalCond, product))
                     })
-
                     Some((c, products))
                 } else None
 
