@@ -21,7 +21,6 @@ trait ConditionTools {
         featuresSorted = featuresSorted.sortWith({
             (x: SingleFeatureExpr, y: SingleFeatureExpr) => x.feature.compare(y.feature) > 0
         })
-        println("found " + featuresSorted.size + " features")
         featuresSorted //.map({s:String => FeatureExprFactory.createDefinedExternal(s)});
     }
 

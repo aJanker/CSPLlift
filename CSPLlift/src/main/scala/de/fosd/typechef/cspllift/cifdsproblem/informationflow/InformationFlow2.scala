@@ -78,6 +78,8 @@ sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int) extends Informa
     }
 }
 
+case class StructSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Source], usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope)
+
 case class VarSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Source], usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSource]) false
@@ -96,7 +98,11 @@ case class VarSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Sou
     override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode()
 }
 
-case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope) {
+sealed abstract class SourceOf(id: Id, stmt: Opt[AST], scope: Int) extends Source(id, stmt, scope)
+
+case class StructSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends SourceOf(name, stmt, scope)
+
+case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends SourceOf(name, stmt, scope) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSourceOf]) false
         else super.isEquivalentTo(other, configuration)

@@ -21,13 +21,6 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
 
     private var filesWithSeeds: Set[String] = Set()
 
-    private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
-        val destinationMethodFile = destinationMethod.getFile.getOrElse("")
-        initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
-    }
-
-    private val zeroVal = Zero()
-
     /**
       * Returns initial seeds to be used for the analysis. This is a mapping of statements to initial analysis facts.
       * We consider global variables as initial sources.
@@ -42,6 +35,11 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         })
     }
 
+    private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
+        val destinationMethodFile = destinationMethod.getFile.getOrElse("")
+        initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
+    }
+
 
     /**
       * This must be a data-flow fact of type {@link D}, but must <i>not</i>
@@ -53,6 +51,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
+    private val zeroVal = Zero()
     override def zeroValue(): InformationFlow2 with CZeroFact = zeroVal
 
     /**
