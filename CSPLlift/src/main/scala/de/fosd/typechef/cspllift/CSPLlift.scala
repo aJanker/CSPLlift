@@ -34,14 +34,14 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         println("#static taint analysis with spllift - result")
 
-        println("\n#used tunits\n")
-        cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(x => println(PrettyPrinter.print(x)))
+        /* println("\n#used tunits\n")
+        cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(x => println(PrettyPrinter.print(x))) */
 
-        println("\n#sinks\n")
+        println("\n#sinks")
         println(Taint2.prettyPrintSinks(allSinks))
 
-        println("\n#used tunits number: \n")
-        println(cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size)
+        println("\n#used tunits number:")
+        println(cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size + "\n")
         println("#static taint analysis with spllift - finished")
     }
 
