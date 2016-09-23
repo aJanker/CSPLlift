@@ -52,7 +52,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val (vaaWallTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
         // 2. Generate Code Coverage Configurations for all referenced files
-        val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit)
+        val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.codeConfigurationCoverage()
 
         // 3. Run Analysis for every generated config
@@ -109,7 +109,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         // 3. Generate Condition Coverage Configurations for all distinct warning conditions
-        val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit)
+        val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.conditionConfigurationCoverage(cfgConditions.asInstanceOf[Set[FeatureExpr]])
 
         // 4. Run Analysis for every generated config
@@ -195,10 +195,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         val unmatchedLiftedFacts = matchedLiftedFacts.toList.collect { case ((x, 0)) => x }
 
-       interestingSamplingFacts.foreach(s => {
+       /* interestingSamplingFacts.foreach(s => {
            println(s._2)
            s._1.foreach(x => println(x._1.toText))
-       })
+       }) */
 
         (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts)
     }
