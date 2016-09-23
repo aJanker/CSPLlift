@@ -690,10 +690,10 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                 println(curly)
             }
 
-            println("curly")
+            /*println("curly")
             val env = getEnv(curly).get
             val ts = getTypeSystem(curly).get
-            println(findPriorASTElem[StructOrUnionSpecifier](curly, env))
+            println(findPriorASTElem[StructOrUnionSpecifier](curly, env)) */
             None
         }
 

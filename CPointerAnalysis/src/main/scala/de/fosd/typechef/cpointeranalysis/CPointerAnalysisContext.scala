@@ -297,10 +297,6 @@ trait ObjectNameContext extends PointerContext {
     def setObjectNameAssignments(oAssignments: ConditionalSet[Assignment]) = objectNameAssignments = oAssignments
 
     def addObjectName(scopedObjectName: ObjectName, ctx: FeatureExpr): ObjectName = {
-
-        if(scopedObjectName.equalsIgnoreCase("minimal_linking_main§GLOBAL$cipher1")) {
-            println("break")
-        }
         _objectNames = _objectNames + Opt(ctx, scopedObjectName)
         // add object name with scope defined
         objectNames = objectNames + (scopedObjectName, ctx)
