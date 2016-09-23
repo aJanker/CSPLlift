@@ -21,7 +21,7 @@ object CModuleInterfaceGenerator extends App with CInterfaceWriter {
 
     mergeAndWriteInterfaces(startDir, fm)
 
-    def mergeInterfaces(dir : String, fm : FeatureModel = FeatureExprFactory.default.featureModelFactory.empty, strictness: Strictness = LINK_RELAXED) : CInterface = {
+    def mergeInterfaces(dir : String, fm : FeatureModel = FeatureExprFactory.default.featureModelFactory.empty, strictness: Strictness = LINK_NAMEONLY) : CInterface = {
         val fileList = getFileTree(new File(dir)).filter(f => f.isFile && f.getPath.endsWith(".interface"))
 
         val interfaces = fileList.par.map(f => {
@@ -39,7 +39,7 @@ object CModuleInterfaceGenerator extends App with CInterfaceWriter {
         finalInterface
     }
 
-    def mergeAndWriteInterfaces(dir : String, fm : FeatureModel = FeatureExprFactory.default.featureModelFactory.empty, strictness: Strictness = LINK_RELAXED, name : String = "CModuleInterface.interface") : Unit = {
+    def mergeAndWriteInterfaces(dir : String, fm : FeatureModel = FeatureExprFactory.default.featureModelFactory.empty, strictness: Strictness = LINK_NAMEONLY, name : String = "CModuleInterface.interface") : Unit = {
         val interface = mergeInterfaces(dir, fm, strictness)
         val out = new File(dir + "/" + name)
 
@@ -51,11 +51,14 @@ object CModuleInterfaceGenerator extends App with CInterfaceWriter {
     private def getFileTree(f: File): Stream[File] = f #:: (if (f.isDirectory) f.listFiles().toStream.flatMap(getFileTree) else Stream.empty)
 
     private def linkInterfaces(l: List[CInterface], strictness: Strictness = LINK_RELAXED): CInterface =
-        l.reduceLeft { (left, right) =>
-            val conflicts = left getConflicts right
+        {
+            val res = l.reduceLeft { (left, right) =>
+                val conflicts = left getConflicts right
 
-            for (c <- conflicts; if !c._2.isTautology(fm)) yield println(c + " is not a tautology in feature model.")
+                for (c <- conflicts; if !c._2.isTautology(fm)) yield println(c + " is not a tautology in feature model.")
 
-            left.linkWithOutElimination(right, strictness)
+                left.debug_join(right).packWithOutElimination(strictness)
+            }
+            res
         }
 }
