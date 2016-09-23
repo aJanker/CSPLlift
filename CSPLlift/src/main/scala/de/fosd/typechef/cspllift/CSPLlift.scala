@@ -27,7 +27,7 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
             val problem = new InformationFlow2Problem(cInterCFG)
-            CSPLlift.solve(problem)
+            CSPLlift.solve(problem, printWarnings = true)
         })
 
         val allSinks = Taint2.allSinks(solution)
