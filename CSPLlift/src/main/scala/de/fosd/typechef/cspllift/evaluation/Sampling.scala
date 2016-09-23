@@ -155,7 +155,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
                                 complexNodes += 1
                                 isCovered = (retList ++ existingConfigs).exists(
                                     {
-                                        conf: SimpleConfiguration => conf.toFeatureExpr.implies(fex).isTautology(fm)
+                                        conf: SimpleConfiguration => conf.toFeatureExpr.implies(fex).isTautology(/*fm*/)
                                     }
                                 )
                             }
