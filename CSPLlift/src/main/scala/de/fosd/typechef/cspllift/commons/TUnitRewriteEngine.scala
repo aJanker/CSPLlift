@@ -56,7 +56,11 @@ trait KiamaRewritingRules extends EnforceTreeHelper {
                 if (feature.evaluate(selectedFeatures)) thenBranch
                 else elseBranch
             }
-            case a: AST => a.clone()
+            case a: AST =>
+                val copy = a.clone()
+                copyPositions(a, copy)
+                a
+
         })
         val cast = prod(ast).get.asInstanceOf[T]
         copyPositions(ast, cast)
