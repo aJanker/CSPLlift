@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift.cifdsproblem
 import java.io.{StringWriter, Writer}
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.crewrite.ProductDerivation
+import de.fosd.typechef.cspllift.commons.KiamaRewritingRules
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
@@ -12,7 +12,7 @@ import de.fosd.typechef.parser.c._
 import scala.collection.mutable.ListBuffer
 
 
-sealed trait InformationFlow extends Product with Cloneable with CFlowFact {
+sealed trait InformationFlow extends Product with Cloneable with CFlowFact with KiamaRewritingRules {
     override def clone(): InformationFlow.this.type = super.clone().asInstanceOf[InformationFlow.this.type]
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = false
     override def isInterestingFact: Boolean = false
@@ -61,7 +61,7 @@ case class Reach(to: Opt[AST], from: List[Opt[Id]], sources: List[Source]) exten
 
         val otherReach = other.asInstanceOf[Reach]
 
-        val toProduct = ProductDerivation.deriveProduct(to.entry, configuration.getTrueFeatures)
+        val toProduct = deriveProductWithCondition(to.entry, configuration.getTrueFeatures)
         val eqTo = toProduct.equals(otherReach.to.entry)
         val fromEntry = from.map(_.entry)
         val otherFromEntry = otherReach.from.map(_.entry)

@@ -1,10 +1,9 @@
 package de.fosd.typechef.cspllift.evaluation
 
-import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.analysis.Taint2
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
-import de.fosd.typechef.cspllift.commons.ConditionTools
+import de.fosd.typechef.cspllift.commons.{ConditionTools, KiamaRewritingRules}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
 import de.fosd.typechef.customization.StopWatch
@@ -13,7 +12,7 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
 import soot.spl.ifds.Constraint
 
-class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools {
+class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with KiamaRewritingRules {
 
     def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
@@ -128,7 +127,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
         configs.foreach(config => {
             println("### Current Config:\t" + config + "\n")
-            println(PrettyPrinter.print(ProductDerivation.deriveProduct(ast, config.getTrueFeatures)))
+            println(PrettyPrinter.print(deriveProductWithCondition(ast, config.getTrueFeatures)))
         })
         println
 

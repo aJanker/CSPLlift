@@ -6,9 +6,8 @@ import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
-import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, KiamaRewritingRules, WarningsCache}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -19,7 +18,7 @@ import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 import scala.collection.JavaConversions._
 
 
-trait CInterCFGElementsCache {
+trait CInterCFGElementsCache extends KiamaRewritingRules {
 
     val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv
 
@@ -67,7 +66,7 @@ trait CInterCFGElementsCache {
     }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends EnforceTreeHelper with CFlowConstants with CInterCFGCommons with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends KiamaRewritingRules with CFlowConstants with CInterCFGCommons with PointerContext {
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
@@ -96,7 +95,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         copyPositions(t.asInstanceOf[TranslationUnit], tunit)
 
         if (options.getConfiguration.isDefined)
-            tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
+            tunit = deriveProductWithCondition(tunit, options.getTrueSet.get)
 
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
         tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit

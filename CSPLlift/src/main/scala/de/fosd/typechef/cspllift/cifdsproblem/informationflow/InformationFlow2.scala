@@ -1,14 +1,14 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CZeroFact}
+import de.fosd.typechef.cspllift.commons.KiamaRewritingRules
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 
-trait InformationFlow2 extends Product with CFlowFact {
+trait InformationFlow2 extends Product with CFlowFact with KiamaRewritingRules {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = equals(other)
 
     override def isInterestingFact: Boolean = false
@@ -36,7 +36,7 @@ sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) exte
 
         val otherSink = other.asInstanceOf[Sink]
 
-        lazy val stmtProduct = ProductDerivation.deriveProduct(stmt.entry, configuration.getTrueFeatures)
+        lazy val stmtProduct = deriveProductWithCondition(stmt.entry, configuration.getTrueFeatures)
         lazy val eqStmt = stmtProduct.equals(otherSink.stmt.entry)
 
         source.isEquivalentTo(otherSink.source, configuration) && eqStmt
@@ -71,7 +71,7 @@ sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int) extends Informa
 
         val otherSource = other.asInstanceOf[Source]
 
-        lazy val stmtProduct = ProductDerivation.deriveProduct(getStmt.entry, configuration.getTrueFeatures)
+        lazy val stmtProduct = deriveProductWithCondition(getStmt.entry, configuration.getTrueFeatures)
         lazy val eqStmt = stmtProduct.equals(otherSource.getStmt.entry)
 
         otherSource.getId.equals(getId) && eqStmt

@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.cspllift.evaluation.Sampling
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
@@ -37,7 +37,7 @@ trait KiamaRewritingRules extends EnforceTreeHelper {
         r(c).get.asInstanceOf[CompoundStatement]
     }
 
-    def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr): T = {
+    def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr = BDDFeatureExprFactory.TrueB): T = {
         assert(ast != null)
 
         val prod = manytd(rule[Product] {
@@ -46,7 +46,9 @@ trait KiamaRewritingRules extends EnforceTreeHelper {
                 // use l.reverse here to omit later reverse on res or use += or ++= in the thenBranch
                 for (o <- l.reverse.asInstanceOf[List[Opt[_]]])
                     if (o.condition.evaluate(selectedFeatures)) {
-                        res ::= o.copy(condition = condition)
+                        val copy = o.copy(condition = condition)
+                        copyPositions(o, copy)
+                        res ::= copy
                     }
                 res
             }
