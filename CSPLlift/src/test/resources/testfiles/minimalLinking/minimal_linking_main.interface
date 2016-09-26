@@ -30,13 +30,13 @@
                 True
             </featureexpr><pos>
             <file>
-                file /Users/andi/Dropbox/Masterarbeit/TypeChef/CSPLlift/src/test/resources/testfiles/minimal_linking.h
+                file /Users/andi/Dropbox/Masterarbeit/Coding/CSPLlift/CSPLlift/src/test/resources/testfiles/minimalLinking/minimal_linking_main.c
             </file>
             <line>
-                7
+                15
             </line>
             <col>
-                4
+                15
             </col>
         </pos>
         </sig>
@@ -59,52 +59,20 @@
     </function>
             </type>
             <featureexpr>
-                True
+                !A
             </featureexpr><pos>
             <file>
-                file /Users/andi/Dropbox/Masterarbeit/TypeChef/CSPLlift/src/test/resources/testfiles/minimal_linking.h
+                file /Users/andi/Dropbox/Masterarbeit/Coding/CSPLlift/CSPLlift/src/test/resources/testfiles/minimalLinking/minimal_linking_main.c
             </file>
             <line>
-                3
+                9
             </line>
             <col>
-                4
+                20
             </col>
         </pos>
         </sig>
         </import><import>
-            <sig>
-            <name>
-                cipher1
-            </name>
-            <type>
-                <function>
-        <param>
-            <signed>
-        <int/>
-    </signed>
-        </param><ret>
-            <signed>
-        <int/>
-    </signed>
-        </ret>
-    </function>
-            </type>
-            <featureexpr>
-                True
-            </featureexpr><pos>
-            <file>
-                file /Users/andi/Dropbox/Masterarbeit/TypeChef/CSPLlift/src/test/resources/testfiles/minimal_linking.h
-            </file>
-            <line>
-                1
-            </line>
-            <col>
-                4
-            </col>
-        </pos>
-        </sig>
-        </import><export>
             <sig>
             <name>
                 cipher_init
@@ -140,13 +108,83 @@
                 True
             </featureexpr><pos>
             <file>
-                file /Users/andi/Dropbox/Masterarbeit/TypeChef/CSPLlift/src/test/resources/testfiles/minimal_linking_init.c
+                file /Users/andi/Dropbox/Masterarbeit/Coding/CSPLlift/CSPLlift/src/test/resources/testfiles/minimalLinking/minimal_linking_main.c
+            </file>
+            <line>
+                7
+            </line>
+            <col>
+                4
+            </col>
+        </pos><pos>
+            <file>
+                file /Users/andi/Dropbox/Masterarbeit/Coding/CSPLlift/CSPLlift/src/test/resources/testfiles/minimalLinking/minimal_linking_main.c
+            </file>
+            <line>
+                7
+            </line>
+            <col>
+                4
+            </col>
+        </pos>
+        </sig>
+        </import><import>
+            <sig>
+            <name>
+                cipher1
+            </name>
+            <type>
+                <function>
+        <param>
+            <signed>
+        <int/>
+    </signed>
+        </param><ret>
+            <signed>
+        <int/>
+    </signed>
+        </ret>
+    </function>
+            </type>
+            <featureexpr>
+                A
+            </featureexpr><pos>
+            <file>
+                file /Users/andi/Dropbox/Masterarbeit/Coding/CSPLlift/CSPLlift/src/test/resources/testfiles/minimalLinking/minimal_linking_main.c
+            </file>
+            <line>
+                7
+            </line>
+            <col>
+                20
+            </col>
+        </pos>
+        </sig>
+        </import><export>
+            <sig>
+            <name>
+                main
+            </name>
+            <type>
+                <function>
+        <ret>
+            <signed>
+        <int/>
+    </signed>
+        </ret>
+    </function>
+            </type>
+            <featureexpr>
+                True
+            </featureexpr><pos>
+            <file>
+                file /Users/andi/Dropbox/Masterarbeit/Coding/CSPLlift/CSPLlift/src/test/resources/testfiles/minimalLinking/minimal_linking_main.c
             </file>
             <line>
                 3
             </line>
             <col>
-                5
+                4
             </col>
         </pos>
         </sig>

@@ -26,6 +26,7 @@ int main() {
     y = foo(x);
 #endif
 
+
     sink = y; // Sink of secret @ B&C&E
     return 0;
 }

@@ -12,7 +12,7 @@ class ReturnInfoFlowTest extends InformationFlowTestHelper {
 
         val sinkStmt1 = ExprStatement(AssignExpr(Id("sink"),"=",Id("y")))
 
-        expectedSinks ::= (sinkStmt1, List(Opt(fb.and(fc).and(fe), Id("secret"))))
+        expectedSinks ::= (sinkStmt1, List(Opt(fb.and(fc).and(fe).and(fa.not()), Id("secret"))))
 
         defaultTest("returnFlow1.c", expectedSinks) should be(true)
     }

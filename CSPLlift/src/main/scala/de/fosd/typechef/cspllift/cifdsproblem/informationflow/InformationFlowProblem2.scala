@@ -98,7 +98,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     }
                                     GEN(genSet)
                                     // New Assignment -> KILL
-                                } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(source) }) KILL
+                                } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(source) } || currDefines.exists(source.equals)) KILL
                                 // update current varsource, new varsource + sourceof + sink
                                 else if (currAssignments.nonEmpty && currUses.contains(source)) {
                                     val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(source) }
@@ -127,7 +127,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     }
                                     GEN(genSet)
                                     // New Assignment -> KILL
-                                } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) }) KILL
+                                } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) } || currDefines.exists(id.equals) ) KILL
                                 // update current varsource, new varsource + sourceof + sink
                                 else if (currAssignments.nonEmpty && currUses.contains(id)) {
                                     val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }

@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<interface>
+            <featuremodel>
+                True
+            </featuremodel><export>
+            <sig>
+            <name>
+                cipher_init
+            </name>
+            <type>
+                <function>
+        <param>
+            <pointer>
+        <struct isUnion="false">
+        cipher_ctx
+    </struct>
+    </pointer>
+        </param><param>
+            <pointer>
+        <function>
+        <param>
+            <signed>
+        <int/>
+    </signed>
+        </param><ret>
+            <signed>
+        <int/>
+    </signed>
+        </ret>
+    </function>
+    </pointer>
+        </param><ret>
+            <void/>
+        </ret>
+    </function>
+            </type>
+            <featureexpr>
+                True
+            </featureexpr><pos>
+            <file>
+                file /Users/andi/Dropbox/Masterarbeit/Coding/CSPLlift/CSPLlift/src/test/resources/testfiles/minimalLinking/minimal_linking_init.c
+            </file>
+            <line>
+                3
+            </line>
+            <col>
+                5
+            </col>
+        </pos>
+        </sig>
+        </export>
+        </interface>

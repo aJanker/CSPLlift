@@ -9,7 +9,7 @@ int cipher1(int i) {
    if (i < 0) {
 
     res =
-#ifdef B
+#ifdef C
       i + x;
 #else
       x;

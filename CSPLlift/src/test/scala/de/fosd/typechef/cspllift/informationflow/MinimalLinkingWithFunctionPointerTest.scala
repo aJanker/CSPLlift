@@ -12,7 +12,7 @@ class MinimalLinkingWithFunctionPointerTest extends CSPLliftTestHelper {
             var successful = true
             val interface = getClass.getResource("/" + testfileDir ).getFile + "CModuleInterface.interface"
 
-            val (tunit, _, _, sinks) = defaultTestInit("minimal_linking_main.c", allSinks, Some(interface))
+            val (tunit, _, _, sinks) = defaultTestInit("mininmalLinking/minimal_linking_main.c", allSinks, Some(interface))
 
             println(PrettyPrinter.print(tunit))
 
