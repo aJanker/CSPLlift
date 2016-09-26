@@ -8,6 +8,7 @@ import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations, CIFDSProblem, CZeroFact}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions}
 
 import scala.collection.JavaConverters._
@@ -52,6 +53,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
       * interface should therefore cache the return value!
       */
     private val zeroVal = Zero()
+
     override def zeroValue(): InformationFlow2 with CZeroFact = zeroVal
 
     /**
@@ -85,8 +87,8 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                         val result = flowFact match {
                             case v@VarSource(source, _, isSourceOf, usedIn, scope) =>
                                 // Self Assignment -> new VarSource + SourceOf + Kill old source
-                                if (currAssignments.exists { case (assignee, assignors) => isSelfAssigned(source, assignee, assignors) }) {
-                                    val assignments = currAssignments.filter { case (assignee, assignors) => isSelfAssigned(source, assignee, assignors) }
+                                if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(source, assignee, assignors) }) {
+                                    val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(source, assignee, assignors) }
 
                                     val genSet = assignments.flatMap {
                                         case (assignee, assignors) =>
@@ -114,8 +116,8 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
 
                             case vo@VarSourceOf(id, _, source, usedIn, scope) =>
                                 // Self Assignment -> new VarSource + SourceOf + Kill old source
-                                if (currAssignments.exists { case (assignee, assignors) => isSelfAssigned(id, assignee, assignors) }) {
-                                    val assignments = currAssignments.filter { case (assignee, assignors) => isSelfAssigned(id, assignee, assignors) }
+                                if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }) {
+                                    val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }
 
                                     val genSet = assignments.flatMap {
                                         case (assignee, assignors) =>
@@ -142,21 +144,27 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 } else super.computeTargets(vo)
 
                             case z: Zero if currAssignments.nonEmpty =>
-                                // gen new source
-                                val sources = currAssignments.map { case (assignee, assignor) =>
+                                // new assignment => gen new source
+                                def varFun(assignee: Id): List[VarSource] = {
                                     val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
-                                    VarSource(assignee, currOpt, List(), List(), scope)
+                                    List(VarSource(assignee, currOpt, List(), List(), scope))
+                                }
+
+                                def structFun(define: Id): List[StructSource] = List()
+
+                                val sources = currAssignments.flatMap { case (assignee, _) =>
+                                    singleVisitOnSourceTypes(assignee, structFun, varFun)
                                 }
                                 GEN(z :: sources)
 
                             case z: Zero if currDefines.nonEmpty =>
-                                // gen new source
-                                val sources = currDefines.map(define => {
-                                    val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(define.name).select(currOpt.condition.collectDistinctFeatures)
-                                    VarSource(define, currOpt, List(), List(), SCOPE_LOCAL)
-                                })
-                                GEN(z :: sources)
+                                // newly introduced variable or struct
+                                def varFun(define: Id): List[VarSource] = List(VarSource(define, currOpt, List(), List(), SCOPE_LOCAL))
+                                def structFun(define: Id): List[StructSource] = List(StructSource(define, None, currOpt, List(), List(), SCOPE_LOCAL))
 
+                                val sources = currDefines.flatMap(define => singleVisitOnSourceTypes(define, structFun, varFun))
+
+                                GEN(z :: sources)
                             case x => super.computeTargets(x)
                         }
                         result
@@ -349,13 +357,44 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         lazy val currOpt: Opt[AST] = parentOpt(curr.entry, currASTEnv).asInstanceOf[Opt[AST]]
         lazy val currTS = interproceduralCFG.getTS(curr)
 
+        lazy val succTS = interproceduralCFG.getTS(succ)
+        lazy val succVarEnv = succ.entry match {
+            case f: FunctionDef => succTS.lookupEnv(f.stmt.innerStatements.headOption.getOrElse(currOpt).entry)
+            case _ => currTS.lookupEnv(succ.entry)
+        }
+
         lazy val currDefines = defines(curr)
         lazy val currUses = uses(curr)
         lazy val currAssignments = assignsVariables(curr)
-        lazy val currStructFieldDefines = definesField(curr)
+        lazy val currStructFieldAssigns = assignsField(curr)
         lazy val currStructFieldUses = usesField(curr)
 
-        def isSelfAssigned(source: Id, assignee: Id, assignors: List[Id]): Boolean = assignee.equals(source) && assignors.exists(source.equals)
+        def hasSelfAssignement(source: Id, assignee: Id, assignors: List[Id]): Boolean = assignee.equals(source) && assignors.exists(source.equals)
+
+        /*
+         * We are using the variability-aware typesystem of TypeChef. However, variability encoded within the type definition of an variable or struct does not matter for us.
+         * As a consequence we only visit one type-definition as we do assume correct type assignments.
+         */
+        def singleVisitOnSourceTypes[T <: InformationFlow2](currId: Id, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
+            val cTypes = succVarEnv.varEnv.lookupType(currId.name)
+            var cFacts: List[T] = List()
+
+            // Do not generate sources for every possible type condition; only once for either struct or variable
+            if (cTypes.exists(ct => isStructOrUnion(ct)))
+                cFacts :::= structFun(currId)
+
+            if (cTypes.exists(ct => !isStructOrUnion(ct)))
+                cFacts :::= varFun(currId)
+
+            cFacts
+        }
+
+        private def isStructOrUnion(cType: CType): Boolean =
+            cType.atype match {
+                case CPointer(t) => isStructOrUnion(t) // simple pointer detection - really, really cheap coding
+                case _: CStruct | _: CAnonymousStruct => true
+                case _ => false
+            }
 
         override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] =
             flowFact match {

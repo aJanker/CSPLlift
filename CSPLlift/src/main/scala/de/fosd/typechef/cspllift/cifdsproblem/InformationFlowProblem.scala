@@ -471,7 +471,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             case Some(x) => x
         }
 
-        val currStructFieldDefines = definesField(curr)
+        val currStructFieldDefines = assignsField(curr)
 
         val currStructFieldUses = usesField(curr)
 
@@ -481,7 +481,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         def isStructOrUnion(cType: CType): Boolean =
             cType.atype match {
-                case CPointer(t) => isStructOrUnion(t) // simple pointer detection - really, really worse coding
+                case CPointer(t) => isStructOrUnion(t) // simple pointer detection - really, really cheap coding
                 case _: CStruct | _: CAnonymousStruct => true
                 case _ => false
             }

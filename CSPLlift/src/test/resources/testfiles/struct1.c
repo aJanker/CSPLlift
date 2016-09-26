@@ -23,6 +23,7 @@ struct punkt f(struct punkt bar)
 
 int main()
 {
+    int sink;
     int x = 0;
     int y = 0;
     int x2 = 2;
@@ -31,10 +32,10 @@ int main()
     POINT p1;
     p1.x = x2;
 
-    y2 = p1.x;
+    y2 = p1->x;
 
     p1.y = 10;
-    p1.x = y2;
+    p1->x = y2;
 
     struct punkt p;
 
@@ -70,7 +71,9 @@ int main()
 
     struct punkt func = f(p);
 
-    int sink = p1.y + z;  // Test for correct reach
+    int id = p1.y + z;  // Test for correct reach
+
+    sink = id;
 
     z = func.x; // Test for correct reach
 

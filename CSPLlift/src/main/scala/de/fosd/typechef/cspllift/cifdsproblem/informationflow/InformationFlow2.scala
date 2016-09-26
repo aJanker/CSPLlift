@@ -76,9 +76,37 @@ sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int) extends Informa
 
         otherSource.getId.equals(getId) && eqStmt
     }
+
+    override def equals(other: scala.Any): Boolean = {
+        if (!other.isInstanceOf[Source]) return false
+
+        val otherSource = other.asInstanceOf[Source]
+
+        lazy val eqStmt = getStmt.equals(otherSource.getStmt)
+
+        otherSource.getId.equals(getId) && eqStmt && scope.equals(otherSource.getScope)
+    }
 }
 
-case class StructSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Source], usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope)
+case class StructSource(name: Id, field: Option[Source], override val stmt: Opt[AST], isSourceOf: List[Source], usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope) {
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
+        if (!other.isInstanceOf[StructSource]) false
+        else {
+            val otherStructSource = other.asInstanceOf[StructSource]
+
+            if (field.isDefined && otherStructSource.field.isDefined) field.get.isEquivalentTo(otherStructSource.field.get, configuration) && super.isEquivalentTo(other, configuration)
+            else if (field.isEmpty && otherStructSource.field.isEmpty) super.isEquivalentTo(other, configuration)
+            else false
+        }
+
+
+    override def equals(other: scala.Any): Boolean = {
+        if (!other.isInstanceOf[StructSource]) false
+        else other.asInstanceOf[StructSource].field.equals(field) && super.equals(other)
+    }
+
+    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + field.hashCode()
+}
 
 case class VarSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Source], usedIn: List[Opt[AST]], scope: Int) extends Source(name, stmt, scope) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
@@ -86,36 +114,51 @@ case class VarSource(name: Id, override val stmt: Opt[AST], isSourceOf: List[Sou
         else super.isEquivalentTo(other, configuration)
 
     override def equals(other: scala.Any): Boolean = {
-        if (!other.isInstanceOf[VarSource]) return false
-
-        val otherSource = other.asInstanceOf[VarSource]
-
-        lazy val eqStmt = getStmt.equals(otherSource.getStmt)
-
-        otherSource.getId.equals(getId) && eqStmt && scope.equals(otherSource.getScope)
+        if (!other.isInstanceOf[VarSource]) false
+        else super.equals(other)
     }
 
     override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode()
 }
 
-sealed abstract class SourceOf(id: Id, stmt: Opt[AST], scope: Int) extends Source(id, stmt, scope)
+sealed abstract class SourceOf(id: Id, stmt: Opt[AST], scope: Int) extends Source(id, stmt, scope) {
+    override def equals(other: scala.Any): Boolean = {
+        if (!other.isInstanceOf[SourceOf]) return false
 
-case class StructSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends SourceOf(name, stmt, scope)
+        val otherSourceOf = other.asInstanceOf[SourceOf]
+
+        lazy val eqStmt = getStmt.equals(otherSourceOf.getStmt)
+        otherSourceOf.getId.equals(getId) && eqStmt && scope.equals(otherSourceOf.getScope)
+    }
+}
+
+case class StructSourceOf(name: Id, field: Option[Source], override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends SourceOf(name, stmt, scope) {
+    override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
+        if (!other.isInstanceOf[StructSourceOf]) false
+        else {
+            val otherStructSource = other.asInstanceOf[StructSource]
+
+            if (field.isDefined && otherStructSource.field.isDefined) field.get.isEquivalentTo(otherStructSource.field.get, configuration) && super.isEquivalentTo(other, configuration)
+            else if (field.isEmpty && otherStructSource.field.isEmpty) super.isEquivalentTo(other, configuration)
+            else false
+        }
+
+    override def equals(other: scala.Any): Boolean =
+        if (!other.isInstanceOf[StructSourceOf]) false
+        else other.asInstanceOf[StructSourceOf].field.equals(field) && super.equals(other)
+
+    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + source.hashCode() + field.hashCode()
+}
 
 case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, usedIn: List[Opt[AST]], scope: Int) extends SourceOf(name, stmt, scope) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSourceOf]) false
         else super.isEquivalentTo(other, configuration)
 
-     override def equals(other: scala.Any): Boolean = {
-        if (!other.isInstanceOf[VarSourceOf]) return false
+     override def equals(other: scala.Any): Boolean =
+        if (!other.isInstanceOf[VarSourceOf]) false
+        else super.equals(other)
 
-        val otherSource = other.asInstanceOf[VarSourceOf]
-
-        lazy val eqStmt = getStmt.equals(otherSource.getStmt)
-
-        otherSource.getId.equals(getId) && eqStmt && scope.equals(otherSource.getScope)
-    }
 
     override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + source.hashCode()
 }

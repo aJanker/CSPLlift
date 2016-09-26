@@ -32,7 +32,7 @@ int main()
 
     pp.innerp.x = my2;
 
-    sink = my2;
+    sink = pp.innerp.x;
 
     return sink;
 }
