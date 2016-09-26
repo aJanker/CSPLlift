@@ -12,6 +12,8 @@ abstract class CSPLliftTestOptions(interface : Option[String] = None) extends CS
 
   override def getInformationFlowGraphsOutputDir: String = ""
 
+  override def getVariantsOutputDir: String = ""
+
   override def getCModuleInterfaceMergeDir: String = ""
 
   override def isLiftEvaluationModeEnabled: Boolean = true
@@ -24,4 +26,7 @@ abstract class CSPLliftTestOptions(interface : Option[String] = None) extends CS
 
   override def isLiftSamplingEvaluationEnabled: Boolean = true
 
-  override def isLiftSingleEvaluationEnabled: Boolean = true}
+  override def isLiftSingleEvaluationEnabled: Boolean = true
+
+  override def writeVariants: Boolean = false
+}

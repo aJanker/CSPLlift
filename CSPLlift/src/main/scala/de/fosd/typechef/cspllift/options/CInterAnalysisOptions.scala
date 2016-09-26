@@ -6,7 +6,7 @@ import gnu.getopt.{Getopt, LongOpt}
 class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLliftOptions {
     private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
 
-    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, mergeCLinkingInterfaces: Boolean = false
+    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, liftPrintVariants, mergeCLinkingInterfaces: Boolean = false
 
     private val F_MERGELINKINTERFACE: Char = Options.genOptionId()
     private val F_LINKINTERFACE: Char = Options.genOptionId()
@@ -28,6 +28,8 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def getInformationFlowGraphsOutputDir: String = getOutputStem + "_ifg"
 
+    override def getVariantsOutputDir: String = getOutputStem + "_variants"
+
     override def isLiftEvaluationModeEnabled: Boolean = liftEvalSampling || liftEvalSingle
 
     override def isLiftAnalysisEnabled: Boolean = lift
@@ -41,6 +43,8 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
     override def isLiftSingleEvaluationEnabled: Boolean = liftEvalSingle
 
     override def liftTaintAnalysis: Boolean = SPLLIFT_Taint.isSelected
+
+    override def writeVariants: Boolean = liftPrintVariants
 
     override def getOptionGroups = {
         val r = super.getOptionGroups
@@ -66,6 +70,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
             else if (arg.equalsIgnoreCase("BENCHMARK")) liftBenchmark = true
             else if (arg.equalsIgnoreCase("EVALCOVERAGE")) liftEvalSampling = true
             else if (arg.equalsIgnoreCase("EVALSINGLE")) liftEvalSingle = true
+            else if (arg.equalsIgnoreCase("PRINTVARIANTS")) liftPrintVariants = true
             else {
                 val opt = liftopts.find(_.param.toUpperCase equalsIgnoreCase arg)
 
@@ -89,5 +94,4 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
         true
     }
-
 }

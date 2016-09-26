@@ -1,6 +1,8 @@
 package de.fosd.typechef.cspllift.commons
 
+import java.io.{FileOutputStream, PrintWriter}
 import java.util
+import java.util.zip.GZIPOutputStream
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.customization.crewrite.AssignDeclDefUse
@@ -10,6 +12,12 @@ import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, 
 import scala.collection.JavaConverters._
 
 trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with ConditionalNavigation with TUnitRewriteEngine {
+
+    def writeStringToGZipFile(output : String, destination : String) = {
+        val fw = new PrintWriter(new GZIPOutputStream(new FileOutputStream(destination)))
+        fw.write(output)
+        fw.close()
+    }
 
     def getFileName(originalFilePath: Option[String]): Option[String] =
         originalFilePath match {

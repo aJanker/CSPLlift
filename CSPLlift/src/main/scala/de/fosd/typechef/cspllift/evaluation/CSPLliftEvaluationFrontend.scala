@@ -1,9 +1,11 @@
 package de.fosd.typechef.cspllift.evaluation
 
+import java.io._
+
 import de.fosd.typechef.cspllift.analysis.Taint2
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
-import de.fosd.typechef.cspllift.commons.{ConditionTools, KiamaRewritingRules}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
 import de.fosd.typechef.customization.StopWatch
@@ -12,7 +14,7 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
 import soot.spl.ifds.Constraint
 
-class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with KiamaRewritingRules {
+class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
 
     def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
@@ -61,8 +63,11 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             val run = "coverage_" + i
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
-            (solution, config, wallTime)
+            (solution, config, icfg, wallTime)
         })
+
+        // Print Variants
+        if (opt.writeVariants) printVariants(coverageFacts, opt, "codeCoverage")
 
         // 4. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -118,8 +123,11 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             val run = "singleConf_" + i
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
-            (solution, config, wallTime)
+            (solution, config, icfg, wallTime)
         })
+
+        // Print Variants
+        if (opt.writeVariants) printVariants(coverageFacts, opt, "conditionCoverage")
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -168,7 +176,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
     private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]) = {
         val interestingLiftedFacts = liftedFacts.filter(_._1.isInterestingFact)
-        val interestingSamplingFacts = samplingResults.map(res => (res._1.filter(_._1.isInterestingFact) ,res._2))
+        val interestingSamplingFacts = samplingResults.map(res => (res._1.filter(_._1.isInterestingFact), res._2))
 
         var matchedLiftedFacts = scala.collection.mutable.Map[LiftedCFlowFact[D], Int]()
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
@@ -195,10 +203,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         val unmatchedLiftedFacts = matchedLiftedFacts.toList.collect { case ((x, 0)) => x }
 
-       /* interestingSamplingFacts.foreach(s => {
-           println(s._2)
-           s._1.foreach(x => println(x._1.toText))
-       }) */
+        /* interestingSamplingFacts.foreach(s => {
+            println(s._2)
+            s._1.foreach(x => println(x._1.toText))
+        }) */
 
         (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts)
     }
@@ -211,4 +219,21 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
             (CSPLlift.solve[D](problem), cInterCFG)
         })
+
+    private def printVariants[T <: CIFDSProblem[D], D <: CFlowFact](coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method : String): Unit = {
+        coverageFacts.zipWithIndex.foreach {
+            case ((_, config, icfg, _), index) =>
+                val outputDir = opt.getVariantsOutputDir + "/" + method + "/" + index
+                val output = new File(outputDir)
+
+                if (!(output.exists() && output.isDirectory)) output.mkdirs()
+
+                writeStringToGZipFile(config.toString, outputDir + "/config")
+
+                icfg.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(tunit => {
+                    val variant = outputDir + "/" + getFileName(tunit.defs.last.entry.getFile).get + ".c"
+                    writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
+                })
+        }
+    }
 }

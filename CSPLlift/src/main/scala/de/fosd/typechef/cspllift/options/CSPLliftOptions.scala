@@ -7,6 +7,7 @@ trait CSPLliftOptions {
     def getInformationFlowGraphExtension: String
     def getInformationFLowGraphFilename: String
     def getInformationFlowGraphsOutputDir: String
+    def getVariantsOutputDir: String
     def getCModuleInterfaceMergeDir: String
 
     def isLiftEvaluationModeEnabled: Boolean
@@ -19,4 +20,6 @@ trait CSPLliftOptions {
     def isLiftSingleEvaluationEnabled: Boolean
 
     def liftTaintAnalysis : Boolean
+
+    def writeVariants : Boolean
 }

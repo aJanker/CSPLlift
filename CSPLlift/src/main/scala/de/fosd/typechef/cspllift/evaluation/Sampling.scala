@@ -71,7 +71,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
                               includeVariabilityFromHeaderFiles: Boolean = false):
     (List[SimpleConfiguration], String) = {
 
-        val unsatCombinationsCacheFile = new File("unsatCombinationsCache.txt")
+        val unsatCombinationsCacheFile = new File("unsatCombinationsCache")
         // using this is not correct when different files have different presence conditions
         val useUnsatCombinationsCache = false
         val unsatCombinationsCache: scala.collection.immutable.HashSet[String] = if (useUnsatCombinationsCache && unsatCombinationsCacheFile.exists()) {
