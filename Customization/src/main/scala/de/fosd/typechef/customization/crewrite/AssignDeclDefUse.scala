@@ -146,7 +146,7 @@ trait AssignDeclDefUse {
 
     lazy val assignsVariables: AnyRef => List[(Id, List[Id])] =
         attr {
-            case AssignExpr(PostfixExpr(target: Id, _), _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
+            case AssignExpr(PostfixExpr(target: Id, _), _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List((target, List()))
             case AssignExpr(target: Id, _, source) => if (uses(source).nonEmpty) List((target, uses(source))) else List()
             case DeclarationStatement(d) => assignsVariables(d)
             case Declaration(_, init) => init.flatMap(assignsVariables)

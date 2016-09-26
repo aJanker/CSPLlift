@@ -8,7 +8,9 @@ import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 
-trait InformationFlow2 extends Product with CFlowFact with KiamaRewritingRules {
+trait InformationFlow2 extends Product with CFlowFact with KiamaRewritingRules with Cloneable {
+    override def clone(): InformationFlow2.this.type = super.clone().asInstanceOf[InformationFlow2.this.type]
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = equals(other)
 
     override def isInterestingFact: Boolean = false
