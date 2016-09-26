@@ -220,7 +220,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             (CSPLlift.solve[D](problem), cInterCFG)
         })
 
-    private def printVariants[T <: CIFDSProblem[D], D <: CFlowFact](coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method : String): Unit = {
+    private def printVariants[T <: CIFDSProblem[D], D <: CFlowFact](coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method: String): Unit = {
         coverageFacts.zipWithIndex.foreach {
             case ((_, config, icfg, _), index) =>
                 val outputDir = opt.getVariantsOutputDir + "/" + method + "/" + index
@@ -230,10 +230,11 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
                 writeStringToGZipFile(config.toString, outputDir + "/config")
 
-                icfg.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(tunit => {
-                    val variant = outputDir + "/" + getFileName(tunit.defs.last.entry.getFile).get + ".c"
-                    writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
-                })
+                icfg.cInterCFGElementsCacheEnv.getAllFiles.foreach {
+                    case (file, tunit) =>
+                        val variant = outputDir + "/" + getPlainFileNameS(file) + ".c"
+                        writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
+                }
         }
     }
 }
