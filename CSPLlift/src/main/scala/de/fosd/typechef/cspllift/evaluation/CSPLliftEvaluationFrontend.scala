@@ -228,7 +228,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         vaaCIFG.cInterCFGElementsCacheEnv.getAllFiles.foreach {
             case (file, tunit) =>
-                val variant = print + "/" + getPlainFileNameS(file) + ".c"
+                val variant = printDir + "/" + getPlainFileNameS(file) + ".c"
                 writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
         }
 
