@@ -1,25 +1,59 @@
 //#include <stdlib.h>
 //#include <stdio.h>
 
-int cipher1(int i) {
-   int res = 0;
-   int x = 1000;
-   int dbg;
 
-   #ifdef B
-     i = x;
+int main() {
+    int x = 5;
+    int i = 0;
+    int sink;
+    int sink2;
+    int sink3;
+
+    #ifdef A
+       i = x;
+       sink2 = i;
+    #endif
+
+    int a;
+    int b;
+    sink3 = i;
+    int c;
+
+    #ifdef A
+       sink = i;
+    #endif
+
+    return;
+}
+
+/*
+int cipher1(int i) {
+   int res, x = 0;
+   int y = 10;
+   int dbg = res;
+
+   #ifdef C
+      x = y;
    #endif
 
+   int a = 5;
+   int b = 6;
+
+   #ifdef C
+     int res2 = x;
+   #endif
+
+   int c = 7;
 
     if (i < 10) {
         #ifdef C
-            res = i >> x;
-        #else
             res = x;
+        #else
+            res = i >> x;
         #endif
     }
 
-
+    dbg = x;
     dbg = res;
 
    return res;
@@ -61,4 +95,4 @@ int main() {
     printf("%i\n", sink);
 
     return 0;
-}
+} */

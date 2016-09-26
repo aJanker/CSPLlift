@@ -223,6 +223,11 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = {
         val succs = getSuccsOfS(stmt)
+
+        if (stmt.entry.equals(ExprStatement(AssignExpr(Id("dbg"),"=",Id("res"))))) {
+            println("dbg")
+        }
+
         cInterCFGNodes.++=(succs)
         succs.asJava
     }
