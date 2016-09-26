@@ -1,4 +1,4 @@
-int sink2;
+int sink2 = 0;
 
 int foo(int i) {
     return i;
@@ -14,14 +14,19 @@ int bar(int j) {
 #ifdef A
     foo2(j);
 #endif
-    int r = foo()
+    int r = foo(j);
     return r;
 }
 
 
-void main() {
+int main() {
     int x = 4;
+
+    int y;
     int sink = bar(x);
+
+    y = sink;
     x = sink2;
-    return;
+
+    return y;
 }
