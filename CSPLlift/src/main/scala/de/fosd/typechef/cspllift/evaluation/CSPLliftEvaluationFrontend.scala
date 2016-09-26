@@ -67,7 +67,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         // Print Variants
-        if (opt.writeVariants) printVariants(coverageFacts, opt, "codeCoverage")
+        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, "codeCoverage")
 
         // 4. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -127,7 +127,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         // Print Variants
-        if (opt.writeVariants) printVariants(coverageFacts, opt, "conditionCoverage")
+        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, "conditionCoverage")
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -220,10 +220,21 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             (CSPLlift.solve[D](problem), cInterCFG)
         })
 
-    private def printVariants[T <: CIFDSProblem[D], D <: CFlowFact](coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method: String): Unit = {
+    private def printVariants[T <: CIFDSProblem[D], D <: CFlowFact](vaaCIFG: CInterCFG, coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method: String): Unit = {
+        val printDir = opt.getVariantsOutputDir + "/" + method + "/"
+        val print = new File(printDir)
+
+        if (!(print.exists() && print.isDirectory)) print.mkdirs()
+
+        vaaCIFG.cInterCFGElementsCacheEnv.getAllFiles.foreach {
+            case (file, tunit) =>
+                val variant = print + "/" + getPlainFileNameS(file) + ".c"
+                writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
+        }
+
         coverageFacts.zipWithIndex.foreach {
             case ((_, config, icfg, _), index) =>
-                val outputDir = opt.getVariantsOutputDir + "/" + method + "/" + index
+                val outputDir = printDir + "/" + index
                 val output = new File(outputDir)
 
                 if (!(output.exists() && output.isDirectory)) output.mkdirs()
