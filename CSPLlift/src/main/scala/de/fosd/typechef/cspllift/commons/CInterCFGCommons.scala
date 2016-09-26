@@ -14,7 +14,7 @@ import scala.collection.JavaConverters._
 trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with ConditionalNavigation with TUnitRewriteEngine {
 
     def writeStringToGZipFile(output : String, destination : String) = {
-        val fw = new PrintWriter(new GZIPOutputStream(new FileOutputStream(destination)))
+        val fw = new PrintWriter(new GZIPOutputStream(new FileOutputStream(destination + ".gz")))
         fw.write(output)
         fw.close()
     }
