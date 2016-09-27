@@ -93,7 +93,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 else super.computeTargets(s)
 
                                 test
-                            case s@StructSourceOf(id, field, _, source, scope) => // todo self assignment possible?
+                            case s@StructSourceOf(id, field, _, source, scope, _) => // todo self assignment possible?
 
                                 if (field.isDefined && currStructFieldAssigns.exists(assignment => isFullAssignmentMatch(s, assignment) || isPartAssignmentMatch(s, assignment))) KILL
                                 else if (currStructFieldAssigns.isEmpty && currAssignments.exists { case (assignee, assignors) => assignee.equals(id) }) KILL // new assignment to struct -> kill all facts
@@ -107,7 +107,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     val genSet = assignments.flatMap {
                                         case (assignee, assignors) =>
                                             val sink = SinkToAssignment(currOpt, v, assignee)
-                                            val sourceOf = VarSourceOf(assignee, currOpt, v, scope)
+                                            val sourceOf = VarSourceOf(assignee, currOpt, v, scope, Some(currOpt.entry))
                                             List(sink, sourceOf)
                                     }
                                     GEN(genSet)
@@ -120,7 +120,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, SCOPE_UNKNOWN, Some(currOpt.entry)) }
                                     val sourcesOf = sources.map(newSource => {
                                         val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(newSource.name.name).select(currOpt.condition.collectDistinctFeatures)
-                                        VarSourceOf(newSource.name, currOpt, v, scope)
+                                        VarSourceOf(newSource.name, currOpt, v, scope, Some(currOpt.entry))
                                     })
                                     val sinks = assignees.map(assignment => SinkToAssignment(currOpt, v, assignment._1))
 
@@ -130,7 +130,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     GEN(List(sink, v.copy(last = Some(curr.entry))))
                                 } else super.computeTargets(v.copy(last = Some(curr.entry)))
 
-                            case vo@VarSourceOf(id, _, source, scope) =>
+                            case vo@VarSourceOf(id, _, source, scope, _) =>
                                 // Self Assignment -> new VarSource + SourceOf + Kill old source
                                 if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }) {
                                     val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }
@@ -138,7 +138,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     val genSet = assignments.flatMap {
                                         case (assignee, assignors) =>
                                             val sink = SinkToAssignment(currOpt, source, assignee)
-                                            val sourceOf = VarSourceOf(assignee, currOpt, source, scope)
+                                            val sourceOf = VarSourceOf(assignee, currOpt, source, scope, Some(currOpt.entry))
                                             List(sink, sourceOf)
                                     }
                                     GEN(genSet)
@@ -151,14 +151,14 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, SCOPE_UNKNOWN, Some(currOpt.entry)) }
                                     val sourcesOf = sources.map(newSource => {
                                         val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(newSource.name.name).select(currOpt.condition.collectDistinctFeatures)
-                                        VarSourceOf(newSource.name, currOpt, source, scope)
+                                        VarSourceOf(newSource.name, currOpt, source, scope, Some(currOpt.entry))
                                     })
                                     val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source, assignment._1))
 
-                                    GEN(vo :: sourcesOf ::: sinks)
+                                    GEN(vo.copy(last = Some(currOpt.entry)) :: sourcesOf ::: sinks)
                                 } else if (currStructFieldAssigns.isEmpty && currAssignments.isEmpty && currUses.contains(id)) {
                                     val sink = SinkToUse(currOpt, vo)
-                                    GEN(List(sink, vo))
+                                    GEN(List(sink, vo.copy(last = Some(currOpt.entry))))
                                 } else super.computeTargets(vo)
 
                             case z: Zero if currAssignments.nonEmpty || currStructFieldAssigns.nonEmpty => // TODO Documentation
@@ -236,18 +236,18 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                     callParamMatch._1.foldLeft(List[InformationFlow2]())((genSrc, expr) =>
                                         callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
                                             val genSource = VarSource(pDef.entry.decl.getId, currOpt, SCOPE_LOCAL, Some(currOpt.entry))
-                                            val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, v, SCOPE_LOCAL)
+                                            val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, v, SCOPE_LOCAL, Some(currOpt.entry))
                                             genSource :: sourceOf :: genSrc
                                         })))
                                 if (vScope == SCOPE_GLOBAL) GEN(v :: genSet) else GEN(genSet)
                             }
-                            case vo@VarSourceOf(id, _, source, voScope) => {
+                            case vo@VarSourceOf(id, _, source, voScope, _) => {
                                 val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam => uses(callParamToDefParam._1).exists(id.equals))
                                 val genSet = callParamMatches.flatMap(callParamMatch =>
                                     callParamMatch._1.foldLeft(List[InformationFlow2]())((genSrc, expr) =>
                                         callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
                                             val genSource = VarSource(pDef.entry.decl.getId, currOpt, SCOPE_LOCAL, Some(currOpt.entry))
-                                            val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, source, SCOPE_LOCAL)
+                                            val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, source, SCOPE_LOCAL, Some(currOpt.entry))
                                             genSource :: sourceOf :: genSrc
                                         })))
                                 if (voScope == SCOPE_GLOBAL) GEN(vo :: genSet) else GEN(genSet)
@@ -321,27 +321,27 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                         val assignee = assignment._1
                                         val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.entry).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
                                         val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
-                                        val sourceOf = VarSourceOf(assignee, fCallOpt, v, scope)
+                                        val sourceOf = VarSourceOf(assignee, fCallOpt, v, scope, Some(currOpt.entry))
                                         val sink = SinkToAssignment(fCallOpt, v, assignee)
                                         List(newSource, sourceOf, sink)
                                     case _ => None
                                 })
 
-                                if (vscope == SCOPE_GLOBAL) GEN(v :: genSet) else GEN(genSet)
+                                if (vscope == SCOPE_GLOBAL) GEN(v.copy(last = Some(currOpt.entry)) :: genSet) else GEN(genSet)
 
-                            case vo@VarSourceOf(id, _, source, vo_scope) =>
+                            case vo@VarSourceOf(id, _, source, vo_scope, _) =>
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if id.equals(x) =>
                                         val assignee = assignment._1
                                         val scope = interproceduralCFG.getTS(callSite).lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
                                         val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
-                                        val sourceOf = VarSourceOf(assignee, fCallOpt, source, scope)
+                                        val sourceOf = VarSourceOf(assignee, fCallOpt, source, scope, Some(currOpt.entry))
                                         val sink = SinkToAssignment(fCallOpt, source, assignee)
                                         List(newSource, sourceOf, sink)
                                     case _ => None
                                 })
 
-                                if (vo_scope == SCOPE_GLOBAL) GEN(vo :: genSet) else GEN(genSet)
+                                if (vo_scope == SCOPE_GLOBAL) GEN(vo.copy(last = Some(currOpt.entry)) :: genSet) else GEN(genSet)
 
                             case s: Sink => GEN(s)
                             case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)

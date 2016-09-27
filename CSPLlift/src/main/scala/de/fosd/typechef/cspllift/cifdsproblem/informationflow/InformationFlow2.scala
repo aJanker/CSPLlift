@@ -125,18 +125,18 @@ case class VarSource(name: Id, override val stmt: Opt[AST], scope: Int, last: Op
     override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + last.hashCode()
 }
 
-sealed abstract class SourceOf(id: Id, stmt: Opt[AST], scope: Int) extends Source(id, stmt, scope, None) {
+sealed abstract class SourceOf(id: Id, stmt: Opt[AST], scope: Int, last : Option[AST]) extends Source(id, stmt, scope, last) {
     override def equals(other: scala.Any): Boolean = {
         if (!other.isInstanceOf[SourceOf]) return false
 
         val otherSourceOf = other.asInstanceOf[SourceOf]
 
         val eqStmt = getStmt.equals(otherSourceOf.getStmt)
-        otherSourceOf.getId.equals(getId) && eqStmt && scope.equals(otherSourceOf.getScope)
+        otherSourceOf.getId.equals(getId) && eqStmt && scope.equals(otherSourceOf.getScope) && getLastStmt.equals(otherSourceOf.getLastStmt)
     }
 }
 
-case class StructSourceOf(name: Id, field: Option[Source], override val stmt: Opt[AST], source: Source, scope: Int) extends SourceOf(name, stmt, scope) {
+case class StructSourceOf(name: Id, field: Option[Source], override val stmt: Opt[AST], source: Source, scope: Int, last : Option[AST]) extends SourceOf(name, stmt, scope, last) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[StructSourceOf]) false
         else {
@@ -151,10 +151,10 @@ case class StructSourceOf(name: Id, field: Option[Source], override val stmt: Op
         if (!other.isInstanceOf[StructSourceOf]) false
         else other.asInstanceOf[StructSourceOf].field.equals(field) && super.equals(other)
 
-    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + source.hashCode() + field.hashCode()
+    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + source.hashCode() + field.hashCode() + last.hashCode()
 }
 
-case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, scope: Int) extends SourceOf(name, stmt, scope) {
+case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, scope: Int, last : Option[AST]) extends SourceOf(name, stmt, scope, last) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSourceOf]) false
         else super.isEquivalentTo(other, configuration)
@@ -164,5 +164,5 @@ case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, sc
         else super.equals(other)
 
 
-    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + source.hashCode()
+    override def hashCode(): Int = getId.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + source.hashCode() + last.hashCode()
 }
