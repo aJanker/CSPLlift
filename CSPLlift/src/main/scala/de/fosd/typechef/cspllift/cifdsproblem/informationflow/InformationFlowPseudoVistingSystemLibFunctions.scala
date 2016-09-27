@@ -20,10 +20,10 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends CFlowOperations[Inf
         new FlowFunction[InformationFlow2] {
             override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] =
                 flowFact match {
-                    case v@VarSource(source, _, isSourceOf, usedIn, scope) if callUses.contains(source) =>
+                    case v@VarSource(source, _, scope, _) if callUses.contains(source) =>
                         val sink = SinkToUse(fCallNode, v)
-                        if (scope == SCOPE_GLOBAL) GEN(List(v, sink)) else GEN(sink)
-                    case vo@VarSourceOf(id, _, source, usedIn, scope) if callUses.contains(id) =>
+                        if (scope == SCOPE_GLOBAL) GEN(List(v.copy(last = Some(fCallNode.entry)), sink)) else GEN(sink)
+                    case vo@VarSourceOf(id, _, source, scope) if callUses.contains(id) =>
                         val sink = SinkToUse(fCallNode, source)
                         if (scope == SCOPE_GLOBAL) GEN(List(vo, sink)) else GEN(sink)
                     case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
