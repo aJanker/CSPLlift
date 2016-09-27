@@ -32,10 +32,6 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         extractIntraproceduralAssignments(context)
         context.solve()
 
-        context.showPointerEquivalenceClasses()
-
-        context
-
         /*extractInterproceduralFieldPointerAccesses(context)
         context.solve() */
     }
