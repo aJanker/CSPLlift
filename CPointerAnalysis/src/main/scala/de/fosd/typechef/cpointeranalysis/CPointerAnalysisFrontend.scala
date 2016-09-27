@@ -7,8 +7,8 @@ import de.fosd.typechef.customization.conditional.ConditionalSet
 import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem._
 import de.fosd.typechef.typesystem.linker.CSignature
-import de.fosd.typechef.typesystem.{CDeclUse, CFunction, CTypeCache, CTypeSystemFrontend}
 
 import scala.collection.immutable.Map
 import scala.collection.mutable
@@ -22,15 +22,19 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                                featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty,
                                DEBUG: Boolean = false) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
-    lazy val linking : Option[CLinking] = None
-        /*if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
-        else None */
+    lazy val linking: Option[CLinking] = None
+    /*if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
+    else None */
 
-    def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, env : (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse])): CPointerAnalysisContext = {
+    def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, env: (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse])): CPointerAnalysisContext = {
         val context = extractObjectNames(tUnit, env)
 
         extractIntraproceduralAssignments(context)
         context.solve()
+
+        context.showPointerEquivalenceClasses()
+
+        context
 
         /*extractInterproceduralFieldPointerAccesses(context)
         context.solve() */
@@ -46,7 +50,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         def getField(objectName: ObjectName): String = objectName.substring(objectName.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString) + ObjectNameOperator.StructPointerAccess.toString.length)
 
         def isFieldAccessOf(parent: String, child: String): Boolean = {
-            def isFieldAccessOf(fieldAccess: String) : Boolean = {
+            def isFieldAccessOf(fieldAccess: String): Boolean = {
                 val defaultStructPointerAccess = parent + fieldAccess
                 lazy val nestedStructPointerAccess = "(" + parent + fieldAccess
                 lazy val doubleNestedStructPointerAccess = "(" + parent + ")" + fieldAccess
@@ -201,11 +205,11 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         assignmentsPartition._2.toPlainSetWithConditionals().foreach({ case (assign, featExpr) =>
             if (assign._1 contains ObjectNameOperator.FunctionCall.toString) {
                 context.functionDefReturns.getOrElse(ObjectNameOperator.unscopeName(assign._1.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
-                    x => normalizedAssignments +=((x._1, assign._2), featExpr and x._2)
+                    x => normalizedAssignments += ((x._1, assign._2), featExpr and x._2)
                 })
             } else if (assign._2 contains ObjectNameOperator.FunctionCall.toString) {
                 context.functionDefReturns.getOrElse(ObjectNameOperator.unscopeName(assign._2.replaceAll("\\(\\)", "")), ConditionalSet()).toPlainSetWithConditionals().foreach({
-                    x => normalizedAssignments +=((x._1, assign._1), featExpr and x._2)
+                    x => normalizedAssignments += ((x._1, assign._1), featExpr and x._2)
                 })
             }
         })
@@ -213,7 +217,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         context
     }
 
-    private def extractObjectNames(ast: AST, env : (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse])): CPointerAnalysisContext = {
+    private def extractObjectNames(ast: AST, env: (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse])): CPointerAnalysisContext = {
 
         // context variables
         var analyisContext: CPointerAnalysisContext = new CPointerAnalysisContext()
@@ -240,8 +244,10 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         var functionCallParameters: List[(FunctionName, List[Opt[ObjectName]])] = List()
 
         //helper functions
-        val cachedEnv : (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse]) = env
-        def getEnv(node: AST): Option[ASTEnv] = cachedEnv._1.find {_.containsASTElem(node)}
+        val cachedEnv: (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse]) = env
+        def getEnv(node: AST): Option[ASTEnv] = cachedEnv._1.find {
+            _.containsASTElem(node)
+        }
         def getTypeSystem(node: AST): Option[CTypeSystemFrontend with CTypeCache with CDeclUse] =
             getEnv(node) match {
                 case Some(env) =>
@@ -347,9 +353,9 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                     if (oldFunctionDef.isDefined) {
                         val oldCtx = oldFunctionDef.map({ case ((name, kind, _), featExpr) => featExpr }).getOrElse(True)
                         functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("function") })
-                        functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx or oldCtx)
+                        functionDefs += ((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx or oldCtx)
                     } else {
-                        functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
+                        functionDefs += ((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
                     }
 
                     // extract function parameters and body statements
@@ -373,7 +379,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                     // if it is a function declaration
                     val funcDef = functionDefs.toPlainSet().filter({ case (name, kind, _) => name.equals(currentFunction) && (kind.equals("function") || kind.equals("declaration")) })
                     if (funcDef.isEmpty) {
-                        functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
+                        functionDefs += ((currentFunction, "declaration", currentDeclaratorLine), ctx)
                     }
                     for (Opt(fExpr, e) <- idList) extractAST(e, fExpr)
                     currentFunction = previousFunction
@@ -393,7 +399,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                     // if it is a function declaration
                     val funcDef = functionDefs.toPlainSet().filter({ case (name, kind, _) => name.equals(currentFunction) && (kind.equals("function") || kind.equals("declaration")) })
                     if (funcDef.isEmpty) {
-                        functionDefs +=((currentFunction, "declaration", currentDeclaratorLine), ctx)
+                        functionDefs += ((currentFunction, "declaration", currentDeclaratorLine), ctx)
                     }
 
                     // add function as object name
@@ -662,7 +668,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
                         // is a function call?
                         else if (exprStr2.get equals ObjectNameOperator.FunctionCall.toString) {
-                            functionCallParameters +:=(exprStr1.get, functionCallParamList)
+                            functionCallParameters +:= (exprStr1.get, functionCallParamList)
                             functionCalls = functionCalls.+((currentFunction, exprStr1.get), ctx)
 
                             analyisContext.addObjectName(analyisContext.applyScope(exprStr1.get + ObjectNameOperator.FunctionCall.toString, currentFunction, currentFile), ctx)
@@ -674,9 +680,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                 case BuiltinOffsetof(typeName: TypeName, offsetofMemberDesignator: List[Opt[OffsetofMemberDesignator]]) => None
                 case BuiltinTypesCompatible(typeName1: TypeName, typeName2: TypeName) => None
                 case BuiltinVaArgs(expr: Expr, typeName: TypeName) => None
-                case curly@LcurlyInitializer(inits: List[Opt[Initializer]]) =>
-                    extractCurlyInitializer(curly, ctx)
-                    None
+                case curly@LcurlyInitializer(inits: List[Opt[Initializer]]) => extractCurlyInitializer(curly, ctx)
                 case AlignOfExprT(typeName: TypeName) => extractAST(typeName, ctx);
                 case AlignOfExprU(expr: Expr) => extractExpr(expr, ctx);
                 case GnuAsmExpr(isVolatile: Boolean, isGoto: Boolean, expr: StringLit, stuff: Any) => extractExpr(expr, ctx);
@@ -685,15 +689,78 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
             }
         }
 
-        def extractCurlyInitializer(curly: LcurlyInitializer, ctx: FeatureExpr): Option[String] = {
+        def extractCurlyInitializer(curly: LcurlyInitializer, ctx: FeatureExpr): Option[String] = { // TODO Refactor
             if (DEBUG) {
                 println(curly)
             }
 
-            /*println("curly")
             val env = getEnv(curly).get
+            val priorDeclaration = findPriorASTElem[Declaration](curly, env)
+
+            if (priorDeclaration.isEmpty) {
+                println("No parent of curly declaration found.\n" + PrettyPrinter.print(curly))
+                return None
+            }
+
             val ts = getTypeSystem(curly).get
-            println(findPriorASTElem[StructOrUnionSpecifier](curly, env)) */
+            val tsEnv = ts.lookupEnv(curly)
+
+            lazy val typeDefTypeSpecifiers = filterASTElems[TypeDefTypeSpecifier](priorDeclaration.get)
+            lazy val structOrUnionSpecifiers = filterASTElems[StructOrUnionSpecifier](priorDeclaration.get)
+            lazy val isPointer = priorDeclaration.get.init.exists(init => init.entry.declarator.pointers.nonEmpty)
+            lazy val accessOperator = if (isPointer) ObjectNameOperator.StructPointerAccess.toString else ObjectNameOperator.StructAccess.toString
+
+            if (typeDefTypeSpecifiers.nonEmpty) {
+                typeDefTypeSpecifiers.foreach(spec => {
+                    val cTypes = tsEnv.typedefEnv.apply(spec.name.name)
+                    cTypes.foreach {
+                        case CType(s: CAnonymousStruct, _, _, _) =>
+
+                            val allFields = s.fields.keys.toList.map(key => (key, s.fields.apply(key)))
+                            val zip = allFields.zip(curly.inits) // TODO Check for vaa-errors
+
+                            zip.foreach {
+                                case ((field, fieldType), init) =>
+                                    val scope = analyisContext.findScopeForObjectName(currentDeclarator, currentFunction)
+                                    val name = extractAST(init.entry, ctx and init.condition)
+
+                                    if (name.isDefined) {
+                                        val objectName1 = analyisContext.applyScope(applyOperator(accessOperator, ObjectNameOperator.parenthesize(currentDeclarator)) + ObjectNameOperator.parenthesize(field), scope, currentFile)
+                                        val objectName2 = analyisContext.applyScope(name.get, scope, currentFile)
+                                        fieldType.toList.foreach(ft => {
+                                            analyisContext.addObjectName(objectName1, ctx and ft._1)
+                                            analyisContext.addObjectNameAssignment((objectName1, objectName2), ctx and ft._1 and init.condition)
+                                        })
+                                    }
+                            }
+                        case x => println("Missed curly type of: " + x)
+                    }
+                })
+            } else if (structOrUnionSpecifiers.nonEmpty) {
+                for (spec <- structOrUnionSpecifiers if spec.id.isDefined) {
+                    val fields = tsEnv.structEnv.getFields(spec.id.get.name, spec.isUnion).toOptList
+
+                    fields.foreach(cField => {
+                        val allFields = cField.entry.keys.toList.map(key => (key, cField.entry.apply(key)))
+                        val zip = allFields.zip(curly.inits) // TODO Check for vaa-errors
+
+                        zip.foreach {
+                            case ((field, fieldType), init) =>
+                                val scope = analyisContext.findScopeForObjectName(currentDeclarator, currentFunction)
+                                val name = extractAST(init.entry, ctx and init.condition and cField.condition)
+
+                                if (name.isDefined) {
+                                    val objectName1 = analyisContext.applyScope(applyOperator(accessOperator, ObjectNameOperator.parenthesize(currentDeclarator)) + ObjectNameOperator.parenthesize(field), scope, currentFile)
+                                    val objectName2 = analyisContext.applyScope(name.get, scope, currentFile)
+                                    fieldType.toList.foreach(ft => {
+                                        analyisContext.addObjectName(objectName1, ctx and ft._1 and cField.condition)
+                                        analyisContext.addObjectNameAssignment((objectName1, objectName2), ctx and ft._1 and init.condition and cField.condition)
+                                    })
+                                }
+                        }
+                    })
+                }
+            }
             None
         }
 
@@ -756,7 +823,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                         val exprStr = extractExpr(expr.get, ctx)
                         if (exprStr.isDefined) {
                             val scope = analyisContext.findScopeForObjectName(exprStr.get, currentFunction)
-                            functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, ConditionalSet()) +(analyisContext.applyScope(exprStr.get, scope, currentFile), ctx))
+                            functionDefReturns = functionDefReturns.updated(currentFunction, functionDefReturns.getOrElse(currentFunction, ConditionalSet()) + (analyisContext.applyScope(exprStr.get, scope, currentFile), ctx))
                         }
                     }
                     None
@@ -826,9 +893,9 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                     if (oldFunctionDef.isDefined) {
                         val oldCtx = oldFunctionDef.map({ case ((name, kind, _), featExpr) => featExpr }).getOrElse(True)
                         functionDefs = functionDefs.filterNot({ case (name, kind, _) => name.equals(currentFunction) && kind.equals("function") })
-                        functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx or oldCtx)
+                        functionDefs += ((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx or oldCtx)
                     } else {
-                        functionDefs +=((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
+                        functionDefs += ((currentFunction, currentFunctionKind, currentDeclaratorLine), ctx)
                     }
                     // extract function parameters and body statements
                     for (Opt(featExpr, p) <- parameters) extractAST(p, ctx and featExpr)
