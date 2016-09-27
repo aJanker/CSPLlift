@@ -8,6 +8,10 @@ int main() {
     int sink;
     int sink2;
     int sink3;
+    int sink4;
+    int sink5;
+
+    start = x;
 
     #ifdef A
        i = x;
@@ -17,11 +21,21 @@ int main() {
     int a;
     int b;
     sink3 = i;
-    int c;
+    sink5 = x;
 
     #ifdef A
+     sink4 = i;
+    #endif
+
+    int c;
+
+    #ifndef A
        sink = i;
     #endif
+
+    int e;
+    int f;
+    int g;
 
     return;
 }

@@ -23,7 +23,7 @@ public class SPLFeatureFunction implements EdgeFunction<Constraint> {
     }
 
     public EdgeFunction<Constraint> composeWith(EdgeFunction<Constraint> secondFunction) {
-        if (secondFunction instanceof EdgeIdentity || secondFunction instanceof AllTop) return this;
+        if (secondFunction instanceof EdgeIdentity || secondFunction instanceof AllTop ) return this;
 
         SPLFeatureFunction other = (SPLFeatureFunction) secondFunction;
         return new SPLFeatureFunction(this.and(other.condition), fm, useFM);

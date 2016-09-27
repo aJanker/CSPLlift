@@ -5,8 +5,8 @@ import java.util
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
-import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
+import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
@@ -224,9 +224,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = {
         val succs = getSuccsOfS(stmt)
 
-        if (stmt.entry.equals(ExprStatement(AssignExpr(Id("dbg"),"=",Id("res"))))) {
+        /*if (stmt.entry.equals(ExprStatement(AssignExpr(Id("start"),"=",Id("x"))))) {
             println("dbg")
-        }
+        } */
 
         cInterCFGNodes.++=(succs)
         succs.asJava
@@ -278,7 +278,17 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isFallThroughSuccessor(stmt: Opt[AST], succ: Opt[AST]): Boolean = {
         val successors = getSuccsOfS(stmt)
-        successors.contains(succ) && ((successors.size == 1) || !successors.exists(s => !s.equals(succ) && succ.condition.and(s.condition).isSatisfiable(getFeatureModel)))
+
+        /* if (stmt.entry.equals(ExprStatement(AssignExpr(Id("start"),"=",Id("x"))))) {
+            val cond = successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.condition.and(condition))
+            val dbg =         successors.size > 1 && successors.last.entry.equals(succ.entry) && successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.condition.and(condition)).equivalentTo(successors.last.condition.not())
+
+            println(dbg )
+            println(cond)
+        } */
+
+        successors.size > 1 && successors.last.entry.equals(succ.entry) && !getPresenceNode(succ.entry).condition.equals(succ.condition) && successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.condition.and(condition)).not().equivalentTo(successors.last.condition)
+        //successors.contains(succ) && ((successors.size == 1) || !successors.exists(s => !s.equals(succ) && succ.condition.and(s.condition).isSatisfiable(getFeatureModel)))
     }
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
