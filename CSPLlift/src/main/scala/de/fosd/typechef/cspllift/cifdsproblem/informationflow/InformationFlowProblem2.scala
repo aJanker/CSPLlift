@@ -86,13 +86,15 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                     override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] = {
                         val result = flowFact match {
                             case s@StructSource(id, field, _, scope, _) => // todo self assignment possible?
-                                val test =
 
+                                val kills =
+                                // case struct.x(.y) = newValue
                                 if (field.isDefined && currStructFieldAssigns.exists(assignment => isFullAssignmentMatch(s, assignment) || isPartAssignmentMatch(s, assignment))) KILL
+                                    // case newStruct = newValue
                                 else if (currStructFieldAssigns.isEmpty && currAssignments.exists { case (assignee, assignors) => assignee.equals(id) }) KILL // new assignment to struct -> kill all facts
-                                else super.computeTargets(s)
+                                else GEN(s.copy(last = Some(currOpt.entry)))
 
-                                test
+                                kills
                             case s@StructSourceOf(id, field, _, source, scope, _) => // todo self assignment possible?
 
                                 if (field.isDefined && currStructFieldAssigns.exists(assignment => isFullAssignmentMatch(s, assignment) || isPartAssignmentMatch(s, assignment))) KILL
@@ -157,7 +159,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
 
                                     GEN(vo.copy(last = Some(currOpt.entry)) :: sourcesOf ::: sinks)
                                 } else if (currStructFieldAssigns.isEmpty && currAssignments.isEmpty && currUses.contains(id)) {
-                                    val sink = SinkToUse(currOpt, vo)
+                                    val sink = SinkToUse(currOpt, vo.source)
                                     GEN(List(sink, vo.copy(last = Some(currOpt.entry))))
                                 } else super.computeTargets(vo)
 
@@ -239,7 +241,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                             val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, v, SCOPE_LOCAL, Some(currOpt.entry))
                                             genSource :: sourceOf :: genSrc
                                         })))
-                                if (vScope == SCOPE_GLOBAL) GEN(v :: genSet) else GEN(genSet)
+                                if (vScope == SCOPE_GLOBAL) GEN(v.copy(last = Some(currOpt.entry)) :: genSet) else GEN(genSet)
                             }
                             case vo@VarSourceOf(id, _, source, voScope, _) => {
                                 val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam => uses(callParamToDefParam._1).exists(id.equals))
@@ -250,13 +252,13 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                             val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, source, SCOPE_LOCAL, Some(currOpt.entry))
                                             genSource :: sourceOf :: genSrc
                                         })))
-                                if (voScope == SCOPE_GLOBAL) GEN(vo :: genSet) else GEN(genSet)
+                                if (voScope == SCOPE_GLOBAL) GEN(vo.copy(last = Some(currOpt.entry)) :: genSet) else GEN(genSet)
                             }
+                            case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                             case z: Zero if !initialSeedsExists(destinationMethod.entry) =>
                                 // Introduce Global Variables from linked file
                                 filesWithSeeds = filesWithSeeds + destinationMethod.entry.getFile.getOrElse("")
                                 GEN(getZeroFactWithFlow(z) :: globalsAsInitialSeedsL(destinationMethod))
-                            case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                             case z: Zero => GEN(getZeroFactWithFlow(z))
                             case x => super.computeTargets(x)
                         }

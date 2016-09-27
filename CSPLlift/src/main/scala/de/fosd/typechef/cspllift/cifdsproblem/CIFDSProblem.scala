@@ -39,6 +39,7 @@ trait CFlowFact {
 
     def toText: String
 
+    def get: CFlowFact
 }
 
 trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {

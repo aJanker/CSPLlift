@@ -16,6 +16,8 @@ trait InformationFlow2 extends Product with CFlowFact with KiamaRewritingRules w
     override def isInterestingFact: Boolean = false
 
     override def toText: String = toString
+
+    override def get: CFlowFact = this
 }
 
 case class Zero(override val flowCondition: FeatureExpr = BDDFeatureExprFactory.True) extends InformationFlow2 with CZeroFact
@@ -46,12 +48,16 @@ sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) exte
 }
 
 case class SinkToUse(override val stmt: Opt[AST], override val source: Source) extends Sink(stmt, source) {
+    override def get: CFlowFact = SinkToUse(stmt, source.get)
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[SinkToUse]) false
         else super.isEquivalentTo(other, configuration)
 }
 
 case class SinkToAssignment(override val stmt: Opt[AST], override val source: Source, assignee: Id) extends Sink(stmt, source) {
+    override def get: CFlowFact = SinkToAssignment(stmt, source.get, assignee)
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
         if (!other.isInstanceOf[SinkToAssignment]) return false
 
@@ -69,6 +75,8 @@ sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int, last: Option[AS
     def getStmt = stmt
 
     def getLastStmt = last
+
+    override def get: Source = this
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
         if (!other.isInstanceOf[Source]) return false
@@ -93,6 +101,8 @@ sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int, last: Option[AS
 }
 
 case class StructSource(name: Id, field: Option[Source], override val stmt: Opt[AST], scope: Int, last: Option[AST]) extends Source(name, stmt, scope, last) {
+    override def get : StructSource = StructSource(name, field, stmt, scope, None)
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[StructSource]) false
         else {
@@ -113,6 +123,8 @@ case class StructSource(name: Id, field: Option[Source], override val stmt: Opt[
 }
 
 case class VarSource(name: Id, override val stmt: Opt[AST], scope: Int, last: Option[AST]) extends Source(name, stmt, scope, last) {
+    override def get : VarSource = VarSource(name, stmt, scope, None)
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSource]) false
         else super.isEquivalentTo(other, configuration)
@@ -126,6 +138,7 @@ case class VarSource(name: Id, override val stmt: Opt[AST], scope: Int, last: Op
 }
 
 sealed abstract class SourceOf(id: Id, stmt: Opt[AST], scope: Int, last : Option[AST]) extends Source(id, stmt, scope, last) {
+
     override def equals(other: scala.Any): Boolean = {
         if (!other.isInstanceOf[SourceOf]) return false
 
@@ -137,6 +150,8 @@ sealed abstract class SourceOf(id: Id, stmt: Opt[AST], scope: Int, last : Option
 }
 
 case class StructSourceOf(name: Id, field: Option[Source], override val stmt: Opt[AST], source: Source, scope: Int, last : Option[AST]) extends SourceOf(name, stmt, scope, last) {
+    override def get : StructSourceOf = StructSourceOf(name, field, stmt, source.get, scope, None)
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[StructSourceOf]) false
         else {
@@ -155,6 +170,8 @@ case class StructSourceOf(name: Id, field: Option[Source], override val stmt: Op
 }
 
 case class VarSourceOf(name: Id, override val stmt: Opt[AST], source: Source, scope: Int, last : Option[AST]) extends SourceOf(name, stmt, scope, last) {
+    override def get : VarSourceOf = VarSourceOf(name, stmt, source.get, scope, None)
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[VarSourceOf]) false
         else super.isEquivalentTo(other, configuration)

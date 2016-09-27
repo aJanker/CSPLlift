@@ -17,6 +17,8 @@ sealed trait InformationFlow extends Product with Cloneable with CFlowFact with 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = false
     override def isInterestingFact: Boolean = false
     override def toText: String = toString
+
+    override def get: CFlowFact = this
 }
 
 

@@ -4,7 +4,7 @@ import java.io.{StringWriter, Writer}
 
 import de.fosd.typechef.conditional.{One, Opt}
 import de.fosd.typechef.cspllift.LiftedCFlowFact
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlowFact, Sink, Source}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
 import de.fosd.typechef.parser.c.{AST, EmptyStatement, ForStatement, PrettyPrinter}
 import soot.spl.ifds.Constraint
 
@@ -36,8 +36,9 @@ object Taint2 {
         solverResult.foldLeft(Map[Opt[AST], List[LiftedCFlowFact[F]]]()) {
             case (map, solution@(s: F, c: Constraint)) if isMatch(s) =>
                 val key = s.stmt
+                // remove duplicate source sinks
                 val value = solution.asInstanceOf[LiftedCFlowFact[F]]
-                map + (key -> (value :: map.getOrElse(key, List(value))).distinct)
+                map + (key -> (value :: map.getOrElse(key, List())).distinct)
             case (map, _ ) => map
         }
 }
