@@ -7,6 +7,7 @@ import de.fosd.typechef.cspllift.CInterCFG
 import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations, CIFDSProblem, CZeroFact}
 import de.fosd.typechef.cspllift.commons.WarningsCache
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions}
@@ -82,128 +83,114 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
             override def getNormalFlowFunction(curr: Opt[AST], succ: Opt[AST]): FlowFunction[InformationFlow2] = {
                 def default(flowFact: InformationFlow2) = GEN(flowFact)
 
+                // TODO getSource(curr)
                 new InfoFlowFunction(curr, succ, default) {
                     override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] = {
                         val result = flowFact match {
                             case s@StructSource(id, field, _, scope, _) => // todo self assignment possible?
 
                                 val kills =
+
+                                    if (field.isEmpty && currUses.contains(id) && currAssignments.nonEmpty) {
+                                        val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
+
+
+                                    }
                                 // case struct.x(.y) = newValue
                                 if (field.isDefined && currStructFieldAssigns.exists(assignment => isFullAssignmentMatch(s, assignment) || isPartAssignmentMatch(s, assignment))) KILL
-                                    // case newStruct = newValue
+                                // case newStruct = newValue
                                 else if (currStructFieldAssigns.isEmpty && currAssignments.exists { case (assignee, assignors) => assignee.equals(id) }) KILL // new assignment to struct -> kill all facts
                                 else GEN(s.copy(last = Some(currOpt.entry)))
 
-                                kills
+                                KILL
                             case s@StructSourceOf(id, field, _, source, scope, _) => // todo self assignment possible?
 
                                 if (field.isDefined && currStructFieldAssigns.exists(assignment => isFullAssignmentMatch(s, assignment) || isPartAssignmentMatch(s, assignment))) KILL
                                 else if (currStructFieldAssigns.isEmpty && currAssignments.exists { case (assignee, assignors) => assignee.equals(id) }) KILL // new assignment to struct -> kill all facts
                                 else super.computeTargets(s)
 
-                            case v@VarSource(id, _, scope, _) =>
-                                // Self Assignment -> new VarSource + SourceOf + Kill old source
-                                if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }) {
-                                    val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }
+                            case v: VarSource => computeVar(v)
+                            /* // Self Assignment -> new VarSource + SourceOf + Kill old source
+                            if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }) {
+                                val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }
 
-                                    val genSet = assignments.flatMap {
-                                        case (assignee, assignors) =>
-                                            val sink = SinkToAssignment(currOpt, v, assignee)
-                                            val sourceOf = VarSourceOf(assignee, currOpt, v, scope, Some(currOpt.entry))
-                                            List(sink, sourceOf)
-                                    }
-                                    GEN(genSet)
-                                    // New Assignment -> KILL
-                                } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) } || currDefines.exists(id.equals)) KILL
-                                // update current varsource, new varsource + sourceof + sink
-                                else if (currAssignments.nonEmpty && currUses.contains(id)) {
-                                    val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
+                                val genSet = assignments.flatMap {
+                                    case (assignee, assignors) =>
+                                        val sink = SinkToAssignment(currOpt, v, assignee)
+                                        val sourceOf = VarSourceOf(assignee, currOpt, v, scope, Some(currOpt.entry))
+                                        List(sink, sourceOf)
+                                }
+                                GEN(genSet)
+                                // New Assignment -> KILL
+                            } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) } || currDefines.exists(id.equals)) KILL
+                            // update current varsource, new varsource + sourceof + sink
+                            else if (currAssignments.nonEmpty && currUses.contains(id)) {
+                                val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
 
-                                    val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, SCOPE_UNKNOWN, Some(currOpt.entry)) }
-                                    val sourcesOf = sources.map(newSource => {
-                                        val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(newSource.name.name).select(currOpt.condition.collectDistinctFeatures)
-                                        VarSourceOf(newSource.name, currOpt, v, scope, Some(currOpt.entry))
-                                    })
-                                    val sinks = assignees.map(assignment => SinkToAssignment(currOpt, v, assignment._1))
+                                val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, SCOPE_UNKNOWN, Some(currOpt.entry)) }
+                                val sourcesOf = sources.map(newSource => {
+                                    val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(newSource.name.name).select(currSatCondition)
+                                    VarSourceOf(newSource.name, currOpt, v, scope, Some(currOpt.entry))
+                                })
+                                val sinks = assignees.map(assignment => SinkToAssignment(currOpt, v, assignment._1))
 
-                                    GEN(v.copy(last = Some(curr.entry)) :: sourcesOf ::: sinks)
-                                } else if (currStructFieldAssigns.isEmpty && currAssignments.isEmpty && currUses.contains(id)) {
-                                    val sink = SinkToUse(currOpt, v)
-                                    GEN(List(sink, v.copy(last = Some(curr.entry))))
-                                } else super.computeTargets(v.copy(last = Some(curr.entry)))
+                                GEN(v.copy(last = Some(curr.entry)) :: sourcesOf ::: sinks)
+                            } else if (currStructFieldAssigns.isEmpty && currAssignments.isEmpty && currUses.contains(id)) {
+                                val sink = SinkToUse(currOpt, v)
+                                GEN(List(sink, v.copy(last = Some(curr.entry))))
+                            } else super.computeTargets(v.copy(last = Some(curr.entry))) */
 
-                            case vo@VarSourceOf(id, _, source, scope, _) =>
-                                // Self Assignment -> new VarSource + SourceOf + Kill old source
-                                if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }) {
-                                    val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }
-
-                                    val genSet = assignments.flatMap {
-                                        case (assignee, assignors) =>
-                                            val sink = SinkToAssignment(currOpt, source, assignee)
-                                            val sourceOf = VarSourceOf(assignee, currOpt, source, scope, Some(currOpt.entry))
-                                            List(sink, sourceOf)
-                                    }
-                                    GEN(genSet)
-                                    // New Assignment -> KILL
-                                } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) } || currDefines.exists(id.equals)) KILL
-                                // update current varsource, new varsource + sourceof + sink
-                                else if (currAssignments.nonEmpty && currUses.contains(id)) {
-                                    val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
-
-                                    val sources = assignees.map { case (assignee, assignor) => VarSource(assignee, currOpt, SCOPE_UNKNOWN, Some(currOpt.entry)) }
-                                    val sourcesOf = sources.map(newSource => {
-                                        val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(newSource.name.name).select(currOpt.condition.collectDistinctFeatures)
-                                        VarSourceOf(newSource.name, currOpt, source, scope, Some(currOpt.entry))
-                                    })
-                                    val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source, assignment._1))
-
-                                    GEN(vo.copy(last = Some(currOpt.entry)) :: sourcesOf ::: sinks)
-                                } else if (currStructFieldAssigns.isEmpty && currAssignments.isEmpty && currUses.contains(id)) {
-                                    val sink = SinkToUse(currOpt, vo.source)
-                                    GEN(List(sink, vo.copy(last = Some(currOpt.entry))))
-                                } else super.computeTargets(vo)
-
+                            case vo: VarSourceOf => computeVar(vo)
                             case z: Zero if currAssignments.nonEmpty || currStructFieldAssigns.nonEmpty => // TODO Documentation
-                                // new assignment => gen new source
-                                def varFun(assignee: Id): List[VarSource] = {
-                                    val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
-                                    List(VarSource(assignee, currOpt, scope, Some(currOpt.entry)))
-                                }
-
-                                def structFun(struct: Id): List[StructSource] = {
-                                    val scope = currTS.lookupEnv(curr.entry).varEnv.lookupScope(struct.name).select(currOpt.condition.collectDistinctFeatures)
-                                    List(StructSource(struct, None, currOpt, scope, Some(currOpt.entry)))
-                                }
-
-                                val sources =
-                                    if (currStructFieldAssigns.isEmpty)
-                                        currAssignments.flatMap { case (assignee, _) => singleVisitOnSourceTypes(assignee, structFun, varFun) }
-                                    else
-                                        currStructFieldAssigns.map {
-                                            case (field, parents) =>
-                                                val fieldSources = singleVisitOnSourceTypes(field, structFun, varFun).head
-                                                val parentSources = parents.reverse.flatMap(parent => singleVisitOnSourceTypes(parent, structFun, varFun))
-
-                                                parentSources.foldLeft(fieldSources) {
-                                                    case (fieldSource, parentSource: StructSource) => parentSource.copy(field = Some(fieldSource))
-                                                    case (fieldSource, parentSource: VarSource) => StructSource(parentSource.getId, Some(fieldSource), parentSource.getStmt, parentSource.getScope, Some(currOpt.entry))
-                                                    case (fieldSource, _) => fieldSource
-                                                }
-                                        }
-
-                                GEN(z :: sources)
+                                // new assignment => gen new sources
+                                GEN(z :: assignmentSources)
 
                             case z: Zero if currDefines.nonEmpty =>
                                 // newly introduced variable or struct
-                                def varFun(define: Id): List[VarSource] = List(VarSource(define, currOpt, SCOPE_LOCAL, Some(currOpt.entry)))
-                                def structFun(define: Id): List[StructSource] = List(StructSource(define, None, currOpt, SCOPE_LOCAL, Some(currOpt.entry)))
+                                GEN(z :: defineSources)
 
-                                val sources = currDefines.flatMap(define => singleVisitOnSourceTypes(define, structFun, varFun))
-
-                                GEN(z :: sources)
                             case x => super.computeTargets(x)
                         }
                         result
+                    }
+
+                    def computeVar(vOf: VarSourceOf): util.Set[InformationFlow2] = computeVar(vOf.getId, vOf.getStmt, Some(vOf.source), vOf.getScope, vOf.last, vOf)
+
+                    def computeVar(v: VarSource): util.Set[InformationFlow2] = computeVar(v.getId, v.getStmt, None, v.getScope, v.last, v)
+
+                    private def computeVar(id: Id, stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[InformationFlow2] = {
+                        lazy val copy = org match {
+                            case v: VarSource => v.copy(last = Some(currOpt.entry))
+                            case vOf: VarSourceOf => vOf.copy(last = Some(currOpt.entry))
+                            case _ => org
+                        }
+
+                        // Self Assignment -> new VarSource + SourceOf + Kill old source
+                        if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }) {
+                            val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }
+
+                            val genSet = assignments.flatMap {
+                                case (assignee, assignors) =>
+                                    val sink = SinkToAssignment(currOpt, source.getOrElse(org), assignee)
+                                    val sourceOf = VarSourceOf(assignee, currOpt, source.getOrElse(org), scope, Some(currOpt.entry))
+                                    List(sink, sourceOf)
+                            }
+                            GEN(genSet)
+                            // New Assignment -> KILL
+                        } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) } || currDefines.exists(id.equals)) KILL
+                        // update current varsource, new varsource + sourceof + sink
+                        else if (currAssignments.nonEmpty && currUses.contains(id)) {
+                            val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
+                            val sources = assignees.flatMap { case (assignee, assignor) => genSource(assignee) }
+
+                            val sourcesOf = sources.map(newSource => VarSourceOf(newSource.getId, currOpt, source.getOrElse(org), newSource.getScope, Some(currOpt.entry)))
+                            val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source.getOrElse(org), assignment._1))
+
+                            GEN(copy :: sourcesOf ::: sinks)
+                        } else if (currStructFieldAssigns.isEmpty && currAssignments.isEmpty && currUses.contains(id)) {
+                            val sink = SinkToUse(currOpt, source.getOrElse(org))
+                            GEN(List(sink, copy))
+                        } else super.computeTargets(copy)
                     }
                 }
             }
@@ -321,7 +308,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if source.equals(x) =>
                                         val assignee = assignment._1
-                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.entry).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
+                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.entry).varEnv.lookupScope(assignee.name).select(currSatCondition)
                                         val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
                                         val sourceOf = VarSourceOf(assignee, fCallOpt, v, scope, Some(currOpt.entry))
                                         val sink = SinkToAssignment(fCallOpt, v, assignee)
@@ -335,7 +322,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if id.equals(x) =>
                                         val assignee = assignment._1
-                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currOpt.condition.collectDistinctFeatures)
+                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currSatCondition)
                                         val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
                                         val sourceOf = VarSourceOf(assignee, fCallOpt, source, scope, Some(currOpt.entry))
                                         val sink = SinkToAssignment(fCallOpt, source, assignee)
@@ -404,6 +391,39 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         lazy val currAssignments = assignsVariables(curr)
         lazy val currStructFieldAssigns = assignsField(curr)
         lazy val currStructFieldUses = usesField(curr)
+
+        lazy val defaultCondition = (BDDFeatureExprFactory.TrueB.collectDistinctFeatureObjects, BDDFeatureExprFactory.FalseB.collectDistinctFeatureObjects)
+        lazy val currSatConditionOption = currOpt.condition.getSatisfiableAssignment(interproceduralCFG.getFeatureModel, currOpt.condition.collectDistinctFeatureObjects, preferDisabledFeatures = false)
+        lazy val currSatCondition = currSatConditionOption.getOrElse(defaultCondition)._1.map(_.feature).toSet
+
+        lazy val defineSources = currDefines.flatMap(genSource)
+        lazy val assignmentSources =
+            if (currStructFieldAssigns.isEmpty) currAssignments.flatMap { case (assignee, _) => genSource(assignee) }
+            else currStructFieldAssigns.flatMap { case (field, parents) => genSourceForField(field, parents) }
+
+        private def genVarSource(scope: Int)(define: Id): List[VarSource] = List(VarSource(define, currOpt, scope, Some(currOpt.entry)))
+
+        private def genStructSource(scope: Int)(define: Id): List[StructSource] = List(StructSource(define, None, currOpt, scope, Some(currOpt.entry)))
+
+        def genSource(define: Id): List[Source] = {
+            val scope = getCurrentScope(define)
+            singleVisitOnSourceTypes(define, genStructSource(scope), genVarSource(scope))
+        }
+
+        def genSourceForField(field: Id, parents: List[Id]): List[Source] = {
+            val scope = getCurrentScope(field)
+            val fieldSources = genSource(field) // TODO Validate
+            val parentSources = parents.reverse.flatMap(genSource)
+
+            fieldSources.map(cFieldSource =>
+                parentSources.foldLeft(cFieldSource) {
+                    case (fieldSource, parentSource: StructSource) => parentSource.copy(field = Some(fieldSource))
+                    case (fieldSource, parentSource: VarSource) => StructSource(parentSource.getId, Some(fieldSource), parentSource.getStmt, parentSource.getScope, Some(currOpt.entry))
+                    case (fieldSource, _) => fieldSource
+                })
+        }
+
+        def getCurrentScope(id: Id): Int = currTS.lookupEnv(curr.entry).varEnv.lookupScope(id.name).select(currSatCondition)
 
         def hasSelfAssignement(source: Id, assignee: Id, assignors: List[Id]): Boolean = assignee.equals(source) && assignors.exists(source.equals)
 
