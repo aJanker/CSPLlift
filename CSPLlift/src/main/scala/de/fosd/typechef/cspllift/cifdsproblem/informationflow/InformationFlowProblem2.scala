@@ -14,7 +14,7 @@ import heros.{FlowFunction, FlowFunctions}
 
 import scala.collection.JavaConverters._
 
-
+// Global TODO: Documentation
 trait InformationFlow2ProblemOperations extends CFlowConstants with CFlowOperations[InformationFlow2]
 
 class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlow2](cICFG) with InformationFlow2Configuration with InformationFlow2ProblemOperations {
@@ -40,6 +40,32 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
     private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
         val destinationMethodFile = destinationMethod.getFile.getOrElse("")
         initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
+    }
+
+    private def globalsAsInitialSeeds(fDef: Opt[FunctionDef]): util.Set[InformationFlow2] = GEN(globalsAsInitialSeedsL(fDef) :+ zeroValue())
+
+    private def globalsAsInitialSeedsL(fDef: Opt[FunctionDef]): List[InformationFlow2] = {
+        val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
+            // Ignore function and typedef definitions
+            case Opt(_, f: FunctionDef) => true //
+            case Opt(_, d: Declaration) =>
+                d.declSpecs.exists {
+                    case Opt(_, t: TypedefSpecifier) => true
+                    case _ => false
+                }
+            case _ => false
+        }
+
+        val globalInfoFlowFacts = globalVariables.flatMap(x => {
+            val decls = declares(x)
+
+            // Note: we ignore the actual file of the declaration as it may be declared in a header file.
+            // As variables declared in header files may be included across several files, this way prevents matching errors.
+            if (decls.nonEmpty) decls.map(decl => VarSource(decl, x, SCOPE_GLOBAL, Some(decl)))
+            else None
+        })
+
+        globalInfoFlowFacts
     }
 
 
@@ -105,32 +131,58 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                         result
                     }
 
-                    private def computeStruct(id: Id, field: Option[Source], stmt: Opt[AST], source: Option[Source], scope: Int, last : Option[AST], org : Source): util.Set[InformationFlow2] = {
+                    private def computeStruct(id: Id, field: Option[Source], stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[InformationFlow2] = {
                         lazy val copy = org match {
                             case s: StructSource => s.copy(last = Some(currOpt.entry))
                             case sOf: StructSourceOf => sOf.copy(last = Some(currOpt.entry))
                             case _ => org
                         }
 
-                        // just use of struct // TODO Simply if condition
-                        if (currAssignments.isEmpty && currStructFieldAssigns.isEmpty && (currStructFieldUses.exists(use => isFullAssignmentMatch(org, use)) || (field.isEmpty && currStructFieldUses.isEmpty && currUses.exists(id.equals)))) {
-                            GEN(copy :: SinkToUse(currOpt, source.getOrElse(org)) :: Nil)
-                        }
-                        // use as assignment of struct to struct
-                        else if (field.isEmpty && currAssignments.nonEmpty && currStructFieldAssigns.isEmpty && currUses.exists(id.equals)) {
-                            val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
-                            val sources = assignees.flatMap { case (assignee, assignor) => genSource(assignee) }
+                        if (!currStatementIsAssignment) {
+                            if (field.isDefined && currStructFieldUses.exists(use => isFullFieldMatch(org, use))) GEN(copy :: SinkToUse(currOpt, source.getOrElse(org)) :: Nil) // use of struct.field
+                            else if (currUses.exists(id.equals)) GEN(copy :: SinkToUse(currOpt, source.getOrElse(org)) :: Nil) // plain struct use
+                            else KILL
+                        } else {
+                            val usages = {
+                                if (currStructFieldUses.exists(use => isFullFieldMatch(org, use))) {
+                                    val sources = currAssignments.flatMap {
+                                        case (assignee, assignor) if assignor.contains(id) => getDefineSourcesFromAssignment(assignee)
+                                        case _ => None
+                                    }
 
-                            val sourcesOf = sources.map(newSource => StructSourceOf(newSource.getId, None, currOpt, source.getOrElse(org), newSource.getScope, Some(currOpt.entry)))
-                            val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source.getOrElse(org), assignment._1))
+                                    val sourcesOf = sources.flatMap {
+                                        case s: StructSource => Some(StructSourceOf(s.getId, s.field, currOpt, source.getOrElse(org), s.getScope, Some(currOpt.entry)))
+                                        case v: VarSource => Some(VarSourceOf(v.getId, currOpt, source.getOrElse(org), v.getScope, Some(currOpt.entry)))
+                                        case _ => None
+                                    }
 
-                            GEN(copy :: sourcesOf ::: sinks)
+                                    val sinks = sources.map(genSource => SinkToAssignment(currOpt, source.getOrElse(org), genSource.getId))
+
+                                    GEN(sourcesOf ::: sinks)
+                                } else if (currStructFieldAssigns.isEmpty && currStructFieldUses.isEmpty && currAssignments.exists { case (assignee, assignor) => assignor.contains(id) }) {
+                                    // TODO clean up condition
+                                    val sources = currAssignments.flatMap {
+                                        case (assignee, assignor) if assignor.contains(id) => getDefineSourcesFromAssignment(assignee)
+                                        case _ => None
+                                    }
+
+                                    val sourcesOf = sources.flatMap {
+                                        case s: StructSource => Some(StructSourceOf(s.getId, field, currOpt, source.getOrElse(org), s.getScope, Some(currOpt.entry)))
+                                        case _ => None
+                                    }
+
+                                    val sinks = sources.map(genSource => SinkToAssignment(currOpt, source.getOrElse(org), genSource.getId)) // TODO Flatmap if?
+
+                                    GEN(sourcesOf ::: sinks)
+                                } else KILL
+                            }
+
+                            val assignments =
+                                if (currFactIsAssignee(org)) KILL
+                                else super.computeTargets(copy)
+
+                            GEN(assignments, usages)
                         }
-                        // case struct.x(.y) = newValue
-                        else if (field.isDefined && currStructFieldAssigns.exists(assignment => isFullAssignmentMatch(org, assignment) || isPartAssignmentMatch(org, assignment))) KILL
-                        // case struct = newValue && sourceOf(struct)
-                        else if (currStructFieldAssigns.isEmpty && currAssignments.exists { case (assignee, assignors) => assignee.equals(id) }) KILL // new assignment to struct -> kill all facts
-                        else super.computeTargets(copy)
                     }
 
                     private def computeVar(id: Id, stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[InformationFlow2] = {
@@ -140,32 +192,33 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                             case _ => org
                         }
 
-                        // Self Assignment -> new VarSource + SourceOf + Kill old source
-                        if (currAssignments.exists { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }) {
-                            val assignments = currAssignments.filter { case (assignee, assignors) => hasSelfAssignement(id, assignee, assignors) }
+                        if (!currStatementIsAssignment) {
+                            if (currUses.contains(id)) {
+                                val sink = SinkToUse(currOpt, source.getOrElse(org))
+                                GEN(List(sink, copy))
+                            } else super.computeTargets(copy)
+                        } else {
+                            val usages = {
+                                val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
+                                val sources = assignees.flatMap { case (assignee, assignor) => getDefineSourcesFromAssignment(assignee) }
 
-                            val genSet = assignments.flatMap {
-                                case (assignee, assignors) =>
-                                    val sink = SinkToAssignment(currOpt, source.getOrElse(org), assignee)
-                                    val sourceOf = VarSourceOf(assignee, currOpt, source.getOrElse(org), scope, Some(currOpt.entry))
-                                    List(sink, sourceOf)
+                                val sourcesOf = sources.flatMap {
+                                    case v: VarSource => Some(VarSourceOf(v.getId, currOpt, source.getOrElse(org), v.getScope, Some(currOpt.entry)))
+                                    case s: StructSource => Some(StructSourceOf(s.getId, s.field, currOpt, source.getOrElse(org), s.getScope, Some(currOpt.entry)))
+                                    case _ => None
+                                }
+
+                                val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source.getOrElse(org), assignment._1))
+
+                                GEN(sourcesOf ::: sinks)
                             }
-                            GEN(genSet)
-                            // New Assignment -> KILL
-                        } else if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) } || currDefines.exists(id.equals)) KILL
-                        // update current varsource, generate new varsource + sourceof + sink
-                        else if (currAssignments.nonEmpty && currUses.contains(id)) {
-                            val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
-                            val sources = assignees.flatMap { case (assignee, assignor) => genSource(assignee) }
 
-                            val sourcesOf = sources.map(newSource => VarSourceOf(newSource.getId, currOpt, source.getOrElse(org), newSource.getScope, Some(currOpt.entry)))
-                            val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source.getOrElse(org), assignment._1))
+                            val assignment =
+                                if (currAssignments.exists { case (assignee, assignor) => assignee.equals(id) } || currDefines.exists(id.equals)) KILL
+                                else super.computeTargets(copy)
 
-                            GEN(copy :: sourcesOf ::: sinks)
-                        } else if (currStructFieldAssigns.isEmpty && currAssignments.isEmpty && currUses.contains(id)) {
-                            val sink = SinkToUse(currOpt, source.getOrElse(org))
-                            GEN(List(sink, copy))
-                        } else super.computeTargets(copy)
+                            GEN(assignment, usages)
+                        }
                     }
                 }
             }
@@ -283,7 +336,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if source.equals(x) =>
                                         val assignee = assignment._1
-                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.entry).varEnv.lookupScope(assignee.name).select(currSatCondition)
+                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.entry).varEnv.lookupScope(assignee.name).select(currSatisfiableCondition)
                                         val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
                                         val sourceOf = VarSourceOf(assignee, fCallOpt, v, scope, Some(currOpt.entry))
                                         val sink = SinkToAssignment(fCallOpt, v, assignee)
@@ -297,7 +350,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if id.equals(x) =>
                                         val assignee = assignment._1
-                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currSatCondition)
+                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currSatisfiableCondition)
                                         val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
                                         val sourceOf = VarSourceOf(assignee, fCallOpt, source, scope, Some(currOpt.entry))
                                         val sink = SinkToAssignment(fCallOpt, source, assignee)
@@ -350,7 +403,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         }
 
     private abstract class InfoFlowFunction(curr: Opt[AST], succ: Opt[AST], default: InformationFlow2 => util.Set[InformationFlow2]) extends FlowFunction[InformationFlow2] {
-        // Lazy cache some repeatedly used variables
+        // Lazy caching of some repeatedly used variables
         lazy val currASTEnv = interproceduralCFG.getASTEnv(curr)
         lazy val currOpt: Opt[AST] = parentOpt(curr.entry, currASTEnv).asInstanceOf[Opt[AST]]
         lazy val currTS = interproceduralCFG.getTS(curr)
@@ -366,28 +419,41 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         lazy val currAssignments = assignsVariables(curr)
         lazy val currStructFieldAssigns = assignsField(curr)
         lazy val currStructFieldUses = usesField(curr)
+        lazy val currStatementIsAssignment: Boolean = currDefines.nonEmpty || currAssignments.nonEmpty || currStructFieldAssigns.nonEmpty
 
-        lazy val defaultCondition = (BDDFeatureExprFactory.TrueB.collectDistinctFeatureObjects, BDDFeatureExprFactory.FalseB.collectDistinctFeatureObjects)
-        lazy val currSatConditionOption = currOpt.condition.getSatisfiableAssignment(interproceduralCFG.getFeatureModel, currOpt.condition.collectDistinctFeatureObjects, preferDisabledFeatures = false)
-        lazy val currSatCondition = currSatConditionOption.getOrElse(defaultCondition)._1.map(_.feature).toSet
+        private lazy val defaultCondition = (BDDFeatureExprFactory.TrueB.collectDistinctFeatureObjects, BDDFeatureExprFactory.FalseB.collectDistinctFeatureObjects)
+        private lazy val currSatisfiableCondition_O = currOpt.condition.getSatisfiableAssignment(interproceduralCFG.getFeatureModel, currOpt.condition.collectDistinctFeatureObjects, preferDisabledFeatures = false)
+        lazy val currSatisfiableCondition = currSatisfiableCondition_O.getOrElse(defaultCondition)._1.map(_.feature).toSet
 
         lazy val defineSources = currDefines.flatMap(genSource)
         lazy val assignmentSources =
             if (currStructFieldAssigns.isEmpty) currAssignments.flatMap { case (assignee, _) => genSource(assignee) }
             else currStructFieldAssigns.flatMap { case (field, parents) => genSourceForField(field, parents) }
 
+        def getDefineSourcesFromAssignment(define: Id): List[Source] = assignmentSources.filter(_.getId.equals(define))
+
+        def currFactIsAssignee(fact: Source): Boolean =
+            fact match {
+                case StructSource(_, Some(_), _, _, _) | StructSourceOf(_, Some(_), _, _, _, _) => currStructFieldAssigns.exists(assignment => isFullFieldMatch(fact, assignment) || isPartFieldMatch(fact, assignment))
+                case s@(StructSource(_, None, _, _, _) | StructSourceOf(_, None, _, _, _, _)) => currDefines.exists(s.getId.equals) || currAssignments.exists { case (assignee, _) => s.getId.equals(assignee) }
+                case s: Source => currDefines.exists(s.getId.equals) || currAssignments.exists { case (assignee, _) => s.getId.equals(assignee) } // VarSource + VarSourceOf
+                case _ => false
+            }
+
+        def getCurrentScope(id: Id): Int = currTS.lookupEnv(curr.entry).varEnv.lookupScope(id.name).select(currSatisfiableCondition)
+
         private def genVarSource(scope: Int)(define: Id): List[VarSource] = List(VarSource(define, currOpt, scope, Some(currOpt.entry)))
 
         private def genStructSource(scope: Int)(define: Id): List[StructSource] = List(StructSource(define, None, currOpt, scope, Some(currOpt.entry)))
 
-        def genSource(define: Id): List[Source] = {
+        private def genSource(define: Id): List[Source] = {
             val scope = getCurrentScope(define)
             singleVisitOnSourceTypes(define, genStructSource(scope), genVarSource(scope))
         }
 
-        def genSourceForField(field: Id, parents: List[Id]): List[Source] = {
+        private def genSourceForField(field: Id, parents: List[Id]): List[Source] = {
             val scope = getCurrentScope(field)
-            val fieldSources = genSource(field) // TODO Validate
+            val fieldSources = genSource(field)
             val parentSources = parents.reverse.flatMap(genSource)
 
             fieldSources.map(cFieldSource =>
@@ -398,46 +464,36 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 })
         }
 
-        def getCurrentScope(id: Id): Int = currTS.lookupEnv(curr.entry).varEnv.lookupScope(id.name).select(currSatCondition)
+        def isFullFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
+            def matches(s: Source, parents: List[Id]): Boolean =
+                if (parents.isEmpty)
+                    s match {
+                        case StructSource(_, Some(_), _, _, _) | StructSourceOf(_, Some(_), _, _, _, _) => false
+                        case _ => fieldAssignment._1.equals(s.getId)
 
-        def hasSelfAssignement(source: Id, assignee: Id, assignors: List[Id]): Boolean = assignee.equals(source) && assignors.exists(source.equals)
+                    }
+                else
+                    s match {
+                        case StructSource(_, Some(field), _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
+                        case StructSourceOf(_, Some(field), _, _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
+                        case _ => false
+                    }
 
-        def isFullAssignmentMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
-            def matches(s: Source, parents: List[Id]): Boolean = {
-                s match {
-                    case v: VarSource if parents.isEmpty => fieldAssignment._1.equals(v.name) // same number of parents and field matches
-                    case v: VarSource => false
-                    case s: StructSource if parents.isEmpty && s.field.isEmpty => fieldAssignment._1.equals(s.name)
-                    case s: StructSource if parents.isEmpty => false
-                    case s: StructSource if s.field.isDefined && parents.head.equals(s.getId) => matches(s.field.get, parents.tail)
-                    case s: StructSourceOf if parents.isEmpty && s.field.isEmpty => fieldAssignment._1.equals(s.name)
-                    case s: StructSourceOf if parents.isEmpty => false
-                    case s: StructSourceOf if s.field.isDefined && parents.head.equals(s.getId) => matches(s.field.get, parents.tail)
-                    case _ => false
-                }
-            }
             matches(s, fieldAssignment._2.reverse)
         }
 
         /**
           * Returns true for sources of x.y.z and assignments to x.y
           */
-        def isPartAssignmentMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
-            def matches(s: Source, parents: List[Id]): Boolean = {
-                s match {
-                    case v: VarSource if parents.isEmpty => fieldAssignment._1.equals(v.name) // same number of parents and field matches
-                    case v: VarSource => false
-                    case s: StructSource if parents.isEmpty && s.field.isDefined => fieldAssignment._1.equals(s.name)
-                    case s: StructSource if parents.isEmpty && s.field.isEmpty => fieldAssignment._1.equals(s.name)
-                    case s: StructSource if parents.isEmpty => false
-                    case s: StructSource if s.field.isDefined && parents.head.equals(s.getId) => matches(s.field.get, parents.tail)
-                    case s: StructSourceOf if parents.isEmpty && s.field.isDefined => fieldAssignment._1.equals(s.name)
-                    case s: StructSourceOf if parents.isEmpty && s.field.isEmpty => fieldAssignment._1.equals(s.name)
-                    case s: StructSourceOf if parents.isEmpty => false
-                    case s: StructSourceOf if s.field.isDefined && parents.head.equals(s.getId) => matches(s.field.get, parents.tail)
+        def isPartFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
+            def matches(s: Source, parents: List[Id]): Boolean =
+                if (parents.isEmpty) fieldAssignment._1.equals(s.getId)
+                else s match {
+                    case StructSource(_, Some(field), _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
+                    case StructSourceOf(_, Some(field), _, _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
                     case _ => false
                 }
-            }
+
             matches(s, fieldAssignment._2.reverse)
         }
 
@@ -445,7 +501,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
          * We are using the variability-aware typesystem of TypeChef. However, variability encoded within the type definition of an variable or struct does not matter for us.
          * As a consequence we only visit one type-definition as we do assume correct type assignments.
          */
-        def singleVisitOnSourceTypes[T <: InformationFlow2](currId: Id, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
+        private def singleVisitOnSourceTypes[T <: InformationFlow2](currId: Id, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
             val cTypes = succVarEnv.varEnv.lookupType(currId.name)
             var cFacts: List[T] = List()
 
@@ -535,31 +591,8 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         private val fCall = filterASTElems[FunctionCall](callStmt.entry).head
         private val fCallExprs = fCall.params.exprs
         private val fDefParams = getFDefParameters(destinationMethod)
+
         val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
     }
 
-    private def globalsAsInitialSeeds(fDef: Opt[FunctionDef]): util.Set[InformationFlow2] = GEN(globalsAsInitialSeedsL(fDef) :+ zeroValue())
-
-    private def globalsAsInitialSeedsL(fDef: Opt[FunctionDef]): List[InformationFlow2] = {
-        val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
-            // Ignore function and typedef definitions
-            case Opt(_, f: FunctionDef) => true //
-            case Opt(_, d: Declaration) => d.declSpecs.exists {
-                case Opt(_, t: TypedefSpecifier) => true
-                case _ => false
-            }
-            case _ => false
-        }
-
-        val globalInfoFlowFacts = globalVariables.flatMap(x => {
-            val decls = declares(x)
-
-            // Note: we ignore the actual file of the declaration as it may be declared in a header file.
-            // As variables declared in header files may be included across several files, this way prevents matching errors.
-            if (decls.nonEmpty) decls.map(decl => VarSource(decl, x, SCOPE_GLOBAL, Some(decl)))
-            else None
-        })
-
-        globalInfoFlowFacts
-    }
 }

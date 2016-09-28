@@ -23,19 +23,19 @@ abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProble
       */
     override def interproceduralCFG: CInterCFG = cICFG
 
-    // TODO Comment
+    // TODO Comment and explain in Thesis
     override def zeroValue(): D with CZeroFact
 }
 
 trait CZeroFact {
-    val flowCondition : FeatureExpr
+    val flowCondition: FeatureExpr
 }
 
 trait CFlowFact {
 
-    def isEquivalentTo(other : CFlowFact, configuration: SimpleConfiguration) : Boolean
+    def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean
 
-    def isInterestingFact : Boolean
+    def isInterestingFact: Boolean
 
     def toText: String
 
@@ -44,9 +44,16 @@ trait CFlowFact {
 
 trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {
 
+    import java.util.stream.{Collectors, Stream}
+
     def GEN(fact: D): util.Set[D] = Collections.singleton(fact)
 
     def GEN(res: TraversableOnce[D]): util.Set[D] = res.toSet.asJava
+
+    def GEN(res: util.Set[D]*): util.Set[D] =
+        res.foldLeft(Collections.emptySet[D]()) {
+            case (a, b) => Stream.concat(a.stream(), b.stream()).collect(Collectors.toSet())
+        }
 
     def KILL: util.Set[D] = Collections.emptySet()
 

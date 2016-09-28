@@ -32,11 +32,13 @@ trait AssignDeclDefUse {
         case ExprStatement(PointerDerefExpr(_)) => List()
         case ExprStatement(expr) => defines(expr)
         case ExprList(exprs) => exprs.flatMap(defines)
-        case PostfixExpr(i@Id(_), SimplePostfixSuffix(_)) => List(i) // a++; or a--;
-        case UnaryExpr(kind, i: Id) => if (kind == "++" || kind == "--") List(i) else List() // ++a; or --a;
         case PointerDerefExpr(i: Id) => List(i)
         case Opt(_, entry) => defines(entry.asInstanceOf[AnyRef])
         case Some(entry) => defines(entry.asInstanceOf[AnyRef])
+        /* //TODO Removal?
+          case PostfixExpr(i@Id(_), SimplePostfixSuffix(_)) => List(i) // a++; or a--;
+          case UnaryExpr(kind, i: Id) => if (kind == "++" || kind == "--") List(i) else List() // ++a; or --a;
+        */
         case _ => List()
     }
 
