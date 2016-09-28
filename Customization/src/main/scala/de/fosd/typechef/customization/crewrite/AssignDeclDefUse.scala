@@ -125,6 +125,7 @@ trait AssignDeclDefUse {
         case FunctionCall(params) => params.exprs.map(_.entry).flatMap(usesField)
         case PostfixExpr(_: Id, f: FunctionCall) => usesField(f)
         case PostfixExpr(p, PointerPostfixSuffix(_, i: Id)) => List((i, parents(p)))
+        case PostfixExpr(p, _) => usesField(p)
         case PointerDerefExpr(p) => usesField(p)
         case UnaryExpr(_, ex) => usesField(ex)
         case SizeOfExprU(expr) => usesField(expr)
@@ -141,7 +142,7 @@ trait AssignDeclDefUse {
         case i: Id => List()
         case i: InitDeclaratorI => List()
         case c: Constant => List()
-        case x => List()
+        case _ => List()
     }
 
     lazy val assignsVariables: AnyRef => List[(Id, List[Id])] =
