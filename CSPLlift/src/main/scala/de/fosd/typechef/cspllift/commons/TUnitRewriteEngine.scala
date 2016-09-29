@@ -85,7 +85,8 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
         val replacements = cfgStmts.flatMap {
 
             case c: CFGStmt if isVariable(c) =>
-                val parentCondition = parentOpt(c, astEnv).condition
+                val parent = parentOpt(c, astEnv)
+                val parentCondition = parent.condition
                 val stmtConditions = filterAllFeatureExpr(c)
                 val allStmtConditions = stmtConditions.foldLeft(FeatureExprFactory.True)(_ and _)
 
@@ -98,10 +99,10 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
                         val falseCond = config.getFalseSet.foldLeft(FeatureExprFactory.True)(_ and _).not()
                         val finalCond = if (falseCond.isSatisfiable(fm)) trueCond.and(falseCond) else trueCond
 
-                        val product = deriveProductWithCondition(c, config.getTrueFeatures, finalCond)
+                        val product = deriveProductWithCondition(parent, config.getTrueFeatures, finalCond)
                         Some(Opt(finalCond, product))
                     })
-                    Some((c, products))
+                    Some((parent, products))
                 } else None
 
             case _ => None

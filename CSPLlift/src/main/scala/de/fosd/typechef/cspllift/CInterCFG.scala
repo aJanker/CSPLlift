@@ -230,6 +230,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     private def getSuccsOfS(stmt: Opt[AST]): List[Opt[AST]] =
         succ(stmt.entry, getASTEnv(stmt)).filter {
             case Opt(_, f: FunctionDef) => false
+            case Opt(_, g: GotoStatement) => false
             case _ => true
         }.filter(_.condition.isSatisfiable(getFeatureModel))
 
@@ -240,6 +241,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def isExitStmt(stmt: Opt[AST]): Boolean =
         succ(stmt.entry, getASTEnv(stmt)).exists {
             case Opt(_, f: FunctionDef) => true
+            case Opt(_, g: GotoStatement) => true
             case _ => false
         }
 
