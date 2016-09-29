@@ -58,7 +58,12 @@ public class SPLIFDSSolver<D> extends IDESolver<Opt<AST>, D, Opt<FunctionDef>, C
                      * Otherwise we would assume this flow has the presence condition of true.
                      */
                     Opt<FunctionDef> liftedCalleeMethod = icfg.getLiftedMethodOf(callSite, calleeMethod);
-                    Constraint flow = icfg.getConstraint(liftedCalleeMethod.copy(liftedCalleeMethod.condition(), liftedCalleeMethod.entry())).and(icfg.getConstraint(exitStmt));
+                    Constraint flow = icfg.getConstraint(liftedCalleeMethod.copy(liftedCalleeMethod.condition(), liftedCalleeMethod.entry())).and(icfg.getConstraint(exitStmt)).and(icfg.getConstraint(returnSite));
+
+                    if (calleeMethod.entry().getName().equalsIgnoreCase("mbedtls_zeroize")) {
+                        System.out.println("dbg");
+                    }
+
                     return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, flow);
                 }
 

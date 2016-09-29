@@ -4,9 +4,9 @@
         int buf[68];
     } aes_context;
 
-void init(aes_context *ctx, int *key, int length) {
-    ctx->nr = length;
-    ctx->rk = key;
+void init(aes_context *ctx2, int *key, int length) {
+    ctx2->nr = length;
+    ctx2->rk = key;
     return;
 }
 

@@ -1,6 +1,7 @@
 package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.{Choice, Opt}
+import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.cspllift.evaluation.Sampling
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
@@ -167,6 +168,24 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
         }
     }
 
+
+    def rewriteCallsAsExitStmts[T <: Product](tunit: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+        /*val fCalls = filterAllASTElems[FunctionCall](tunit)
+        val env = CASTEnv.createASTEnv(tunit)
+        val cfg = new rewriteCFG
+
+        val exitFCalls = fCalls.filter(call => cfg.succ(call, env).exists {
+            case Opt(_, f: FunctionDef) => true
+            case _ => false
+        })
+
+        if(exitFCalls.nonEmpty) {
+            println(exitFCalls)
+        } */
+
+        tunit
+    }
+
     /**
       * Rewrites all function calls nested in another function call e.g. int foo =  outer(inner(x)) to:
       * returnTypeOf(inner(x)) tmp = inner(x);
@@ -294,4 +313,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
         filterASTElems[FunctionCall](tunit).filter(fCall => {
             filterAllASTElems[FunctionCall](fCall.params).nonEmpty
         })
+
+    private class rewriteCFG extends IntraCFG {}
+
 }

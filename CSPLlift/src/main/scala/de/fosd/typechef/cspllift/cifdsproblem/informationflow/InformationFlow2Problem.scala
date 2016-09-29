@@ -5,7 +5,7 @@ import java.util
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.CInterCFG
 import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
-import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations, CIFDSProblem, CZeroFact}
+import de.fosd.typechef.cspllift.cifdsproblem.{CIFDSProblem, CZeroFact}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c._
@@ -13,9 +13,6 @@ import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
 import heros.{FlowFunction, FlowFunctions}
 
 import scala.collection.JavaConverters._
-
-// Global TODO: Documentation
-trait InformationFlow2ProblemOperations extends CFlowConstants with CFlowOperations[InformationFlow2]
 
 class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlow2](cICFG) with InformationFlow2Configuration with InformationFlow2ProblemOperations {
 
@@ -312,60 +309,106 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
               */
             override def getReturnFlowFunction(callSite: Opt[AST], calleeMethod: Opt[FunctionDef], exitStmt: Opt[AST], returnSite: Opt[AST]): FlowFunction[InformationFlow2] = {
                 def default(flowFact: InformationFlow2) = KILL
-                lazy val fCall = filterASTElems[FunctionCall](callSite)
-                lazy val fCallOpt = parentOpt(callSite.entry, interproceduralCFG.getASTEnv(callSite)).asInstanceOf[Opt[AST]]
-                lazy val exitOpt = parentOpt(exitStmt.entry, interproceduralCFG.getASTEnv(exitStmt)).asInstanceOf[Opt[AST]]
-                lazy val pointerParamNames = getPointerFDefParamNames(calleeMethod)
-
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && calleeMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallReturnFlow
 
-                exitStmt.entry match {
-                    case ReturnStatement(_) =>
-                    case _ => WarningsCache.add("Exiting " + calleeMethod.entry.getName + " without return statement.")
-                }
-
-                def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOfTerm(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
-                val assignments = assignsReturnVariablesTo(callSite.entry, exitStmt.entry)
-
-                new InfoFlowFunction(exitStmt, callSite, default) {
+                new ReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite, default) {
                     override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] = {
                         val result = flowFact match {
-                            case v@VarSource(source, _, vscope, _) =>
-                                val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
-                                    case x if source.equals(x) =>
-                                        val assignee = assignment._1
-                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.entry).varEnv.lookupScope(assignee.name).select(currSatisfiableCondition)
-                                        val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
-                                        val sourceOf = VarSourceOf(assignee, fCallOpt, v, scope, Some(currOpt.entry))
-                                        val sink = SinkToAssignment(fCallOpt, v, assignee)
-                                        List(newSource, sourceOf, sink)
-                                    case _ => None
-                                })
-
-                                if (vscope == SCOPE_GLOBAL) GEN(v.copy(last = Some(currOpt.entry)) :: genSet) else GEN(genSet)
-
-                            case vo@VarSourceOf(id, _, source, vo_scope, _) =>
-                                val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
-                                    case x if id.equals(x) =>
-                                        val assignee = assignment._1
-                                        val scope = interproceduralCFG.getTS(callSite).lookupEnv(assignee).varEnv.lookupScope(assignee.name).select(currSatisfiableCondition)
-                                        val newSource = VarSource(assignee, fCallOpt, scope, Some(currOpt.entry))
-                                        val sourceOf = VarSourceOf(assignee, fCallOpt, source, scope, Some(currOpt.entry))
-                                        val sink = SinkToAssignment(fCallOpt, source, assignee)
-                                        List(newSource, sourceOf, sink)
-                                    case _ => None
-                                })
-
-                                if (vo_scope == SCOPE_GLOBAL) GEN(vo.copy(last = Some(currOpt.entry)) :: genSet) else GEN(genSet)
-
-                            case s: Sink => GEN(s)
+                            case v@VarSource(id, stmt, scope, last) =>
+                                computeVar(id, stmt, None, scope, last, v)
+                            case vo@VarSourceOf(id, stmt, source, scope, last) =>
+                                computeVar(id, stmt, Some(source), scope, last, vo)
                             case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
+                            case s: Sink => GEN(s)
                             case z: Zero => KILL
                             case x => super.computeTargets(flowFact)
                         }
+
                         result
+                    }
+
+                    private def computeStruct(id: Id, field: Option[Source], stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[InformationFlow2] = {
+                        lazy val copy = org match {
+                            case s: StructSource => s.copy(last = Some(currOpt.entry))
+                            case sOf: StructSourceOf => sOf.copy(last = Some(currOpt.entry))
+                            case _ => org
+                        }
+
+                        if (!currStatementIsAssignment) KILL
+                        else {
+                            val usages = {
+                                if (currStructFieldUses.exists(use => isFullFieldMatch(org, use))) {
+                                    val sources = currAssignments.flatMap {
+                                        case (assignee, assignor) if assignor.contains(id) => getDefineSourcesFromAssignment(assignee)
+                                        case _ => None
+                                    }
+
+                                    val sourcesOf = sources.flatMap {
+                                        case s: StructSource => Some(StructSourceOf(s.getId, s.field, currOpt, source.getOrElse(org), s.getScope, Some(currOpt.entry)))
+                                        case v: VarSource => Some(VarSourceOf(v.getId, currOpt, source.getOrElse(org), v.getScope, Some(currOpt.entry)))
+                                        case _ => None
+                                    }
+
+                                    val sinks = sources.map(genSource => SinkToAssignment(currOpt, source.getOrElse(org), genSource.getId))
+
+                                    GEN(sourcesOf ::: sinks)
+                                } else if (currStructFieldAssigns.isEmpty && currStructFieldUses.isEmpty && currAssignments.exists { case (assignee, assignor) => assignor.contains(id) }) {
+                                    // TODO clean up condition
+                                    val sources = currAssignments.flatMap {
+                                        case (assignee, assignor) if assignor.contains(id) => getDefineSourcesFromAssignment(assignee)
+                                        case _ => None
+                                    }
+
+                                    val sourcesOf = sources.flatMap {
+                                        case s: StructSource => Some(StructSourceOf(s.getId, field, currOpt, source.getOrElse(org), s.getScope, Some(currOpt.entry)))
+                                        case _ => None
+                                    }
+
+                                    val sinks = sources.map(genSource => SinkToAssignment(currOpt, source.getOrElse(org), genSource.getId)) // TODO Flatmap if?
+
+                                    GEN(sourcesOf ::: sinks)
+                                } else KILL
+                            }
+
+                            val assignment =
+                                if (scope == SCOPE_GLOBAL) GEN(copy)
+                                else KILL
+
+                            GEN(assignment, usages)
+                        }
+                    }
+
+                    private def computeVar(id: Id, stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[InformationFlow2] = {
+                        lazy val copy = org match {
+                            case v: VarSource => v.copy(last = Some(currOpt.entry))
+                            case vOf: VarSourceOf => vOf.copy(last = Some(currOpt.entry))
+                            case _ => org
+                        }
+
+                        val usages =
+                            if (!currStatementIsAssignment) KILL
+                            else {
+                                val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(id) }
+                                val sources = assignees.flatMap { case (assignee, assignor) => getDefineSourcesFromAssignment(assignee) }
+
+                                val sourcesOf = sources.flatMap {
+                                    case v: VarSource => Some(VarSourceOf(v.getId, currOpt, source.getOrElse(org), v.getScope, Some(currOpt.entry)))
+                                    case s: StructSource => Some(StructSourceOf(s.getId, s.field, currOpt, source.getOrElse(org), s.getScope, Some(currOpt.entry)))
+                                    case _ => None
+                                }
+
+                                val sinks = assignees.map(assignment => SinkToAssignment(currOpt, source.getOrElse(org), assignment._1))
+
+                                GEN(sourcesOf ::: sinks ::: sources)
+                            }
+
+                        val assignment =
+                            if (scope == SCOPE_GLOBAL) GEN(copy)
+                            else KILL
+
+                        GEN(assignment, usages)
                     }
                 }
             }
@@ -397,7 +440,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                             case s: Source => s match {
                                 case cs: Source if s.getScope == SCOPE_GLOBAL => KILL // isGlobal -> Kill
                                 case StructSource(_, Some(_), _, _, _) | StructSourceOf(_, Some(_), _, _, _, _) if currStructFieldAssigns.exists(isPartFieldMatch(s, _)) => KILL // Kill this fact, as it is handled at return flow
-                                case _ : VarSource | _ : VarSourceOf | StructSource(_, None, _, _, _) | StructSourceOf(_, None, _, _, _, _) if currDefines.exists(s.getId.equals) => KILL // Kill this fact, as it is handled at return flow
+                                case _: VarSource | _: VarSourceOf | StructSource(_, None, _, _, _) | StructSourceOf(_, None, _, _, _, _) if currDefines.exists(s.getId.equals) => KILL // Kill this fact, as it is handled at return flow
                                 case x => super.computeTargets(x)
                             }
                             case x => super.computeTargets(x)
@@ -468,39 +511,6 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 })
         }
 
-        def isFullFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
-            def matches(s: Source, parents: List[Id]): Boolean =
-                if (parents.isEmpty)
-                    s match {
-                        case StructSource(_, Some(_), _, _, _) | StructSourceOf(_, Some(_), _, _, _, _) => false
-                        case _ => fieldAssignment._1.equals(s.getId)
-
-                    }
-                else
-                    s match {
-                        case StructSource(_, Some(field), _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
-                        case StructSourceOf(_, Some(field), _, _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
-                        case _ => false
-                    }
-
-            matches(s, fieldAssignment._2.reverse)
-        }
-
-        /**
-          * Returns true for sources of x.y.z and assignments to x.y
-          */
-        def isPartFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
-            def matches(s: Source, parents: List[Id]): Boolean =
-                if (parents.isEmpty) fieldAssignment._1.equals(s.getId)
-                else s match {
-                    case StructSource(_, Some(field), _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
-                    case StructSourceOf(_, Some(field), _, _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
-                    case _ => false
-                }
-
-            matches(s, fieldAssignment._2.reverse)
-        }
-
         /*
          * We are using the variability-aware typesystem of TypeChef. However, variability encoded within the type definition of an variable or struct does not matter for us.
          * As a consequence we only visit one type-definition as we do assume correct type assignments.
@@ -529,6 +539,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] =
             flowFact match {
                 case z: Zero => GEN(z)
+                case s: Sink => GEN(s)
                 case x => default(x)
             }
     }
@@ -597,6 +608,22 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         private val fDefParams = getFDefParameters(destinationMethod)
 
         val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
+    }
+
+    private abstract class ReturnFlowFunction(callSite: Opt[AST], calleeMethod: Opt[FunctionDef], exitStmt: Opt[AST], returnSite: Opt[AST], default: InformationFlow2 => util.Set[InformationFlow2]) extends InfoFlowFunction(callSite, returnSite, default) {
+        lazy val fCall = filterASTElems[FunctionCall](callSite)
+        lazy val fCallOpt = parentOpt(callSite.entry, interproceduralCFG.getASTEnv(callSite)).asInstanceOf[Opt[AST]]
+        lazy val exitOpt = parentOpt(exitStmt.entry, interproceduralCFG.getASTEnv(exitStmt)).asInstanceOf[Opt[AST]]
+        lazy val pointerParamNames = getPointerFDefParamNames(calleeMethod)
+
+        private def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOfTerm(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
+
+        lazy override val currAssignments = assignsReturnVariablesTo(callSite.entry, exitStmt.entry)
+
+        exitStmt.entry match {
+            case ReturnStatement(_) =>
+            case _ => WarningsCache.add("Exiting " + calleeMethod.entry.getName + " without return statement.")
+        }
     }
 
 }

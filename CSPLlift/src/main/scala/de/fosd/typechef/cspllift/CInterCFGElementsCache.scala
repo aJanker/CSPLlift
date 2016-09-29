@@ -91,6 +91,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
+        tunit = rewriteCallsAsExitStmts(tunit, fm)
         tunit = removeInStatementVariability(tunit, fm)
         copyPositions(t.asInstanceOf[TranslationUnit], tunit)
 

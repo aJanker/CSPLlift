@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift.evaluation
 import java.io._
 
 import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint2}
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem, SinkToUse}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
@@ -11,7 +11,7 @@ import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfigura
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
-import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
+import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit, WhileStatement}
 import soot.spl.ifds.Constraint
 
 class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
@@ -74,16 +74,25 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, method)
 
         // 4. Compare
-        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts, interrestingFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
         println("\n### Tested " + configs.size + " unique variants for code coverage.")
         configs.foreach(println)
         println
 
+        val dbgWhile = interrestingFacts._1.filter(fact => {
+            fact._1 match {
+                case s: SinkToUse => s.stmt.entry match {
+                    case w: WhileStatement => true
+                    case _ => false
+                }
+                case _ => false
+            }
+        })
+
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
-
             // unmatchedLiftedFacts.foreach(uc => println("Error:\n" + uc))
         }
 
@@ -102,6 +111,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                 println("###\n")
             })
         } else println("\n### All results were covered by the lifted approach!")
+
+        println(dbgWhile)
+        println(interrestingFacts)
 
         unmatchedCoverageFacts.isEmpty
     }
@@ -137,7 +149,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, method)
 
         // 5. Compare
-        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts, _) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
         configs.foreach(config => {
@@ -181,7 +193,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
 
-    private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]) = {
+    private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)], (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)])) = {
         val interestingLiftedFacts = liftedFacts.filter(_._1.isInterestingFact)
         val interestingSamplingFacts = samplingResults.map(res => (res._1.filter(_._1.isInterestingFact), res._2))
 
@@ -210,12 +222,16 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         val unmatchedLiftedFacts = matchedLiftedFacts.toList.collect { case ((x, 0)) => x }
 
+        /* println("dbg")
+
+        println(interestingLiftedFacts)
+        println(interestingSamplingFacts) */
         /* interestingSamplingFacts.foreach(s => {
             println(s._2)
             s._1.foreach(x => println(x._1.toText))
         }) */
 
-        (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts)
+        (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts, (interestingLiftedFacts, interestingSamplingFacts))
     }
 
 
