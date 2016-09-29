@@ -394,8 +394,12 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 new InfoFlowFunction(callSite, returnSite, default) {
                     override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] =
                         flowFact match {
-                            case s: Source if s.getScope == SCOPE_GLOBAL => KILL // isGlobal -> Kill
-                            case s: Source if currDefines.exists(s.getId.equals) => KILL // Kill this fact, as it is handled at return flow
+                            case s: Source => s match {
+                                case cs: Source if s.getScope == SCOPE_GLOBAL => KILL // isGlobal -> Kill
+                                case StructSource(_, Some(_), _, _, _) | StructSourceOf(_, Some(_), _, _, _, _) if currStructFieldAssigns.exists(isPartFieldMatch(s, _)) => KILL // Kill this fact, as it is handled at return flow
+                                case _ : VarSource | _ : VarSourceOf | StructSource(_, None, _, _, _) | StructSourceOf(_, None, _, _, _, _) if currDefines.exists(s.getId.equals) => KILL // Kill this fact, as it is handled at return flow
+                                case x => super.computeTargets(x)
+                            }
                             case x => super.computeTargets(x)
                         }
                 }
