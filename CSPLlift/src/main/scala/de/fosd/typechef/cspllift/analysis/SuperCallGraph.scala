@@ -20,5 +20,8 @@ object SuperCallGraph {
         writer.close()
     }
 
-
+    def clear() = {
+        nodes.clear()
+        edges.clear()
+    }
 }

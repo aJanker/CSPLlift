@@ -223,11 +223,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def getSuccsOf(stmt: Opt[AST]): util.List[Opt[AST]] = {
         val succs = getSuccsOfS(stmt)
-
-        /*if (stmt.entry.equals(ExprStatement(AssignExpr(Id("start"),"=",Id("x"))))) {
-            println("dbg")
-        } */
-
         cInterCFGNodes.++=(succs)
         succs.asJava
     }
@@ -278,17 +273,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isFallThroughSuccessor(stmt: Opt[AST], succ: Opt[AST]): Boolean = {
         val successors = getSuccsOfS(stmt)
-
-        /* if (stmt.entry.equals(ExprStatement(AssignExpr(Id("start"),"=",Id("x"))))) {
-            val cond = successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.condition.and(condition))
-            val dbg =         successors.size > 1 && successors.last.entry.equals(succ.entry) && successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.condition.and(condition)).equivalentTo(successors.last.condition.not())
-
-            println(dbg )
-            println(cond)
-        } */
-
         successors.size > 1 && successors.last.entry.equals(succ.entry) && !getPresenceNode(succ.entry).condition.equals(succ.condition) && successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.condition.and(condition)).not().equivalentTo(successors.last.condition)
-        //successors.contains(succ) && ((successors.size == 1) || !successors.exists(s => !s.equals(succ) && succ.condition.and(s.condition).isSatisfiable(getFeatureModel)))
     }
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[Opt[FunctionDef]] = {
