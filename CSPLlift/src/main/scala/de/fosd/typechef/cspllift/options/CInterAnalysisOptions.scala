@@ -6,7 +6,7 @@ import gnu.getopt.{Getopt, LongOpt}
 class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLliftOptions {
     private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
 
-    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, liftPrintVariants, mergeCLinkingInterfaces: Boolean = false
+    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, liftPrintVariants, liftCallGraph, mergeCLinkingInterfaces: Boolean = false
 
     private val F_MERGELINKINTERFACE: Char = Options.genOptionId()
     private val F_LINKINTERFACE: Char = Options.genOptionId()
@@ -42,6 +42,8 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def isLiftSingleEvaluationEnabled: Boolean = liftEvalSingle
 
+    override def isLiftPrintExplodedSuperCallGraphEnabled: Boolean = liftCallGraph
+
     override def liftTaintAnalysis: Boolean = SPLLIFT_Taint.isSelected
 
     override def writeVariants: Boolean = liftPrintVariants
@@ -71,6 +73,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
             else if (arg.equalsIgnoreCase("EVALCOVERAGE")) liftEvalSampling = true
             else if (arg.equalsIgnoreCase("EVALSINGLE")) liftEvalSingle = true
             else if (arg.equalsIgnoreCase("PRINTVARIANTS")) liftPrintVariants = true
+            else if (arg.equalsIgnoreCase("CALLGRAPH")) liftCallGraph = true
             else {
                 val opt = liftopts.find(_.param.toUpperCase equalsIgnoreCase arg)
 

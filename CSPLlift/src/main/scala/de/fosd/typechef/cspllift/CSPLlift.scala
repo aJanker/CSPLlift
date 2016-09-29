@@ -1,6 +1,8 @@
 package de.fosd.typechef.cspllift
 
-import de.fosd.typechef.cspllift.analysis.Taint2
+import java.io.{File, FileWriter}
+
+import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint2}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.WarningsCache
@@ -29,6 +31,9 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             val problem = new InformationFlow2Problem(cInterCFG)
             CSPLlift.solve(problem, printWarnings = true)
         })
+
+        if (opt.isLiftPrintExplodedSuperCallGraphEnabled)
+            writeExplodedSuperCallGraph(opt)
 
         val allSinks = Taint2.allSinks(solution)
 
@@ -74,6 +79,17 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         println("\n#sinks\n")
         println(Taint.prettyPrintSinks(allReaches))
     } */
+
+    private def writeExplodedSuperCallGraph(opt: CSPLliftOptions) : Unit = {
+        val graphDir = opt.getInformationFlowGraphsOutputDir
+        val dir = new File(graphDir)
+
+        if (!(dir.exists() && dir.isDirectory)) dir.mkdirs()
+
+        SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(graphDir + "/callGraph.dot")))
+
+        SuperCallGraph.clear()
+    }
 }
 
 object CSPLlift {

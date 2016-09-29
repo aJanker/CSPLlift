@@ -18,6 +18,7 @@ trait CSPLliftOptions {
 
     def isLiftSamplingEvaluationEnabled: Boolean
     def isLiftSingleEvaluationEnabled: Boolean
+    def isLiftPrintExplodedSuperCallGraphEnabled: Boolean
 
     def liftTaintAnalysis : Boolean
 

@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift.evaluation
 
 import java.io._
 
-import de.fosd.typechef.cspllift.analysis.Taint2
+import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint2}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
@@ -48,10 +48,13 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     }
 
     private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Boolean = {
+        val method: String = "codeCoverage"
 
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
         val (vaaWallTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
+
+        if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
@@ -63,11 +66,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             val run = "coverage_" + i
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
+            if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
             (solution, config, icfg, wallTime)
         })
 
         // Print Variants
-        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, "codeCoverage")
+        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, method)
 
         // 4. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -103,6 +107,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     }
 
     private def runErrorConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], opt: CSPLliftOptions): Boolean = {
+        val method : String = "conditionCoverage"
+
         // 1. Step -> Run VAA first in order to detect all affected features
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
@@ -123,11 +129,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             val run = "singleConf_" + i
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
+            if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
             (solution, config, icfg, wallTime)
         })
 
         // Print Variants
-        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, "conditionCoverage")
+        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, method)
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -222,9 +229,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
     private def printVariants[T <: CIFDSProblem[D], D <: CFlowFact](vaaCIFG: CInterCFG, coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method: String): Unit = {
         val printDir = opt.getVariantsOutputDir + "/" + method + "/"
-        val print = new File(printDir)
+        val dir = new File(printDir)
 
-        if (!(print.exists() && print.isDirectory)) print.mkdirs()
+        if (!(dir.exists() && dir.isDirectory)) dir.mkdirs()
 
         vaaCIFG.cInterCFGElementsCacheEnv.getAllFiles.foreach {
             case (file, tunit) =>
@@ -235,9 +242,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         coverageFacts.zipWithIndex.foreach {
             case ((_, config, icfg, _), index) =>
                 val outputDir = printDir + "/" + index
-                val output = new File(outputDir)
+                val currDir = new File(outputDir)
 
-                if (!(output.exists() && output.isDirectory)) output.mkdirs()
+                if (!(currDir.exists() && currDir.isDirectory)) currDir.mkdirs()
 
                 writeStringToGZipFile(config.toString, outputDir + "/config")
 
@@ -247,5 +254,17 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                         writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
                 }
         }
+    }
+
+    private def writeExplodedSuperCallGraph(opt: CSPLliftOptions, method: String, variant : Option[String] = None) : Unit = {
+        val graphDir = opt.getInformationFlowGraphsOutputDir + "/" + method + "/"
+        val dir = new File(graphDir)
+
+        if (!(dir.exists() && dir.isDirectory)) dir.mkdirs()
+
+        if (variant.isEmpty) SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(graphDir + "/callGraph.dot")))
+        else SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(graphDir + "/" + variant.get + "_callGraph.dot")))
+
+        SuperCallGraph.clear()
     }
 }
