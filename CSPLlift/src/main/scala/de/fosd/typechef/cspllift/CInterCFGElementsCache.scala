@@ -49,7 +49,7 @@ trait CInterCFGElementsCache extends KiamaRewritingRules {
         cInterCFGElementsCacheEnv.isNameKnown(name)
 
     def getExternalDefinitions(name: Opt[String]): List[Opt[FunctionDef]] = {
-        cInterCFGElementsCacheEnv.getNameLocations(name).getOrElse(List()).foldLeft(List[Opt[FunctionDef]]())((res, path) => {
+        cInterCFGElementsCacheEnv.getNameLocations(name).getOrElse(List()).flatMap(path => {
             val tUnit =
                 cInterCFGElementsCacheEnv.getTunitForFile(path) match {
                     case Some(t) => t
@@ -58,10 +58,11 @@ trait CInterCFGElementsCache extends KiamaRewritingRules {
 
             val foundDefs = tUnit.defs.flatMap {
                 case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isSatisfiable(/* TODO FM */) =>
-                    Some(Opt(ft.and(name.condition), f))
+                    Some(Opt(ft, f))
                 case _ => None
             }
-            res ::: foundDefs
+
+            foundDefs
         })
     }
 }
@@ -89,9 +90,11 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     override def prepareAST[T <: Product](t: T): T = {
         var tunit = super.prepareAST(t.asInstanceOf[TranslationUnit])
 
+        tunit = removeInStatementVariability(tunit, fm)
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
-        tunit = removeInStatementVariability(tunit, fm)
+        tunit = addReturnStmtsForNonReturnExits(tunit, fm)
+
         copyPositions(t.asInstanceOf[TranslationUnit], tunit)
 
         if (options.getConfiguration.isDefined)

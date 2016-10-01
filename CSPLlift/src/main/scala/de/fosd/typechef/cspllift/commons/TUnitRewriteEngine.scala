@@ -1,6 +1,7 @@
 package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.{Choice, Opt}
+import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.cspllift.evaluation.Sampling
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
@@ -8,7 +9,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 import org.kiama.rewriting.Rewriter._
 
-trait KiamaRewritingRules extends EnforceTreeHelper {
+trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with ConditionalNavigation {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manybu(rule[Any] {
@@ -25,6 +26,18 @@ trait KiamaRewritingRules extends EnforceTreeHelper {
                     else x :: Nil)
         })
         r(c).get.asInstanceOf[CompoundStatement]
+    }
+
+    def replaceStmtWithStmtList[T <: Product](t: T, e: Statement, n: List[Opt[Statement]]) : T = {
+        val currASTEnv = CASTEnv.createASTEnv(t)
+        val cc = findPriorASTElem[CompoundStatement](e, currASTEnv)
+
+        if (cc.isEmpty) return t // statement not part of a compound statement -> can not rewrite
+
+        val parentStmt = parentOpt(e, currASTEnv).asInstanceOf[Opt[Statement]]
+        val ccReplacement = replaceStmtWithStmtsListInCCStmt(cc.get, parentStmt, n)
+
+        replace(t, cc.get, ccReplacement)
     }
 
     def replaceStmtWithStmtsListInCCStmt(c: CompoundStatement, e: Opt[Statement], n: List[Opt[Statement]]): CompoundStatement = {
@@ -73,6 +86,28 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
     private var tmpVariablesCount = 0
 
     /**
+      * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
+      */
+    def addReturnStmtsForNonReturnExits[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+        val cfg = new Object with IntraCFG
+        val astEnv = CASTEnv.createASTEnv(ast)
+
+        def isExitWithoutReturn(stmt: AST): Boolean =
+            cfg.succ(stmt, astEnv).exists {
+                case Opt(_, f: FunctionDef) =>
+                    stmt match {
+                        case _ : ReturnStatement => false
+                        case _ => true
+                    }
+                case _ => false
+            }
+
+        val exitsWithoutReturn = getCFGStatements(ast).filter(isExitWithoutReturn).map(parentOpt(_ ,astEnv).asInstanceOf[Opt[Statement]])
+
+        exitsWithoutReturn.foldLeft(ast)((currAST, stmt) => replaceStmtWithStmtList(currAST, stmt.entry, List(stmt, stmt.copy(entry = ReturnStatement(None)))))
+    }
+
+    /**
       * Moves variability nested in CFG-Statements up to the CFG Statement by code duplication.
       * We are otherwise unable use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
       */
@@ -81,7 +116,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
 
         val astEnv = CASTEnv.createASTEnv(ast)
 
-        val cfgStmts = filterAllASTElems[CFGStmt](ast).flatMap(filterAllASTElems[Statement]).distinct
+        val cfgStmts = getCFGStatements(ast)
         val replacements = cfgStmts.flatMap {
 
             case c: CFGStmt if isVariable(c) =>
@@ -99,27 +134,16 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
                         val falseCond = config.getFalseSet.foldLeft(FeatureExprFactory.True)(_ and _).not()
                         val finalCond = if (falseCond.isSatisfiable(fm)) trueCond.and(falseCond) else trueCond
 
-                        val product = deriveProductWithCondition(parent, config.getTrueFeatures, finalCond)
+                        val product = deriveProductWithCondition(c, config.getTrueFeatures, finalCond)
                         Some(Opt(finalCond, product))
                     })
-                    Some((parent, products))
+                    Some((c, products))
                 } else None
 
             case _ => None
         }
 
-        replacements.foldLeft(ast)((currAST, r) => {
-            val currASTEnv = CASTEnv.createASTEnv(currAST)
-            val cc = findPriorASTElem[CompoundStatement](r._1, currASTEnv)
-
-            if (cc.isEmpty)
-                return currAST // return not part of a compound statement -> can not rewrite
-
-            val ccReplacement =
-                replaceStmtWithStmtsListInCCStmt(cc.get, parentOpt(r._1, currASTEnv).asInstanceOf[Opt[Statement]], r._2.asInstanceOf[List[Opt[Statement]]])
-
-            replace(currAST, cc.get, ccReplacement)
-        })
+        replacements.foldLeft(ast)((currAST, r) => replaceStmtWithStmtList(currAST, r._1, r._2))
     }
 
     /**
@@ -290,6 +314,8 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
 
         ts.lookupExprType(expr.entry).toOptList.flatMap(t => aTypeToASTTypeSpecifier(t.entry.atype, t.condition.and(expr.condition)))
     }
+
+    private def getCFGStatements[T <: Product](ast: T) = filterAllASTElems[CFGStmt](ast).flatMap(filterAllASTElems[Statement]).distinct
 
     private def getNestedFunctionCalls[T <: Product](tunit: T): List[FunctionCall] =
         filterASTElems[FunctionCall](tunit).filter(fCall => {

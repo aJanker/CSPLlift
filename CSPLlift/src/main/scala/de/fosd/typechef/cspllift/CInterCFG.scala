@@ -230,7 +230,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     private def getSuccsOfS(stmt: Opt[AST]): List[Opt[AST]] =
         succ(stmt.entry, getASTEnv(stmt)).filter {
             case Opt(_, f: FunctionDef) => false
-            case Opt(_, g: GotoStatement) => false
             case _ => true
         }.filter(_.condition.isSatisfiable(getFeatureModel))
 
@@ -241,7 +240,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def isExitStmt(stmt: Opt[AST]): Boolean =
         succ(stmt.entry, getASTEnv(stmt)).exists {
             case Opt(_, f: FunctionDef) => true
-            case Opt(_, g: GotoStatement) => true
             case _ => false
         }
 
@@ -262,7 +260,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             val node = getPresenceNode(n)
             !(isCallStmt(node) || isStartPoint(node))
         }
-        val allNonCallStartNodes = cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode} map getPresenceNode
+        val allNonCallStartNodes = List() //cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode} map getPresenceNode
         val allVisitedNonCallStartNodes = cInterCFGNodes.toList filter nonCallStartOptNode
 
         asJavaIdentitySet(allNonCallStartNodes ++ allVisitedNonCallStartNodes)
@@ -285,7 +283,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         def findCalleeInTunit(tunit : TranslationUnit) = {
             tunit.defs.flatMap {
                 case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
-                    Some(Opt(ft.and(name.condition), f))
+                    Some(Opt(ft, f))
                 case _ => None
             }
         }
