@@ -229,14 +229,26 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns the successor nodes.
       */
-    override def getSuccsOf(stmt: CICFGStmt[AST]): util.List[CICFGStmt[AST]] = {
-        val succs = getSuccsOfS(stmt)
+    override def getSuccsOf(cICFGStmt: CICFGStmt[AST]): util.List[CICFGStmt[AST]] = {
+        val succs = getSuccsOfS(cICFGStmt)
         cInterCFGNodes.++=(succs)
         succs.asJava
     }
 
     private def getSuccsOfS(cICFGStmt: CICFGStmt[AST]): List[CICFGStmt[AST]] =
         succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)).filter {
+            case Opt(_, f: FunctionDef) => false
+            case _ => true
+        }.filter(_.condition.isSatisfiable(getFeatureModel)).map(succStmt => CICFGConcreteStmt(succStmt, succStmt.entry.getPositionFrom))
+
+    override def getPredsOf(cICFGStmt: CICFGStmt[AST]): util.List[CICFGStmt[AST]] = {
+        val preds = getPredsOfS(cICFGStmt)
+        cInterCFGNodes.++=(preds)
+        preds.asJava
+    }
+
+    private def getPredsOfS(cICFGStmt: CICFGStmt[AST]): List[CICFGStmt[AST]] =
+        pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)).filter {
             case Opt(_, f: FunctionDef) => false
             case _ => true
         }.filter(_.condition.isSatisfiable(getFeatureModel)).map(succStmt => CICFGConcreteStmt(succStmt, succStmt.entry.getPositionFrom))

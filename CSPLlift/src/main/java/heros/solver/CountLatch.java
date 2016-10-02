@@ -72,7 +72,7 @@ public class CountLatch {
 	}
 
 	public void awaitZero() throws InterruptedException {
-		sync.acquireSharedInterruptibly(1);
+		sync.acquireShared(1);
 	}
 
 	public boolean awaitZero(long timeout, TimeUnit unit) throws InterruptedException {
@@ -101,6 +101,15 @@ public class CountLatch {
 
 	public String toString() {
 		return super.toString() + "[Count = " + sync.getCount() + "]";
+	}
+	
+	/**
+	 * Gets whether this counting latch has arrived at zero
+	 * @return True if this counting latch has arrived at zero, otherwise
+	 * false
+	 */
+	public boolean isAtZero() {
+		return sync.getCount() == 0;
 	}
 
 }

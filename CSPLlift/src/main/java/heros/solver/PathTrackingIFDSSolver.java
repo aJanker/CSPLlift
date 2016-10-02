@@ -24,7 +24,9 @@ import java.util.Map;
  * both target values with one another.
  *  
  * @author Eric Bodden
+ * @deprecated Use {@link JoinHandlingNodesIFDSSolver} instead.
  */
+@Deprecated
 public class PathTrackingIFDSSolver<N, D extends LinkedNode<D>, M, I extends InterproceduralCFG<N, M>> extends IFDSSolver<N, D, M, I> {
 
 	public PathTrackingIFDSSolver(IFDSTabulationProblem<N, D, M, I> ifdsProblem) {
@@ -34,7 +36,7 @@ public class PathTrackingIFDSSolver<N, D extends LinkedNode<D>, M, I extends Int
 	protected final Map<CacheEntry, LinkedNode<D>> cache = Maps.newHashMap();
 	
 	@Override
-	protected void propagate(D sourceVal, N target, D targetVal, EdgeFunction<BinaryDomain> f, N relatedCallSite, boolean isUnbalancedReturn) {
+	protected void propagate(D sourceVal, N target, D targetVal, EdgeFunction<IFDSSolver.BinaryDomain> f, N relatedCallSite, boolean isUnbalancedReturn) {
 		CacheEntry currentCacheEntry = new CacheEntry(target, sourceVal, targetVal);
 
 		boolean propagate = false;

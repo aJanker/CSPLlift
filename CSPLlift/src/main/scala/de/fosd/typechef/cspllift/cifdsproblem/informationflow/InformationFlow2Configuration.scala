@@ -34,8 +34,17 @@ trait InformationFlow2Configuration extends SolverConfiguration with Information
     override def autoAddZero(): Boolean =  false
 
     /**
-      * If true, then the solver will cache flow functions and edge functions.
+      * Returns true if the solver should record the intermediate flow edges
+      * created by calling the methods on {@link IFDSTabulationProblem#flowFunctions()}.
+      * These nodes are not used by the solver, but may be useful for debugging the solver
+      * or flow functions (see {@link FlowFunctionDotExport}).
+      */
+    def recordEdges: Boolean = false
+
+    /**
+      * If true, the solver will cache flow functions and edge functions.
       */
     override def cacheFlowFunctions(): Boolean = false
+
 }
 

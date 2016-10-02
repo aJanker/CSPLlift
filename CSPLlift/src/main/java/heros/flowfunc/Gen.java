@@ -18,6 +18,7 @@ import static heros.TwoElementSet.twoElementSet;
 import static java.util.Collections.singleton;
 
 
+
 /**
  * Function that creates a new value (e.g. returns a set containing a fixed value when given
  * a specific parameter), but acts like the identity function for all other parameters.

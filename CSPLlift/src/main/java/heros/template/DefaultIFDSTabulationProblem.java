@@ -65,21 +65,21 @@ public abstract class DefaultIFDSTabulationProblem<N,D,M, I extends Interprocedu
 
 	@Override
 	public boolean autoAddZero() {
-		return false;
+		return true;
 	}
 	
 	@Override
 	public int numThreads() {
-		return 1;
+		return Runtime.getRuntime().availableProcessors();
 	}
 	
 	@Override
 	public boolean computeValues() {
 		return true;
 	}
-
+	
 	@Override
-	public boolean cacheFlowFunctions() {
+	public boolean recordEdges() {
 		return false;
 	}
 }

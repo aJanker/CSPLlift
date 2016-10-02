@@ -18,6 +18,7 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 
 
+
 /**
  * Function that kills a specific value (i.e. returns an empty set for when given this
  * value as an argument), but behaves like the identity function for all other values.
@@ -33,7 +34,7 @@ public class Kill<D> implements FlowFunction<D> {
 	} 
 
 	public Set<D> computeTargets(D source) {
-		if(source==killValue) {
+		if(source.equals(killValue)) {
 			return emptySet();
 		} else
 			return singleton(source);

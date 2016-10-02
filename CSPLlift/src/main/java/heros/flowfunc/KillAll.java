@@ -17,6 +17,7 @@ import java.util.Set;
 import static java.util.Collections.emptySet;
 
 
+
 /**
  * The empty function, i.e. a function which returns an empty set for all points
  * in the definition space.

@@ -18,6 +18,7 @@ import java.util.Set;
 import static heros.TwoElementSet.twoElementSet;
 
 
+
 public class Transfer<D> implements FlowFunction<D> {
 	
 	private final D toValue;

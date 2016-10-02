@@ -42,7 +42,7 @@ public class Union<D> implements FlowFunction<D> {
 	public static <D> FlowFunction<D> union(FlowFunction<D>... funcs) {
 		List<FlowFunction<D>> list = new ArrayList<FlowFunction<D>>();
 		for (FlowFunction<D> f : funcs) {
-			if(f!= Identity.v()) {
+			if(f!=Identity.v()) {
 				list.add(f);
 			}
 		}
