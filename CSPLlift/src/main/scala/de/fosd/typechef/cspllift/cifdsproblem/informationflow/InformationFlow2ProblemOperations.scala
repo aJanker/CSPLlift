@@ -3,7 +3,13 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations}
 import de.fosd.typechef.parser.c.Id
 
-trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[FlowFact] {
+/**
+  * Created by andi on 29/09/16.
+  */
+// Global TODO: Documentation
+/*
+trait InformationFlow2ProblemOperations extends CFlowConstants with CFlowOperations[InformationFlow2] {
+
     def isFullFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
         def matches(s: Source, parents: List[Id]): Boolean =
             if (parents.isEmpty)
@@ -36,4 +42,6 @@ trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperatio
 
         matches(s, fieldAssignment._2.reverse)
     }
+
 }
+*/
