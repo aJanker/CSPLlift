@@ -28,7 +28,7 @@ trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with Cond
         r(c).get.asInstanceOf[CompoundStatement]
     }
 
-    def replaceStmtWithStmtList[T <: Product](t: T, e: Statement, n: List[Opt[Statement]]) : T = {
+    def replaceStmtWithStmtList[T <: Product](t: T, e: Statement, n: List[Opt[Statement]]): T = {
         val currASTEnv = CASTEnv.createASTEnv(t)
         val cc = findPriorASTElem[CompoundStatement](e, currASTEnv)
 
@@ -92,19 +92,27 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
         val cfg = new Object with IntraCFG
         val astEnv = CASTEnv.createASTEnv(ast)
 
-        def isExitWithoutReturn(stmt: AST): Boolean =
-            cfg.succ(stmt, astEnv).exists {
-                case Opt(_, f: FunctionDef) =>
-                    stmt match {
-                        case _ : ReturnStatement => false
-                        case _ => true
-                    }
-                case _ => false
+        def isExitWithoutReturn(stmt: AST): Boolean = {
+            stmt match {
+                /* case w: WhileStatement =>
+                    cfg.succ(w.expr, astEnv).forall(cfgStmt => w.s.toOptList.exists(stmt => cfgStmt.equals(stmt))) */
+                case _ => cfg.succ(stmt, astEnv).exists {
+                    case Opt(_, f: FunctionDef) =>
+                        stmt match {
+                            case _: ReturnStatement => false
+                            case _ => true
+                        }
+                    case _ => false
+                }
             }
 
-        val exitsWithoutReturn = getCFGStatements(ast).filter(isExitWithoutReturn).map(parentOpt(_ ,astEnv).asInstanceOf[Opt[Statement]])
+        }
 
-        exitsWithoutReturn.foldLeft(ast)((currAST, stmt) => replaceStmtWithStmtList(currAST, stmt.entry, List(stmt, stmt.copy(entry = ReturnStatement(None)))))
+        val exitsWithoutReturn = getCFGStatements(ast).filter(isExitWithoutReturn).map(parentOpt(_, astEnv).asInstanceOf[Opt[Statement]])
+
+        val ret = exitsWithoutReturn.foldLeft(ast)((currAST, stmt) => replaceStmtWithStmtList(currAST, stmt.entry, List(stmt, stmt.copy(entry = ReturnStatement(None).setPositionRange(stmt.entry.getPositionFrom, stmt.entry.getPositionTo)))))
+
+        ret
     }
 
     /**

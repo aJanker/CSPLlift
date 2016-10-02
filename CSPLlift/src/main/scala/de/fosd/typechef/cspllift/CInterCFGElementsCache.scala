@@ -48,7 +48,7 @@ trait CInterCFGElementsCache extends KiamaRewritingRules {
     def isNameLinked(name: Opt[String]): Boolean =
         cInterCFGElementsCacheEnv.isNameKnown(name)
 
-    def getExternalDefinitions(name: Opt[String]): List[Opt[FunctionDef]] = {
+    def getExternalDefinitions(name: Opt[String]): List[CICFGFDef] = {
         cInterCFGElementsCacheEnv.getNameLocations(name).getOrElse(List()).flatMap(path => {
             val tUnit =
                 cInterCFGElementsCacheEnv.getTunitForFile(path) match {
@@ -58,7 +58,7 @@ trait CInterCFGElementsCache extends KiamaRewritingRules {
 
             val foundDefs = tUnit.defs.flatMap {
                 case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isSatisfiable(/* TODO FM */) =>
-                    Some(Opt(ft, f))
+                    Some(CICFGFDef(Opt(ft, f), f.getPositionFrom))
                 case _ => None
             }
 
@@ -157,8 +157,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def getTSForEnv(env: ASTEnv) = envToTS.get(env)
 
     def getTunitForFile(file: String): Option[TranslationUnit] = {
-        val dbgFile = file /*.replace("/Users/andi/Dropbox", "/home/janker") */
-        if (fileToTUnit.containsKey(dbgFile)) Some(fileToTUnit.get(dbgFile))
+        if (fileToTUnit.containsKey(file)) Some(fileToTUnit.get(file))
         else loadTUnit(file)
     }
 

@@ -35,13 +35,13 @@ import java.util.stream.Collectors;
  * Solves the given {@link IDETabulationProblem} as described in the 1996 paper by Sagiv,
  * Horwitz and Reps. To solve the problem, call {@link #solve()}. Results can then be
  * queried by using {@link #resultAt(Object, Object)} and {@link #resultsAt(Object)}.
- *
+ * <p>
  * Note that this solver and its data structures internally use mostly {@link java.util.LinkedHashSet}s
  * instead of normal {@link HashSet}s to fix the iteration order as much as possible. This
  * is to produce, as much as possible, reproducible benchmarking results. We have found
  * that the iteration order can matter a lot in terms of speed.
  *
- * @param <N> The type of nodes in the interprocedural control-flow graph. 
+ * @param <N> The type of nodes in the interprocedural control-flow graph.
  * @param <D> The type of data-flow facts to be computed by the tabulation problem.
  * @param <M> The type of objects used to represent methods.
  * @param <V> The type of values to be computed along flow edges.
@@ -243,6 +243,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
 
     /**
      * Dispatch the processing of a given edge. It may be executed in a different thread.
+     *
      * @param edge the edge to process
      */
     protected void scheduleEdgeProcessing(PathEdge<N, D> edge) {
@@ -256,6 +257,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
 
     /**
      * Dispatch the processing of a given value. It may be executed in a different thread.
+     *
      * @param vpt
      */
     private void scheduleValueProcessing(ValuePropagationTask vpt) {
@@ -268,6 +270,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
 
     /**
      * Dispatch the computation of a given value. It may be executed in a different thread.
+     *
      * @param task
      */
     private void scheduleValueComputationTask(ValueComputationTask task) {
@@ -679,12 +682,12 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
     private void setVal(N nHashN, D nHashD, V l) {
         // TOP is the implicit default value which we do not need to store.
         synchronized (val) {
-             if (l == valueLattice.topElement())     // do not store top values
+            if (l == valueLattice.topElement())     // do not store top values
                 val.remove(nHashN, nHashD);
             else
                 val.put(nHashN, nHashD, l);
         }
-        logger.debug("VALUE: {} {} {} {}", l, nHashD, nHashN,  icfg.getMethodOf(nHashN));
+        logger.debug("VALUE: {} {} {} {}", l, nHashD, nHashN, icfg.getMethodOf(nHashN));
     }
 
     private EdgeFunction<V> jumpFunction(PathEdge<N, D> edge) {

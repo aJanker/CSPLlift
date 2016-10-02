@@ -1,17 +1,15 @@
 package soot.spl.ifds;
 
-import de.fosd.typechef.conditional.Opt;
-import de.fosd.typechef.cspllift.CInterCFG;
-import de.fosd.typechef.parser.c.AST;
-import de.fosd.typechef.parser.c.FunctionDef;
 import heros.IFDSTabulationProblem;
+import heros.InterproceduralCFG;
 import heros.solver.IDESolver;
 import heros.template.DefaultIDETabulationProblem;
 
-abstract class DefaultSPLIFDSTabulationProblem<D> extends DefaultIDETabulationProblem<Opt<AST>, D, Opt<FunctionDef>, Constraint, CInterCFG> {
-    private final IFDSTabulationProblem<Opt<AST>, D, Opt<FunctionDef>, CInterCFG> problem;
+abstract class DefaultSPLIFDSTabulationProblem<N,D,M, I extends InterproceduralCFG<N,M>> extends DefaultIDETabulationProblem<N, D, M, Constraint, I> {
+    private final IFDSTabulationProblem<N, D, M, I> problem;
 
-    DefaultSPLIFDSTabulationProblem(final IFDSTabulationProblem<Opt<AST>, D, Opt<FunctionDef>, CInterCFG> ifdsProblem) {
+    @SuppressWarnings("unchecked")
+    DefaultSPLIFDSTabulationProblem(final IFDSTabulationProblem<N, D, M, I> ifdsProblem) {
         super(ifdsProblem.interproceduralCFG());
         this.problem = ifdsProblem;
     }

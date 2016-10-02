@@ -11,7 +11,7 @@ class StructDereference extends CSPLliftTestHelper {
 
         var successful = true
 
-        val (tunit, _, _, sinks) = defaultTestInit("structDereference.c", allSinks)
+        val tunit= parseTUnitFromFile("structDereference.c")
 
         successful should be(true)
     }

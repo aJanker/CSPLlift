@@ -27,6 +27,7 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends CFlowOperations[Inf
                         val sink = SinkToUse(fCallNode, source)
                         if (scope == SCOPE_GLOBAL) GEN(List(vo.copy(last = Some(fCallNode.entry)), sink)) else GEN(sink)
                     case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s) // TODO Copy
+                    case z: Zero => GEN(z)
                     case _ => KILL
                 }
         }

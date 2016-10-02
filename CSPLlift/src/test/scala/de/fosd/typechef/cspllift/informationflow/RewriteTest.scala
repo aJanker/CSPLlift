@@ -9,7 +9,7 @@ class RewriteTest extends CSPLliftTestHelper {
 
         var successful = true
 
-        val (tunit, _, _, sinks) = defaultTestInit("rewrite.c", allSinks)
+        val tunit= parseTUnitFromFile("rewrite.c")
 
         successful should be(true)
 
@@ -19,7 +19,7 @@ class RewriteTest extends CSPLliftTestHelper {
 
         var successful = true
 
-        val (tunit, _, _, sinks) = defaultTestInit("rewriteMinimal.c", allSinks)
+        val tunit= parseTUnitFromFile("rewriteMinimal.c")
 
         successful should be(true)
 
