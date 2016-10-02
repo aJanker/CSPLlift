@@ -2,8 +2,8 @@ package de.fosd.typechef.cspllift.evaluation
 
 import java.io._
 
-import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint2}
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlow2, InformationFlow2Problem}
+import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{FlowFact, InformationFlowProblem}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
@@ -33,7 +33,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         var successful = true
 
         if (opt.liftTaintAnalysis)
-            successful = runSampling[InformationFlow2, InformationFlow2Problem](classOf[InformationFlow2Problem], opt: CSPLliftOptions) && successful
+            successful = runSampling[FlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
 
         successful
     }
@@ -42,7 +42,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         var successful = true
 
         if (opt.liftTaintAnalysis)
-            successful = runErrorConfiguration[InformationFlow2, InformationFlow2Problem](classOf[InformationFlow2Problem], opt: CSPLliftOptions) && successful
+            successful = runErrorConfiguration[FlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
 
         successful
     }
@@ -172,7 +172,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         if (!(unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty)) {
             val interestingCoverageFacts = coverageFacts.map {
-                fact => (Taint2.allSinks(fact._1.asInstanceOf[List[LiftedCFlowFact[InformationFlow2]]]), fact._2)
+                fact => (Taint.allSinks(fact._1.asInstanceOf[List[LiftedCFlowFact[FlowFact]]]), fact._2)
             }
             // debug purpose only
             println(interestingCoverageFacts.size)

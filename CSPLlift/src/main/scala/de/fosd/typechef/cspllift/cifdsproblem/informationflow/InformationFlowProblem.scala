@@ -4,7 +4,7 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
-import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations, CIFDSProblem, CZeroFact}
+import de.fosd.typechef.cspllift.cifdsproblem.{CIFDSProblem, CZeroFact}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.cspllift.{CICFGFDef, CICFGStmt, CInterCFG}
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
@@ -14,10 +14,9 @@ import heros.{FlowFunction, FlowFunctions}
 
 import scala.collection.JavaConverters._
 
-// Global TODO: Documentation
-trait InformationFlow2ProblemOperations extends CFlowConstants with CFlowOperations[InformationFlow2]
 
-class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlow2](cICFG) with InformationFlow2Configuration with InformationFlow2ProblemOperations {
+
+class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[FlowFact](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {
 
     private var initialGlobalsFile: String = ""
 
@@ -27,8 +26,8 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
       * Returns initial seeds to be used for the analysis. This is a mapping of statements to initial analysis facts.
       * We consider global variables as initial sources.
       */
-    override def initialSeeds(): util.Map[CICFGStmt[AST], util.Set[InformationFlow2]] = {
-        val initialSeeds = new util.HashMap[CICFGStmt[AST], util.Set[InformationFlow2]]()
+    override def initialSeeds(): util.Map[CICFGStmt[AST], util.Set[FlowFact]] = {
+        val initialSeeds = new util.HashMap[CICFGStmt[AST], util.Set[FlowFact]]()
         interproceduralCFG.getEntryFunctions.foldLeft(initialSeeds)((seeds, entryFunction) => {
             interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(seeds.put(_, globalsAsInitialSeeds(entryFunction)))
             initialGlobalsFile = entryFunction.method.entry.getFile.getOrElse("")
@@ -42,9 +41,9 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
         initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
     }
 
-    private def globalsAsInitialSeeds(fDef: CICFGFDef): util.Set[InformationFlow2] = GEN(globalsAsInitialSeedsL(fDef) :+ zeroValue())
+    private def globalsAsInitialSeeds(fDef: CICFGFDef): util.Set[FlowFact] = GEN(globalsAsInitialSeedsL(fDef) :+ zeroValue())
 
-    private def globalsAsInitialSeedsL(fDef: CICFGFDef): List[InformationFlow2] = {
+    private def globalsAsInitialSeedsL(fDef: CICFGFDef): List[FlowFact] = {
         val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
             // Ignore function and typedef definitions
             case Opt(_, f: FunctionDef) => true //
@@ -81,7 +80,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
       */
     private val zeroVal = Zero()
 
-    override def zeroValue(): InformationFlow2 with CZeroFact = zeroVal
+    override def zeroValue(): FlowFact with CZeroFact = zeroVal
 
     /**
       * Returns a set of flow functions. Those functions are used to compute data-flow facts
@@ -90,10 +89,10 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def flowFunctions(): FlowFunctions[CICFGStmt[AST], InformationFlow2, CICFGFDef] = cachedFlowFunctions
+    override def flowFunctions(): FlowFunctions[CICFGStmt[AST], FlowFact, CICFGFDef] = cachedFlowFunctions
 
-    private val cachedFlowFunctions: FlowFunctions[CICFGStmt[AST], InformationFlow2, CICFGFDef] =
-        new FlowFunctions[CICFGStmt[AST], InformationFlow2, CICFGFDef] {
+    private val cachedFlowFunctions: FlowFunctions[CICFGStmt[AST], FlowFact, CICFGFDef] =
+        new FlowFunctions[CICFGStmt[AST], FlowFact, CICFGFDef] {
 
             /**
               * Returns the flow function that computes the flow for a normal statement,
@@ -106,11 +105,11 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
               * be used to compute a branched analysis that propagates
               * different values depending on where controlflow branches.
               */
-            override def getNormalFlowFunction(curr: CICFGStmt[AST], succ: CICFGStmt[AST]): FlowFunction[InformationFlow2] = {
-                def default(flowFact: InformationFlow2) = GEN(flowFact)
+            override def getNormalFlowFunction(curr: CICFGStmt[AST], succ: CICFGStmt[AST]): FlowFunction[FlowFact] = {
+                def default(flowFact: FlowFact) = GEN(flowFact)
 
                 new InfoFlowFunction(curr, succ, default) {
-                    override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] = {
+                    override def computeTargets(flowFact: FlowFact): util.Set[FlowFact] = {
                         val result = flowFact match {
                             case s@StructSource(id, field, stmt, scope, last) =>
                                 computeStruct(id, field, stmt, None, scope, last, s)
@@ -131,7 +130,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                         result
                     }
 
-                    private def computeStruct(id: Id, field: Option[Source], stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[InformationFlow2] = {
+                    private def computeStruct(id: Id, field: Option[Source], stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[FlowFact] = {
                         lazy val copy = org match {
                             case s: StructSource => s.copy(last = Some(currOpt.entry))
                             case sOf: StructSourceOf => sOf.copy(last = Some(currOpt.entry))
@@ -185,7 +184,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                         }
                     }
 
-                    private def computeVar(id: Id, stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[InformationFlow2] = {
+                    private def computeVar(id: Id, stmt: Opt[AST], source: Option[Source], scope: Int, last: Option[AST], org: Source): util.Set[FlowFact] = {
                         lazy val copy = org match {
                             case v: VarSource => v.copy(last = Some(currOpt.entry))
                             case vOf: VarSourceOf => vOf.copy(last = Some(currOpt.entry))
@@ -232,7 +231,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
               * @param destinationMethod
               * The concrete target method for which the flow is computed.
               */
-            override def getCallFlowFunction(callStmt: CICFGStmt[AST], destinationMethod: CICFGFDef): FlowFunction[InformationFlow2] = {
+            override def getCallFlowFunction(callStmt: CICFGStmt[AST], destinationMethod: CICFGFDef): FlowFunction[FlowFact] = {
                 val flowCondition = destinationMethod.getStmt.condition.and(callStmt.getStmt.condition)
                 val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
                 val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
@@ -241,16 +240,16 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 /*if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && destinationMethod.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallCallFlowFunction(callStmt, interproceduralCFG.getASTEnv(callStmt), interproceduralCFG) */
 
-                def default(flowFact: InformationFlow2) = KILL
+                def default(flowFact: FlowFact) = KILL
                 def getZeroFactWithFlow(zero: Zero): Zero = zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
 
                 new CallFlowFunction(callStmt, destinationMethod, default) {
-                    override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] = {
+                    override def computeTargets(flowFact: FlowFact): util.Set[FlowFact] = {
                         val result = flowFact match {
                             case v@VarSource(source, _, vScope, _) => {
                                 val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam => uses(callParamToDefParam._1).exists(source.equals))
                                 val genSet = callParamMatches.flatMap(callParamMatch =>
-                                    callParamMatch._1.foldLeft(List[InformationFlow2]())((genSrc, expr) =>
+                                    callParamMatch._1.foldLeft(List[FlowFact]())((genSrc, expr) =>
                                         callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
                                             val genSource = VarSource(pDef.entry.decl.getId, currOpt, SCOPE_LOCAL, Some(currOpt.entry))
                                             val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, v, SCOPE_LOCAL, Some(currOpt.entry))
@@ -261,7 +260,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                             case vo@VarSourceOf(id, _, source, voScope, _) => {
                                 val callParamMatches = fCallParamsToFDefParams.filter(callParamToDefParam => uses(callParamToDefParam._1).exists(id.equals))
                                 val genSet = callParamMatches.flatMap(callParamMatch =>
-                                    callParamMatch._1.foldLeft(List[InformationFlow2]())((genSrc, expr) =>
+                                    callParamMatch._1.foldLeft(List[FlowFact]())((genSrc, expr) =>
                                         callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
                                             val genSource = VarSource(pDef.entry.decl.getId, currOpt, SCOPE_LOCAL, Some(currOpt.entry))
                                             val sourceOf = VarSourceOf(pDef.entry.decl.getId, currOpt, source, SCOPE_LOCAL, Some(currOpt.entry))
@@ -310,8 +309,8 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
               * does not contain a caller for the method that is returned from.
               * @return
               */
-            override def getReturnFlowFunction(callSite: CICFGStmt[AST], calleeMethod: CICFGFDef, exitStmt: CICFGStmt[AST], returnSite: CICFGStmt[AST]): FlowFunction[InformationFlow2] = {
-                def default(flowFact: InformationFlow2) = KILL
+            override def getReturnFlowFunction(callSite: CICFGStmt[AST], calleeMethod: CICFGFDef, exitStmt: CICFGStmt[AST], returnSite: CICFGStmt[AST]): FlowFunction[FlowFact] = {
+                def default(flowFact: FlowFact) = KILL
                 lazy val flowCondition = callSite.getStmt.condition
 
                 lazy val fCall = filterASTElems[FunctionCall](callSite)
@@ -332,7 +331,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 val assignments = assignsReturnVariablesTo(callSite.getStmt.entry, exitStmt.getStmt.entry)
 
                 new InfoFlowFunction(exitStmt, callSite, default) {
-                    override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] = {
+                    override def computeTargets(flowFact: FlowFact): util.Set[FlowFact] = {
                         val result = flowFact match {
                             case v@VarSource(source, _, vscope, _) =>
                                 val genSet = assignments.flatMap(assignment => assignment._2.flatMap {
@@ -390,11 +389,11 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
               * exceptional flow, this may actually be the start of an
               * exception handler.
               */
-            override def getCallToReturnFlowFunction(callSite: CICFGStmt[AST], returnSite: CICFGStmt[AST]): FlowFunction[InformationFlow2] = {
-                def default(flowFact: InformationFlow2) = GEN(flowFact)
+            override def getCallToReturnFlowFunction(callSite: CICFGStmt[AST], returnSite: CICFGStmt[AST]): FlowFunction[FlowFact] = {
+                def default(flowFact: FlowFact) = GEN(flowFact)
 
                 new InfoFlowFunction(callSite, returnSite, default) {
-                    override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] =
+                    override def computeTargets(flowFact: FlowFact): util.Set[FlowFact] =
                         flowFact match {
                             case s: Source => s match {
                                 case cs: Source if s.getScope == SCOPE_GLOBAL => KILL // isGlobal -> Kill
@@ -408,7 +407,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
             }
         }
 
-    private abstract class InfoFlowFunction(curr: CICFGStmt[AST], succ: CICFGStmt[AST], default: InformationFlow2 => util.Set[InformationFlow2]) extends FlowFunction[InformationFlow2] {
+    private abstract class InfoFlowFunction(curr: CICFGStmt[AST], succ: CICFGStmt[AST], default: FlowFact => util.Set[FlowFact]) extends FlowFunction[FlowFact] {
         val currStmt = curr.getStmt
         val succStmt = succ.getStmt
 
@@ -510,7 +509,7 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
          * We are using the variability-aware typesystem of TypeChef. However, variability encoded within the type definition of an variable or struct does not matter for us.
          * As a consequence we only visit one type-definition as we do assume correct type assignments.
          */
-        private def singleVisitOnSourceTypes[T <: InformationFlow2](currId: Id, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
+        private def singleVisitOnSourceTypes[T <: FlowFact](currId: Id, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
             val cTypes = succVarEnv.varEnv.lookupType(currId.name)
             var cFacts: List[T] = List()
 
@@ -531,14 +530,14 @@ class InformationFlow2Problem(cICFG: CInterCFG) extends CIFDSProblem[Information
                 case _ => false
             }
 
-        override def computeTargets(flowFact: InformationFlow2): util.Set[InformationFlow2] =
+        override def computeTargets(flowFact: FlowFact): util.Set[FlowFact] =
             flowFact match {
                 case z: Zero => GEN(z)
                 case x => default(x)
             }
     }
 
-    private abstract class CallFlowFunction(callStmt: CICFGStmt[AST], destinationMethod: CICFGFDef, default: InformationFlow2 => util.Set[InformationFlow2]) extends InfoFlowFunction(callStmt, destinationMethod, default) {
+    private abstract class CallFlowFunction(callStmt: CICFGStmt[AST], destinationMethod: CICFGFDef, default: FlowFact => util.Set[FlowFact]) extends InfoFlowFunction(callStmt, destinationMethod, default) {
         def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[ParameterDeclarationD]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
             if (callParams.isEmpty && fDefParams.isEmpty) return res
 

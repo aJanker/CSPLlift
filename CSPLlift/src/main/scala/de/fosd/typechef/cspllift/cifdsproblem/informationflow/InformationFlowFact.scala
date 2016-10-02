@@ -8,8 +8,8 @@ import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 
-trait InformationFlow2 extends Product with CFlowFact with KiamaRewritingRules with Cloneable {
-    override def clone(): InformationFlow2.this.type = super.clone().asInstanceOf[InformationFlow2.this.type]
+trait FlowFact extends Product with CFlowFact with KiamaRewritingRules with Cloneable {
+    override def clone(): FlowFact.this.type = super.clone().asInstanceOf[FlowFact.this.type]
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = equals(other)
 
@@ -20,9 +20,9 @@ trait InformationFlow2 extends Product with CFlowFact with KiamaRewritingRules w
     override def get: CFlowFact = this
 }
 
-case class Zero(override val flowCondition: FeatureExpr = BDDFeatureExprFactory.True) extends InformationFlow2 with CZeroFact
+case class Zero(override val flowCondition: FeatureExpr = BDDFeatureExprFactory.True) extends FlowFact with CZeroFact
 
-sealed abstract class InformationFlowFact(val stmt: Opt[AST]) extends InformationFlow2
+sealed abstract class InformationFlowFact(val stmt: Opt[AST]) extends FlowFact
 
 sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) extends InformationFlowFact(stmt) {
 

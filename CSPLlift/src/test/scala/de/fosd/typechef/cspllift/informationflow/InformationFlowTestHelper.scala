@@ -2,8 +2,8 @@ package de.fosd.typechef.cspllift.informationflow
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift._
-import de.fosd.typechef.cspllift.analysis.Taint2
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlow2Problem
+import de.fosd.typechef.cspllift.analysis.Taint
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
@@ -17,9 +17,9 @@ trait InformationFlowTestHelper extends CSPLliftTestHelper {
         val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(testOptions.getCLinkingInterfacePath)
 
         val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)
-        val problem = new InformationFlow2Problem(cInterCFG)
+        val problem = new InformationFlowProblem(cInterCFG)
         val solution = CSPLlift.solve(problem)
-        val allSinks = Taint2.allSinks(solution)
+        val allSinks = Taint.allSinks(solution)
 
         // matches all expectes sinks with found ones
         lazy val sinks = expectedSinks.par.forall {
