@@ -11,7 +11,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
-import soot.spl.ifds.Constraint
+import spllift.Constraint
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

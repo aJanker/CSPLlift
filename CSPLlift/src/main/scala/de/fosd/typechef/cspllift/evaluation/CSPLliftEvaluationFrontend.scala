@@ -12,7 +12,7 @@ import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
-import soot.spl.ifds.Constraint
+import spllift.Constraint
 
 class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
 

@@ -6,7 +6,7 @@ import de.fosd.typechef.conditional.{One, Opt}
 import de.fosd.typechef.cspllift.LiftedCFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
 import de.fosd.typechef.parser.c.{AST, EmptyStatement, ForStatement, PrettyPrinter}
-import soot.spl.ifds.Constraint
+import spllift.Constraint
 
 object Taint2 {
 

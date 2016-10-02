@@ -1,4 +1,4 @@
-package soot.spl.ifds;
+package spllift;
 
 import heros.IFDSTabulationProblem;
 import heros.InterproceduralCFG;

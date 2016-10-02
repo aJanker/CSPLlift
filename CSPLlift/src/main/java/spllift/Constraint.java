@@ -1,4 +1,4 @@
-package soot.spl.ifds;
+package spllift;
 
 import de.fosd.typechef.featureexpr.FeatureModel;
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;

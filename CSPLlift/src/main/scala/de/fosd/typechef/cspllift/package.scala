@@ -5,7 +5,7 @@ import java.util
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.parser.c.AST
 import heros.IFDSTabulationProblem
-import soot.spl.ifds.Constraint
+import spllift.Constraint
 
 import scala.collection.JavaConverters._
 

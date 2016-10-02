@@ -1,4 +1,4 @@
-package soot.spl.ifds;
+package spllift;
 
 import de.fosd.typechef.cspllift.CICFGConcreteStmt;
 import de.fosd.typechef.cspllift.CICFGFDef;

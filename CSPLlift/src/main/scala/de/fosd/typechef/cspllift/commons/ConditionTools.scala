@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift.commons
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.featureexpr.SingleFeatureExpr
-import soot.spl.ifds.Constraint
+import spllift.Constraint
 
 trait ConditionTools {
 

@@ -11,7 +11,7 @@ import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
-import soot.spl.ifds.SPLIFDSSolver
+import spllift.SPLIFDSSolver
 
 class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) {
 
