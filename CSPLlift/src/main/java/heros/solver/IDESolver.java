@@ -546,9 +546,6 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 	 */
 	@SuppressWarnings("unchecked")
 	protected D restoreContextOnReturnedFact(N callSite, D d4, D d5) {
-		if (d5 instanceof LinkedNode) {
-			((LinkedNode<D>) d5).setCallingContext(d4);
-		}
 		if(d5 instanceof JoinHandlingNode) {
 			((JoinHandlingNode<D>) d5).setCallingContext(d4);
 		}			
