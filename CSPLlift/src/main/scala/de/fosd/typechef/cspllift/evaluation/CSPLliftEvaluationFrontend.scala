@@ -71,7 +71,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         // Print Variants
-        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, method)
+        if (opt.writeVariants) writeVariants(icfg, coverageFacts, opt, method)
 
         // 4. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -134,17 +134,27 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         // Print Variants
-        if (opt.writeVariants) printVariants(icfg, coverageFacts, opt, method)
+        if (opt.writeVariants) writeVariants(icfg, coverageFacts, opt, method)
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
-        configs.foreach(config => {
-            println("### Current Config:\t" + config + "\n")
-            println(PrettyPrinter.print(deriveProductWithCondition(ast, config.getTrueFeatures)))
+
+        val allSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[LiftedCFlowFact[FlowFact]]])
+
+        println("### Coverage Facts:")
+        val singleSinks = coverageFacts.zipWithIndex.map(x => {
+            val facts = x._1._1
+            val index = x._2
+
+            val factSinks = Taint.allSinks(facts.asInstanceOf[List[LiftedCFlowFact[FlowFact]]])
+            println("### Config:" )
+            println(x._1._2)
+            println(Taint.prettyPrintSinks(factSinks))
+            factSinks
         })
-        println
+
 
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the condition coverage approach: ")
@@ -227,7 +237,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             (CSPLlift.solve[D](problem), cInterCFG)
         })
 
-    private def printVariants[T <: CIFDSProblem[D], D <: CFlowFact](vaaCIFG: CInterCFG, coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method: String): Unit = {
+    private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](vaaCIFG: CInterCFG, coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method: String): Unit = {
         val printDir = opt.getVariantsOutputDir + "/" + method + "/"
         val dir = new File(printDir)
 

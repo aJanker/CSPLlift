@@ -9,7 +9,7 @@ import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.cspllift.{CICFGFDef, CICFGStmt, CInterCFG}
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.typesystem.{CAnonymousStruct, CPointer, CStruct, CType}
+import de.fosd.typechef.typesystem._
 import heros.{FlowFunction, FlowFunctions}
 
 import scala.collection.JavaConverters._
@@ -127,6 +127,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[FlowFact](cI
                                 GEN(z :: defineSources)
                             case x => super.computeTargets(x)
                         }
+
                         result
                     }
 
@@ -517,11 +518,17 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[FlowFact](cI
             if (cTypes.exists(ct => isStructOrUnion(ct)))
                 cFacts :::= structFun(currId)
 
-            if (cTypes.exists(ct => !isStructOrUnion(ct)))
+            if (cTypes.exists(ct => !isStructOrUnion(ct) && !isUnknownType(ct)))
                 cFacts :::= varFun(currId)
 
             cFacts
         }
+
+        private def isUnknownType(cType: CType): Boolean =
+            cType.atype match {
+                case _ : CUnknown => true
+                case _ => false
+            }
 
         private def isStructOrUnion(cType: CType): Boolean =
             cType.atype match {

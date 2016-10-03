@@ -1,9 +1,9 @@
 package de.fosd.typechef.cspllift.commons
 
-import de.fosd.typechef.conditional.{Choice, Opt}
+import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.cspllift.evaluation.Sampling
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel}
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel, False}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
@@ -12,10 +12,12 @@ import org.kiama.rewriting.Rewriter._
 trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with ConditionalNavigation {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
-        val r = manybu(rule[Any] {
+        val r = manytd(rule[Any] {
             case i if i.asInstanceOf[AnyRef] eq e.asInstanceOf[AnyRef] => n
         })
-        r(t).getOrElse(t).asInstanceOf[T]
+        val rep = r(t).getOrElse(t).asInstanceOf[T]
+        copyPositions(t, rep)
+        rep
     }
 
     def insertStmtListBeforeStmt(c: CompoundStatement, e: Opt[Statement], n: List[Opt[Statement]]): CompoundStatement = {
@@ -37,7 +39,9 @@ trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with Cond
         val parentStmt = parentOpt(e, currASTEnv).asInstanceOf[Opt[Statement]]
         val ccReplacement = replaceStmtWithStmtsListInCCStmt(cc.get, parentStmt, n)
 
-        replace(t, cc.get, ccReplacement)
+        val r = replace(t, cc.get, ccReplacement)
+        copyPositions(t, r)
+        r
     }
 
     def replaceStmtWithStmtsListInCCStmt(c: CompoundStatement, e: Opt[Statement], n: List[Opt[Statement]]): CompoundStatement = {
@@ -47,36 +51,27 @@ trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with Cond
                     if (x.asInstanceOf[AnyRef] eq e) n
                     else x :: Nil)
         })
-        r(c).get.asInstanceOf[CompoundStatement]
+        val cc = r(c).get.asInstanceOf[CompoundStatement]
+        copyPositions(c, cc)
+        cc
     }
 
     def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr = BDDFeatureExprFactory.TrueB): T = {
         assert(ast != null)
+        checkPositionInformation(ast)
 
         val prod = manytd(rule[Product] {
-            case l: List[_] if l.forall(_.isInstanceOf[Opt[_]]) => {
-                var res: List[Opt[_]] = List()
-                // use l.reverse here to omit later reverse on res or use += or ++= in the thenBranch
-                for (o <- l.reverse.asInstanceOf[List[Opt[_]]])
-                    if (o.condition.evaluate(selectedFeatures)) {
-                        val copy = o.copy(condition = condition)
-                        copyPositions(o, copy)
-                        res ::= copy
-                    }
-                res
+            case Opt(feature, entry) => {
+                if (feature.evaluate(selectedFeatures)) Opt(condition, entry)
+                else Opt(False, entry)
             }
-            case Choice(feature, thenBranch, elseBranch) => {
-                if (feature.evaluate(selectedFeatures)) thenBranch
-                else elseBranch
-            }
-            case a: AST =>
-                val copy = a.clone()
-                copyPositions(a, copy)
-                a
+            case a: AST => a.clone()
 
         })
+
         val cast = prod(ast).get.asInstanceOf[T]
         copyPositions(ast, cast)
+        checkPositionInformation(cast)
         cast
     }
 }
@@ -119,7 +114,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
       * Moves variability nested in CFG-Statements up to the CFG Statement by code duplication.
       * We are otherwise unable use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
       */
-    def removeInStatementVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+    def removeStmtVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
         assert(ast != null, "ast should not be null")
 
         val astEnv = CASTEnv.createASTEnv(ast)
@@ -129,7 +124,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with K
 
             case c: CFGStmt if isVariable(c) =>
                 val parent = parentOpt(c, astEnv)
-                val parentCondition = parent.condition
+                val parentCondition = astEnv.featureExpr(c)
                 val stmtConditions = filterAllFeatureExpr(c)
                 val allStmtConditions = stmtConditions.foldLeft(FeatureExprFactory.True)(_ and _)
 

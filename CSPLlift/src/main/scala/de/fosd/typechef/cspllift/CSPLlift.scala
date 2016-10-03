@@ -39,9 +39,6 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         println("#static taint analysis with spllift - result")
 
-        /* println("\n#used tunits\n")
-        cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(x => println(PrettyPrinter.print(x))) */
-
         println("\n#sinks")
         println(Taint.prettyPrintSinks(allSinks))
 
@@ -49,36 +46,6 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         println(cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size + "\n")
         println("#static taint analysis with spllift - finished")
     }
-
-    /* private def taintCheck(opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
-
-        val cInterCFG = new CInterCFG(ast, fm, cInterCFGConfiguration)
-
-        val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
-            val problem = new InformationFlowProblem(cInterCFG)
-            CSPLlift.solve(problem)
-        })
-
-        val allReaches = Taint.allSinks(solution)
-
-        def hasName(name: String, source: Source): Boolean = {
-            source.name.entry.name.equalsIgnoreCase(name) || source.reachingSources.exists(rs => hasName(name, rs))
-        }
-
-        val allKeyReaches = allReaches.filter(x => x._2.exists(y => y._1.sources.exists(s => hasName("key", s))))
-
-        println("#static analysis with spllift - result")
-
-        Taint.writeGraphToSink(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, opt.getInformationFlowGraphExtension)
-        Taint.writeGraphFromSource(cInterCFG, allKeyReaches, opt.getInformationFlowGraphsOutputDir, "_fromSource" + opt.getInformationFlowGraphExtension)
-        SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(opt.getInformationFlowGraphsOutputDir + "/callGraph.dot")))
-
-        println("\n#used tunits\n")
-        cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.foreach(x => println(PrettyPrinter.print(x)))
-
-        println("\n#sinks\n")
-        println(Taint.prettyPrintSinks(allReaches))
-    } */
 
     private def writeExplodedSuperCallGraph(opt: CSPLliftOptions) : Unit = {
         val graphDir = opt.getInformationFlowGraphsOutputDir
