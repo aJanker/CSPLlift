@@ -449,7 +449,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[FlowFact](cI
                 case _ => false
             }
 
-        def getCurrentScope(id: Id): Int = currTS.lookupEnv(curr.getStmt.entry).varEnv.lookupScope(id.name).select(currSatisfiableCondition)
+        def getCurrentScope(id: Id): Int = 1 //currTS.lookupEnv(curr.getStmt.entry).varEnv.lookupScope(id.name).select(currSatisfiableCondition)
 
         private def genVarSource(scope: Int)(define: Id): List[VarSource] = List(VarSource(define, currOpt, scope, Some(currOpt.entry)))
 

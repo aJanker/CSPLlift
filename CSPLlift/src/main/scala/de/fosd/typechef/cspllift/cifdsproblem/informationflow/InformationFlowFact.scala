@@ -31,7 +31,7 @@ sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) exte
     override def toText: String = {
         val from = "\t\tFrom:\t" + source.getId.name + " at: " + source.getId.getPositionFrom
         val stmt = "\t\tSourcestatement:\t" + PrettyPrinter.print(source.getStmt.entry)
-        val stmt2 = "\t\tSinkstatement:\t" + PrettyPrinter.print(this.stmt.entry)
+        val stmt2 = "\t\tSinkstatement:\t" + PrettyPrinter.print(this.stmt.entry) + this.stmt.entry.getPositionFrom
         from + "\n" + stmt + "\n" + stmt2
     }
 
