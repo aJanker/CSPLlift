@@ -48,7 +48,7 @@ trait TestHelper {
   def parseFile(stream: InputStream, file: String, dir: String): TranslationUnit = {
     val ast: AST = new ParserMain(new CParser).parserMain(
       () => lexStream(stream, file, Collections.singletonList(dir), null), new CTypeContext, SilentParserOptions, null)
-    ast.asInstanceOf[TranslationUnit]
+    Prepare.prepareAST(ast.asInstanceOf[TranslationUnit])
   }
 
   def parseExpr(code: String): Expr = {
@@ -91,4 +91,6 @@ trait TestHelper {
     val r = p.phrase(p.translationUnit)(in, FeatureExprFactory.True)
     r.asInstanceOf[p.Success[TranslationUnit]].result
   }
+
+  private object Prepare extends EnforceTreeHelper
 }

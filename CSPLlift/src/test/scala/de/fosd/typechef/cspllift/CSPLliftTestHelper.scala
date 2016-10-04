@@ -8,7 +8,7 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory
 import de.fosd.typechef.parser.c._
 import org.scalatest.Matchers
 
-trait CSPLliftTestHelper extends TestHelper with EnforceTreeHelper with Matchers {
+trait CSPLliftTestHelper extends TestHelper with Matchers {
 
     de.fosd.typechef.featureexpr.FeatureExprFactory.setDefault(de.fosd.typechef.featureexpr.FeatureExprFactory.bdd)
 
@@ -37,7 +37,7 @@ trait CSPLliftTestHelper extends TestHelper with EnforceTreeHelper with Matchers
 
         val tunit: TranslationUnit = parseFile(inStream, filename, includeDir)
         assert(tunit != null, "AST is null")
-        prepareAST(tunit)
+        tunit
     }
 
     def loadTUnitFromFile(filename: String): TranslationUnit = {
@@ -54,7 +54,7 @@ trait CSPLliftTestHelper extends TestHelper with EnforceTreeHelper with Matchers
         fr.close()
 
         assert(tunit != null, "AST is null")
-        prepareAST(tunit)
+        tunit
 
     }
 }

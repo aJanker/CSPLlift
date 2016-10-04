@@ -3,24 +3,12 @@ package de.fosd.typechef.cspllift.commons
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.cspllift.evaluation.Sampling
-import de.fosd.typechef.error.WithPosition
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel}
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 
-trait Rewriting extends org.kiama.rewriting.CallbackRewriter {
-
-    override def rewriting[T](oldTerm: T, newTerm: T): T = {
-        (oldTerm, newTerm) match {
-            case (source : WithPosition, target : WithPosition) => target.range = source.range
-            case _ =>
-        }
-        newTerm
-    }
-}
-
-trait RewritingRules extends EnforceTreeHelper with ASTNavigation with ConditionalNavigation with Rewriting {
+trait RewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation with EnforceTreeHelper  {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manytd(rule[Any] {
@@ -61,7 +49,7 @@ trait RewritingRules extends EnforceTreeHelper with ASTNavigation with Condition
         r(c).getOrElse(c).asInstanceOf[CompoundStatement]
     }
 
-    def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr = BDDFeatureExprFactory.TrueB): T = {
+    def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr = FeatureExprFactory.True): T = {
         val prod = manytd(rule[Product] {
             case l: List[_] if l.forall(_.isInstanceOf[Opt[_]]) =>
                 l.flatMap {
