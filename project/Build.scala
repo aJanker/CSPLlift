@@ -106,7 +106,7 @@ object Dependencies {
     val scalatest = "org.scalatest" %% "scalatest" % "2.2.5" % "test"
     val scalaparsercombinators = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
     val scalaxml = "org.scala-lang.modules" %% "scala-xml" % "1.0.5"
-    val typechef =  "de.fosd.typechef" %% "frontend" % "0.4.1"
+    val typechef =  "de.fosd.typechef" %% "frontend" % "0.4.1_lift"
 
   val testEnvironment = Seq(junit, junitInterface, scalatest, scalacheck)
   val scala211Libraries = Seq(scalaparsercombinators, scalaxml)
