@@ -103,7 +103,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
         // tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit
 
-        //checkPositionInformation(tunit)
+        checkPositionInformation(tunit)
 
         tunit.asInstanceOf[T]
     }

@@ -1,23 +1,35 @@
 package de.fosd.typechef.cspllift.commons
 
-import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.cspllift.evaluation.Sampling
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel, False}
+import de.fosd.typechef.customization.crewrite.CopyPosition
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
-import org.kiama.rewriting.Rewriter._
 
-trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with ConditionalNavigation {
+trait KiamaRewriter extends org.kiama.rewriting.CallbackRewriter with CopyPosition {
+
+    override def rewriting[T](oldTerm: T, newTerm: T): T = {
+        oldTerm match {
+            case a: Product => newTerm match {
+                case b: Product => copyPosition(a, b)
+                case _ =>
+            }
+            case _ =>
+        }
+        newTerm
+    }
+}
+
+trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with ConditionalNavigation with KiamaRewriter {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manytd(rule[Any] {
             case i if i.asInstanceOf[AnyRef] eq e.asInstanceOf[AnyRef] => n
         })
-        val rep = r(t).getOrElse(t).asInstanceOf[T]
-        copyPositions(t, rep)
-        rep
+        r(t).getOrElse(t).asInstanceOf[T]
     }
 
     def insertStmtListBeforeStmt(c: CompoundStatement, e: Opt[Statement], n: List[Opt[Statement]]): CompoundStatement = {
@@ -27,7 +39,7 @@ trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with Cond
                     if (x.asInstanceOf[AnyRef] eq e) n ::: List(x)
                     else x :: Nil)
         })
-        r(c).get.asInstanceOf[CompoundStatement]
+        r(c).getOrElse(c).asInstanceOf[CompoundStatement]
     }
 
     def replaceStmtWithStmtList[T <: Product](t: T, e: Statement, n: List[Opt[Statement]]): T = {
@@ -39,9 +51,7 @@ trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with Cond
         val parentStmt = parentOpt(e, currASTEnv).asInstanceOf[Opt[Statement]]
         val ccReplacement = replaceStmtWithStmtsListInCCStmt(cc.get, parentStmt, n)
 
-        val r = replace(t, cc.get, ccReplacement)
-        copyPositions(t, r)
-        r
+        replace(t, cc.get, ccReplacement)
     }
 
     def replaceStmtWithStmtsListInCCStmt(c: CompoundStatement, e: Opt[Statement], n: List[Opt[Statement]]): CompoundStatement = {
@@ -51,26 +61,23 @@ trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with Cond
                     if (x.asInstanceOf[AnyRef] eq e) n
                     else x :: Nil)
         })
-        val cc = r(c).get.asInstanceOf[CompoundStatement]
-        copyPositions(c, cc)
-        cc
+        r(c).getOrElse(c).asInstanceOf[CompoundStatement]
     }
 
     def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr = BDDFeatureExprFactory.TrueB): T = {
-        assert(ast != null)
-        checkPositionInformation(ast)
-
         val prod = manytd(rule[Product] {
-            case Opt(feature, entry) => {
-                if (feature.evaluate(selectedFeatures)) Opt(condition, entry)
-                else Opt(False, entry)
-            }
+            case l: List[_] if l.forall(_.isInstanceOf[Opt[_]]) =>
+                l.flatMap {
+                    case o: Opt[_] if o.condition.evaluate(selectedFeatures) => Some(o.copy(condition = condition))
+                    case _ => None
+                }
+            case Choice(feature, thenBranch, elseBranch) =>
+                if (feature.evaluate(selectedFeatures)) thenBranch
+                else elseBranch
             case a: AST => a.clone()
-
         })
 
         val cast = prod(ast).get.asInstanceOf[T]
-        copyPositions(ast, cast)
         checkPositionInformation(cast)
         cast
     }

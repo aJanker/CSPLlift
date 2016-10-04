@@ -67,10 +67,10 @@ case class SinkToAssignment(override val stmt: Opt[AST], override val source: So
     }
 }
 
-sealed abstract class Source(id: Id, stmt: Opt[AST], scope: Int, last: Option[AST]) extends InformationFlowFact(stmt) {
+sealed abstract class Source(sourceId: Id, stmt: Opt[AST], scope: Int, last: Option[AST]) extends InformationFlowFact(stmt) {
     def getScope = scope
 
-    def getId = id
+    def getId = sourceId
 
     def getStmt = stmt
 
