@@ -7,7 +7,7 @@ import java.util.zip.GZIPInputStream
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, KiamaRewritingRules, WarningsCache}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, WarningsCache}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -18,7 +18,7 @@ import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 import scala.collection.JavaConversions._
 
 
-trait CInterCFGElementsCache extends KiamaRewritingRules {
+trait CInterCFGElementsCache extends RewritingRules {
 
     val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv
 
@@ -67,7 +67,7 @@ trait CInterCFGElementsCache extends KiamaRewritingRules {
     }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends KiamaRewritingRules with CFlowConstants with CInterCFGCommons with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends RewritingRules with CFlowConstants with CInterCFGCommons with PointerContext {
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)

@@ -3,27 +3,24 @@ package de.fosd.typechef.cspllift.commons
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.crewrite.IntraCFG
 import de.fosd.typechef.cspllift.evaluation.Sampling
-import de.fosd.typechef.customization.crewrite.CopyPosition
+import de.fosd.typechef.error.WithPosition
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExprFactory, BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 
-trait KiamaRewriter extends org.kiama.rewriting.CallbackRewriter with CopyPosition {
+trait Rewriting extends org.kiama.rewriting.CallbackRewriter {
 
     override def rewriting[T](oldTerm: T, newTerm: T): T = {
-        oldTerm match {
-            case a: Product => newTerm match {
-                case b: Product => copyPosition(a, b)
-                case _ =>
-            }
+        (oldTerm, newTerm) match {
+            case (source : WithPosition, target : WithPosition) => target.range = source.range
             case _ =>
         }
         newTerm
     }
 }
 
-trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with ConditionalNavigation with KiamaRewriter {
+trait RewritingRules extends EnforceTreeHelper with ASTNavigation with ConditionalNavigation with Rewriting {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manytd(rule[Any] {
@@ -83,7 +80,7 @@ trait KiamaRewritingRules extends EnforceTreeHelper with ASTNavigation with Cond
     }
 }
 
-trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with KiamaRewritingRules {
+trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with RewritingRules {
 
     private var tmpVariablesCount = 0
 

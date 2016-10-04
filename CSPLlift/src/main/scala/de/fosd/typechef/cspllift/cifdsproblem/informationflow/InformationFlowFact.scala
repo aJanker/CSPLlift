@@ -2,13 +2,13 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CZeroFact}
-import de.fosd.typechef.cspllift.commons.KiamaRewritingRules
+import de.fosd.typechef.cspllift.commons.RewritingRules
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c.{AST, Id, PrettyPrinter}
 
-trait FlowFact extends Product with CFlowFact with KiamaRewritingRules with Cloneable {
+trait FlowFact extends Product with CFlowFact with RewritingRules with Cloneable {
     override def clone(): FlowFact.this.type = super.clone().asInstanceOf[FlowFact.this.type]
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = equals(other)
