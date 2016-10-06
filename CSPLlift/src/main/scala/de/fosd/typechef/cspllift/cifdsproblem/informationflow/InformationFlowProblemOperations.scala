@@ -1,23 +1,26 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Source, Struct}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations}
 import de.fosd.typechef.parser.c.Id
 
-trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[FlowFact] {
+trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] {
     def isFullFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
         def matches(s: Source, parents: List[Id]): Boolean =
-            if (parents.isEmpty)
-                s match {
-                    case StructSource(_, Some(_), _, _, _) | StructSourceOf(_, Some(_), _, _, _, _) => false
-                    case _ => fieldAssignment._1.equals(s.getId)
-
+            if (parents.isEmpty) s match {
+                case s: Source => s.getType match {
+                    case Struct(name, Some(_)) => false
+                    case _ => fieldAssignment._1.equals(s.getType.getName)
                 }
-            else
-                s match {
-                    case StructSource(_, Some(field), _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
-                    case StructSourceOf(_, Some(field), _, _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
+                case _ => false
+            }
+            else s match {
+                case s: Source => s.getType match {
+                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field.get, parents.tail)
                     case _ => false
                 }
+                case _ => false
+            }
 
         matches(s, fieldAssignment._2.reverse)
     }
@@ -27,13 +30,14 @@ trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperatio
       */
     def isPartFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
         def matches(s: Source, parents: List[Id]): Boolean =
-            if (parents.isEmpty) fieldAssignment._1.equals(s.getId)
+            if (parents.isEmpty) fieldAssignment._1.equals(s.getType.getName)
             else s match {
-                case StructSource(_, Some(field), _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
-                case StructSourceOf(_, Some(field), _, _, _, _) if parents.head.equals(s.getId) => matches(field.get, parents.tail)
+                case s: Source => s.getType match {
+                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field.get, parents.tail)
+                    case _ => false
+                }
                 case _ => false
             }
-
         matches(s, fieldAssignment._2.reverse)
     }
 }

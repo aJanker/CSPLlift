@@ -28,7 +28,7 @@ trait InformationFlowTestHelper extends CSPLliftTestHelper {
                 case (aStmt, aSink) if aStmt.entry.equals(expectedStmt) =>
                     expectedSink.forall(currSink => {
                         aSink.exists(asEntry =>
-                            asEntry._1.source.getId.equals(currSink.entry) && asEntry._2.getFeatureExpr.equivalentTo(currSink.condition))
+                            asEntry._1.source.getType.getName.equals(currSink.entry) && asEntry._2.getFeatureExpr.equivalentTo(currSink.condition))
                     })
                 case _ => false
             }

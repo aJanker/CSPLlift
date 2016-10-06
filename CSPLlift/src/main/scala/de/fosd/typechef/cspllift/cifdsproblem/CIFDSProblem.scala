@@ -31,7 +31,9 @@ trait CZeroFact {
     val flowCondition: FeatureExpr
 }
 
-trait CFlowFact {
+trait CFlowFact extends Cloneable with Product{
+
+    override def clone(): CFlowFact.this.type = super.clone().asInstanceOf[CFlowFact.this.type]
 
     def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean
 

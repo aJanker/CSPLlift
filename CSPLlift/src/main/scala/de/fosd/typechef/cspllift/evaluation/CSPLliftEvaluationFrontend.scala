@@ -3,7 +3,8 @@ package de.fosd.typechef.cspllift.evaluation
 import java.io._
 
 import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{FlowFact, InformationFlowProblem}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
@@ -33,7 +34,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         var successful = true
 
         if (opt.liftTaintAnalysis)
-            successful = runSampling[FlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
+            successful = runSampling[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
 
         successful
     }
@@ -42,7 +43,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         var successful = true
 
         if (opt.liftTaintAnalysis)
-            successful = runErrorConfiguration[FlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
+            successful = runErrorConfiguration[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
 
         successful
     }
@@ -141,14 +142,14 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
 
-        val allSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[LiftedCFlowFact[FlowFact]]])
+        val allSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[LiftedCFlowFact[InformationFlowFact]]])
 
         println("### Coverage Facts:")
         val singleSinks = coverageFacts.zipWithIndex.map(x => {
             val facts = x._1._1
             val index = x._2
 
-            val factSinks = Taint.allSinks(facts.asInstanceOf[List[LiftedCFlowFact[FlowFact]]])
+            val factSinks = Taint.allSinks(facts.asInstanceOf[List[LiftedCFlowFact[InformationFlowFact]]])
             println("### Config:" )
             println(x._1._2)
             println(Taint.prettyPrintSinks(factSinks))
@@ -182,7 +183,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         if (!(unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty)) {
             val interestingCoverageFacts = coverageFacts.map {
-                fact => (Taint.allSinks(fact._1.asInstanceOf[List[LiftedCFlowFact[FlowFact]]]), fact._2)
+                fact => (Taint.allSinks(fact._1.asInstanceOf[List[LiftedCFlowFact[InformationFlowFact]]]), fact._2)
             }
             // debug purpose only
             println(interestingCoverageFacts.size)
