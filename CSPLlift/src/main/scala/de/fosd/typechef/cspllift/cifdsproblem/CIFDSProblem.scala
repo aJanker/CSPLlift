@@ -7,6 +7,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.cspllift.{CInterCFG, IFDSProblem}
+import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.True
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
@@ -61,7 +62,7 @@ trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {
 
 }
 
-trait CFlowConstants {
+trait CFlowConstants extends ASTRewriting {
 
     lazy val SCOPE_UNKNOWN: Int = -1
     lazy val SCOPE_GLOBAL: Int = 0
@@ -69,6 +70,12 @@ trait CFlowConstants {
 
     lazy val SPLLIFT_CONSTANT_VALUE = "SPLLIFT_CONSTANT_VALUE"
     lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
-    lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
 
+    def makePseudoSystemFunctionCall(range: Option[(Position, Position)]) : Opt[FunctionDef] = {
+        val call = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
+        val addRange = everywherebu(query[Product] { case a: AST => if (!a.hasPosition) a.range = range})
+
+        addRange(call)
+        call
+    }
 }

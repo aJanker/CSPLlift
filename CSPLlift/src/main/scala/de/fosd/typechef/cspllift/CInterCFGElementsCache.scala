@@ -19,7 +19,7 @@ import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 import scala.collection.JavaConversions._
 
 
-trait CInterCFGElementsCache extends RewritingRules {
+trait CInterCFGElementsCache {
 
     val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv
 
@@ -76,6 +76,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
     private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
+    private val tunitToPseudoCall: util.IdentityHashMap[AST, Opt[FunctionDef]] = new util.IdentityHashMap()
 
     private val cFunctionPointerAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath, fm)
     var cFunctionPointerEQRelation: CPointerAnalysisContext = _
@@ -89,7 +90,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     val startTUnit = addToCache(initialTUnit)
 
     override def prepareAST[T <: Product](t: T): T = {
-        var tunit = super.prepareAST(t.asInstanceOf[TranslationUnit])
+        var tunit = t.asInstanceOf[TranslationUnit]
+        tunit = super.prepareAST(tunit)
 
         tunit = removeStmtVariability(tunit, fm)
         //tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
@@ -98,9 +100,6 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         if (options.getConfiguration.isDefined)
             tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
-
-        // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
-        // tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit
 
         checkPositionInformation(tunit)
 
@@ -111,12 +110,25 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         println("#preparation tasks for newly loaded translation unit started... ")
 
         var tunit: TranslationUnit = _tunit
+        val file = _tunit.defs.last.entry.getFile.get
 
         val (time, _) = StopWatch.measureWallTime(options.getStopWatchPrefix + "tunit_completePreparation", {
             StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", {
                 println("#Rewriting AST...")
                 tunit = prepareAST(_tunit)
             })
+
+            val pos = new TokenPosition(file, 0, 0, 0)
+            val pseudoSystemFunctionCall = makePseudoSystemFunctionCall(Some(pos, pos))
+
+            // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
+            tunit = if (options.pseudoVisitingSystemLibFunctions) {
+                val copy = tunit.copy(defs = pseudoSystemFunctionCall :: tunit.defs)
+                copy.range = tunit.range
+                copy
+            } else tunit
+
+            checkPositionInformation(tunit)
 
             val env = CASTEnv.createASTEnv(tunit)
             val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
@@ -126,7 +138,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
-            updateCaches(tunit, _tunit.defs.last.entry.getFile.get, env, ts)
+            updateCaches(tunit, file, env, ts, pseudoSystemFunctionCall)
             println("#Calculating Pointer Equivalence Realations...")
             calculatePointerEquivalenceRelations
         })
@@ -136,21 +148,24 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit
     }
 
-    private def updateCaches(tunit: TranslationUnit, file: String, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {
+    private def updateCaches(tunit: TranslationUnit, file: String, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse, pseudoSystemFunctionCall: Opt[FunctionDef]) = {
         envToTUnit.put(env, tunit)
         envToTS.put(env, ts)
-        fileToTUnit.put(file, tunit) // Workaround as usually the first definitions are external includes
+        fileToTUnit.put(file, tunit)
+        tunitToPseudoCall.put(tunit, pseudoSystemFunctionCall)
     }
+
     private def calculatePointerEquivalenceRelations = {
         StopWatch.measureUserTime(options.getStopWatchPrefix + "pointsToAnalysis", {
             cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, (getEnvs, envToTS))
         })
     }
+
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
 
     def getAllFiles = fileToTUnit.toList
 
-    def getAllKnownTUnitsAsSingleTUnit : TranslationUnit = TranslationUnit(getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs })
+    def getAllKnownTUnitsAsSingleTUnit: TranslationUnit = TranslationUnit(getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs })
 
     def getTunitForEnv(env: ASTEnv) = envToTUnit.get(env)
 
@@ -162,9 +177,13 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     }
 
     def getEnv(node: AST): Option[ASTEnv] =
-        getEnvs.find {_.containsASTElem(node)}
+        getEnvs.find {
+            _.containsASTElem(node)
+        }
 
     def getEnvs: List[ASTEnv] = envToTUnit.keySet.toList
+
+    def getPseudoSystemFunctionCall(tunit : TranslationUnit) : Opt[FunctionDef] = tunitToPseudoCall.get(tunit)
 
     def isNameKnown(name: Opt[String]): Boolean =
         cModuleInterface match {
@@ -197,8 +216,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         Some(addToCache(tunit))
     }
 
-    def getFPointerDestDefsNames(pointer: Opt[Expr], currFuncName: String) : List[Opt[String]] = {
-        def removeEquivalenceClassScope(eqString : Opt[String]) : Opt[String] = {
+    def getFPointerDestDefsNames(pointer: Opt[Expr], currFuncName: String): List[Opt[String]] = {
+        def removeEquivalenceClassScope(eqString: Opt[String]): Opt[String] = {
             val nameOnly = eqString.entry.split('$')(1)
             val pointerExprRemoved = nameOnly.replaceAll("&", "").replaceAll("\\*", "")
             eqString.copy(entry = pointerExprRemoved)
@@ -217,7 +236,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private def buildEquivalenceClassLookupQuery(pointer: Expr, scope: String): String = {
         def genObjectName(expr: Expr): String =
             expr match {
-                case PostfixExpr(p: PostfixExpr, s) => "(" + genObjectName(p) + ")" +  PrettyPrinter.print(s)
+                case PostfixExpr(p: PostfixExpr, s) => "(" + genObjectName(p) + ")" + PrettyPrinter.print(s)
                 case PointerDerefExpr(p) => genObjectName(p)
                 case p: PostfixExpr => PrettyPrinter.print(p)
                 case x =>

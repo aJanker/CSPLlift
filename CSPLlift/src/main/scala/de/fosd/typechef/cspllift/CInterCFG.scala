@@ -298,11 +298,14 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[CICFGFDef] = {
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
-            return List() //List(cInterCFGElementsCacheEnv.SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL)
+            return {
+                val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
+                List(CICFGFDef(pseudoCall, pseudoCall.entry.getPositionFrom))
+            }
 
         def findCalleeInTunit(tunit: TranslationUnit) = {
             tunit.defs.flatMap {
-                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if (decl.getName.equalsIgnoreCase(name.entry) /*&& ft.and(name.condition).isSatisfiable( TODO FM )*/) =>
+                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isSatisfiable(getFeatureModel) =>
                     Some(CICFGFDef(Opt(ft, f), f.getPositionFrom))
                 case _ => None
             }
