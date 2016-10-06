@@ -3,16 +3,16 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 import java.util
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.CInterCFG
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
+import de.fosd.typechef.cspllift.{CICFGStmt, CInterCFG}
 import de.fosd.typechef.parser.c._
 import heros.FlowFunction
 
 trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with CInterCFGCommons {
 
-    def pseudoSystemFunctionCallCallFlowFunction(callStmt: Opt[AST], callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlowFact] with Object {def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact]} = {
-        val fCallNode = parentOpt(callStmt.entry, callEnv).asInstanceOf[Opt[AST]]
+    def pseudoSystemFunctionCallCallFlowFunction(callStmt: CICFGStmt[AST], callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlowFact] with Object {def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact]} = {
+        val fCallNode = parentOpt(callStmt.getStmt.entry, callEnv).asInstanceOf[Opt[AST]]
         val fCall = filterAllASTElems[FunctionCall](callStmt, callEnv).head
         val callExprs = fCall.params
         val callUses = uses(callExprs)

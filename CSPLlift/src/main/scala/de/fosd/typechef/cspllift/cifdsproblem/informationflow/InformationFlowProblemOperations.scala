@@ -29,8 +29,7 @@ trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperatio
                     case _ => fieldAssignment._1.equals(s.getType.getName)
                 }
                 case _ => false
-            }
-            else s match {
+            } else s match {
                 case s: Source => s.getType match {
                     case Struct(name, Some(field)) if parents.head.equals(name) => matches(field.get, parents.tail)
                     case _ => false

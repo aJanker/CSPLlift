@@ -101,8 +101,6 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         if (options.getConfiguration.isDefined)
             tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
 
-        checkPositionInformation(tunit)
-
         tunit.asInstanceOf[T]
     }
 
@@ -113,10 +111,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         val file = _tunit.defs.last.entry.getFile.get
 
         val (time, _) = StopWatch.measureWallTime(options.getStopWatchPrefix + "tunit_completePreparation", {
-            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", {
-                println("#Rewriting AST...")
-                tunit = prepareAST(_tunit)
-            })
+            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", tunit = prepareAST(tunit))
 
             val pos = new TokenPosition(file, 0, 0, 0)
             val pseudoSystemFunctionCall = makePseudoSystemFunctionCall(Some(pos, pos))
