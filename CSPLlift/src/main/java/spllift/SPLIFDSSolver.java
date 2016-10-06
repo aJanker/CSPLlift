@@ -9,7 +9,6 @@ import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import heros.solver.IDESolver;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -163,12 +162,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                     @Override
                     public FlowFunction<D> getCallToReturnFlowFunction(
                             CICFGStmt callSite, CICFGStmt returnSite) {
-                        FlowFunction<D> original = ifdsProblem.flowFunctions().getCallToReturnFlowFunction(callSite, returnSite);
-                        if(hasFeatureAnnotation(callSite)) {
-                            return new WrappedFlowFunction<D>(original);
-                        } else {
-                            return original;
-                        }
+                        return ifdsProblem.flowFunctions().getCallToReturnFlowFunction(callSite, returnSite);
                     }
                 };
             }
@@ -183,21 +177,5 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
             }
 
         });
-    }
-
-    private static class WrappedFlowFunction<D> implements FlowFunction<D> {
-
-        private FlowFunction<D> del;
-
-        private WrappedFlowFunction(FlowFunction<D> del) {
-            this.del = del;
-        }
-
-        @Override
-        public Set<D> computeTargets(D source) {
-            Set<D> targets = new HashSet<D>(del.computeTargets(source));
-            targets.add(source);
-            return targets;
-        }
     }
 }
