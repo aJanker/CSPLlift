@@ -1,6 +1,7 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CZeroFact}
 import de.fosd.typechef.cspllift.commons.RewritingRules
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
@@ -40,7 +41,7 @@ sealed abstract class Sink(override val stmt: Opt[AST], val source: Source) exte
 
         val otherSink = other.asInstanceOf[Sink]
 
-        lazy val stmtProduct = deriveProductWithCondition(stmt.entry, configuration.getTrueFeatures)
+        lazy val stmtProduct = ProductDerivation.deriveProduct(stmt.entry, configuration.getTrueFeatures)
         lazy val eqStmt = stmtProduct.equals(otherSink.stmt.entry)
 
         source.isEquivalentTo(otherSink.source, configuration) && eqStmt
@@ -83,7 +84,7 @@ sealed abstract class Source(sourceId: Id, stmt: Opt[AST], scope: Int, last: Opt
 
         val otherSource = other.asInstanceOf[Source]
 
-        lazy val stmtProduct = deriveProductWithCondition(getStmt.entry, configuration.getTrueFeatures)
+        lazy val stmtProduct = ProductDerivation.deriveProduct(getStmt.entry, configuration.getTrueFeatures)
         lazy val eqStmt = stmtProduct.equals(otherSource.getStmt.entry)
 
         otherSource.getId.equals(getId) && eqStmt

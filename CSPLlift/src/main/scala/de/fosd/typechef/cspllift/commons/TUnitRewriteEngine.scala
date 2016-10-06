@@ -1,7 +1,7 @@
 package de.fosd.typechef.cspllift.commons
 
-import de.fosd.typechef.conditional.{Choice, Opt}
-import de.fosd.typechef.crewrite.IntraCFG
+import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.crewrite.{IntraCFG, ProductDerivation}
 import de.fosd.typechef.cspllift.evaluation.Sampling
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
@@ -47,24 +47,6 @@ trait RewritingRules extends ASTRewriting with ASTNavigation with ConditionalNav
                     else x :: Nil)
         })
         r(c).getOrElse(c).asInstanceOf[CompoundStatement]
-    }
-
-    def deriveProductWithCondition[T <: Product](ast: T, selectedFeatures: Set[String], condition: FeatureExpr = FeatureExprFactory.True): T = {
-        val prod = manytd(rule[Product] {
-            case l: List[_] if l.forall(_.isInstanceOf[Opt[_]]) =>
-                l.flatMap {
-                    case o: Opt[_] if o.condition.evaluate(selectedFeatures) => Some(o.copy(condition = condition))
-                    case _ => None
-                }
-            case Choice(feature, thenBranch, elseBranch) =>
-                if (feature.evaluate(selectedFeatures)) thenBranch
-                else elseBranch
-            case a: AST => a.clone()
-        })
-
-        val cast = prod(ast).get.asInstanceOf[T]
-        checkPositionInformation(cast)
-        cast
     }
 }
 
@@ -129,7 +111,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with R
                         val falseCond = config.getFalseSet.foldLeft(FeatureExprFactory.True)(_ and _).not()
                         val finalCond = if (falseCond.isSatisfiable(fm)) trueCond.and(falseCond) else trueCond
 
-                        val product = deriveProductWithCondition(c, config.getTrueFeatures, finalCond)
+                        val product = ProductDerivation.deriveProduct(c, config.getTrueFeatures, finalCond)
                         Some(Opt(finalCond, product))
                     })
                     Some((c, products))

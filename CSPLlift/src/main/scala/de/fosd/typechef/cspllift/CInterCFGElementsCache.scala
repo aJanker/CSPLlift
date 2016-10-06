@@ -6,6 +6,7 @@ import java.util.zip.GZIPInputStream
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, WarningsCache}
 import de.fosd.typechef.customization.StopWatch
@@ -95,10 +96,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         //tunit = rewriteNestedFunctionCalls(tunit, fm)
         //tunit = addReturnStmtsForNonReturnExits(tunit, fm)
 
-        checkPositionInformation(tunit)
-
         if (options.getConfiguration.isDefined)
-            tunit = deriveProductWithCondition(tunit, options.getTrueSet.get)
+            tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
 
         // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
         // tunit = if (options.pseudoVisitingSystemLibFunctions) tunit.copy(defs = SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL :: tunit.defs) else tunit
