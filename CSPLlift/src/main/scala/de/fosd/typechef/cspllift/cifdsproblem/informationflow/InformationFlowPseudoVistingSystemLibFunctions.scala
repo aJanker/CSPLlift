@@ -11,7 +11,7 @@ import heros.FlowFunction
 
 trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with CInterCFGCommons {
 
-    def pseudoSystemFunctionCallCallFlowFunction(callStmt: CICFGStmt[AST], callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlowFact] with Object {def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact]} = {
+    def pseudoSystemFunctionCallCallFlowFunction(callStmt: CICFGStmt, callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlowFact] with Object {def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact]} = {
         val fCallNode = parentOpt(callStmt.getStmt.entry, callEnv).asInstanceOf[Opt[AST]]
         val fCall = filterAllASTElems[FunctionCall](callStmt, callEnv).head
         val callExprs = fCall.params

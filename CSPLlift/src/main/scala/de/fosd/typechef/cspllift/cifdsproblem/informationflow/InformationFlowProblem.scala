@@ -25,8 +25,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       * Returns initial seeds to be used for the analysis. This is a mapping of statements to initial analysis facts.
       * We consider global variables as initial sources.
       */
-    override def initialSeeds(): util.Map[CICFGStmt[AST], util.Set[InformationFlowFact]] = {
-        val initialSeeds = new util.HashMap[CICFGStmt[AST], util.Set[InformationFlowFact]]()
+    override def initialSeeds(): util.Map[CICFGStmt, util.Set[InformationFlowFact]] = {
+        val initialSeeds = new util.HashMap[CICFGStmt, util.Set[InformationFlowFact]]()
         interproceduralCFG.getEntryFunctions.foldLeft(initialSeeds)((seeds, entryFunction) => {
             interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(seeds.put(_, globalsAsInitialSeeds(entryFunction)))
             initialGlobalsFile = entryFunction.method.entry.getFile.getOrElse("")
@@ -88,10 +88,10 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def flowFunctions(): FlowFunctions[CICFGStmt[AST], InformationFlowFact, CICFGFDef] = cachedFlowFunctions
+    override def flowFunctions(): FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] = cachedFlowFunctions
 
-    private val cachedFlowFunctions: FlowFunctions[CICFGStmt[AST], InformationFlowFact, CICFGFDef] =
-        new FlowFunctions[CICFGStmt[AST], InformationFlowFact, CICFGFDef] {
+    private val cachedFlowFunctions: FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] =
+        new FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] {
 
             /**
               * Returns the flow function that computes the flow for a normal statement,
@@ -104,7 +104,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * be used to compute a branched analysis that propagates
               * different values depending on where controlflow branches.
               */
-            override def getNormalFlowFunction(curr: CICFGStmt[AST], succ: CICFGStmt[AST]): FlowFunction[InformationFlowFact] = {
+            override def getNormalFlowFunction(curr: CICFGStmt, succ: CICFGStmt): FlowFunction[InformationFlowFact] = {
                 def default(flowFact: InformationFlowFact) = GEN(flowFact)
 
                 new InfoFlowFunction(curr, succ, default) {
@@ -205,7 +205,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * @param destinationMethod
               * The concrete target method for which the flow is computed.
               */
-            override def getCallFlowFunction(callStmt: CICFGStmt[AST], destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
+            override def getCallFlowFunction(callStmt: CICFGStmt, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
                 val flowCondition = destinationMethod.getStmt.condition.and(callStmt.getStmt.condition)
                 val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
                 val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
@@ -296,7 +296,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * does not contain a caller for the method that is returned from.
               * @return
               */
-            override def getReturnFlowFunction(callSite: CICFGStmt[AST], calleeMethod: CICFGFDef, exitStmt: CICFGStmt[AST], returnSite: CICFGStmt[AST]): FlowFunction[InformationFlowFact] = {
+            override def getReturnFlowFunction(callSite: CICFGStmt, calleeMethod: CICFGFDef, exitStmt: CICFGStmt, returnSite: CICFGStmt): FlowFunction[InformationFlowFact] = {
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && calleeMethod.method.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallReturnFlow
 
@@ -383,7 +383,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * exceptional flow, this may actually be the start of an
               * exception handler.
               */
-            override def getCallToReturnFlowFunction(callSite: CICFGStmt[AST], returnSite: CICFGStmt[AST]): FlowFunction[InformationFlowFact] = {
+            override def getCallToReturnFlowFunction(callSite: CICFGStmt, returnSite: CICFGStmt): FlowFunction[InformationFlowFact] = {
                 def default(flowFact: InformationFlowFact) = GEN(flowFact)
 
                 new InfoFlowFunction(callSite, returnSite, default) {
@@ -404,7 +404,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             }
         }
 
-    private abstract class InfoFlowFunction(curr: CICFGStmt[AST], succ: CICFGStmt[AST], default: InformationFlowFact => util.Set[InformationFlowFact]) extends FlowFunction[InformationFlowFact] {
+    private abstract class InfoFlowFunction(curr: CICFGStmt, succ: CICFGStmt, default: InformationFlowFact => util.Set[InformationFlowFact]) extends FlowFunction[InformationFlowFact] {
         val currStmt = curr.getStmt
         val succStmt = succ.getStmt
 
@@ -476,8 +476,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             fieldSources.map(cFieldSource =>
                 parentSources.foldLeft(cFieldSource) {
                     case (fieldSource, s: Source) => SourceDefinition(Struct(s.getType.getName, Some(fieldSource)), s.getStmt, s.getScope, s.getPreviousStmt)
-                    // case (fieldSource, parentSource: Source(_ : Struct, _, _ , _)) => parentSource.copy(field = Some(fieldSource))
-                    //case (fieldSource, parentSource: Source(_ : Variable, _, _ , _))) => StructSource(parentSource.getId, Some(fieldSource), parentSource.getStmt, parentSource.getScope, Some(currOpt.entry))
                     case (fieldSource, _) => fieldSource
                 })
         }
@@ -520,7 +518,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             }
     }
 
-    private abstract class CallFlowFunction(callStmt: CICFGStmt[AST], destinationMethod: CICFGFDef, default: InformationFlowFact => util.Set[InformationFlowFact]) extends InfoFlowFunction(callStmt, destinationMethod, default) {
+    private abstract class CallFlowFunction(callStmt: CICFGStmt, destinationMethod: CICFGFDef, default: InformationFlowFact => util.Set[InformationFlowFact]) extends InfoFlowFunction(callStmt, destinationMethod, default) {
         def mapCallParamToFDefParam(callParams: List[Opt[Expr]], fDefParams: List[Opt[ParameterDeclarationD]], res: List[Opt[(Id, Id)]] = List()): List[Opt[(Id, Id)]] = {
             if (callParams.isEmpty && fDefParams.isEmpty) return res
 
