@@ -1,10 +1,26 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Source, Struct}
+import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations}
-import de.fosd.typechef.parser.c.Id
+import de.fosd.typechef.parser.c.{AST, Id}
 
 trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] {
+
+    def copySource(s: Source, previousStmt: Opt[AST]): Source =
+        s match {
+            case s: SourceDefinition => s.copy(previousStmt = Some(previousStmt.entry))
+            case sOf: SourceDefinitionOf => sOf.copy(previousStmt = Some(previousStmt.entry))
+            case _ => s
+        }
+
+    def getSourceDefinition(s: Source): SourceDefinition =
+        s match {
+            case sd: SourceDefinition => sd
+            case so: SourceDefinitionOf => so.getDefinition
+        }
+
+
     def isFullFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
         def matches(s: Source, parents: List[Id]): Boolean =
             if (parents.isEmpty) s match {
