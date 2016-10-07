@@ -38,7 +38,7 @@ trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperatio
                 case _ => false
             }
 
-        matches(s, fieldAssignment._2.reverse)
+        matches(s, fieldAssignment._2)
     }
 
     /**
@@ -54,6 +54,6 @@ trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperatio
                 }
                 case _ => false
             }
-        matches(s, fieldAssignment._2.reverse)
+        matches(s, fieldAssignment._2)
     }
 }
