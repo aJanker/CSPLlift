@@ -5,9 +5,11 @@ import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Source, SourceDefinition, SourceDefinitionOf, Struct}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations}
 import de.fosd.typechef.parser.c.{AST, Id}
+import de.fosd.typechef.typesystem._
 
-trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] {
+trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
 
+trait InformationFlowHelper  {
     def copySource(s: Source, previousStmt: Opt[AST]): Source =
         s match {
             case s: SourceDefinition => s.copy(previousStmt = Some(previousStmt.entry))
@@ -56,4 +58,17 @@ trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperatio
             }
         matches(s, fieldAssignment._2)
     }
+
+    def isUnknownType(cType: CType): Boolean =
+        cType.atype match {
+            case _: CUnknown => true
+            case _ => false
+        }
+
+    def isStructOrUnion(cType: CType): Boolean =
+        cType.atype match {
+            case CPointer(t) => isStructOrUnion(t) // simple pointer detection - really, really cheap coding
+            case _: CStruct | _: CAnonymousStruct => true
+            case _ => false
+        }
 }

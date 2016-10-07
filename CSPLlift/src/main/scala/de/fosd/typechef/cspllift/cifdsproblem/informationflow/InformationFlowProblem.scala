@@ -156,11 +156,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                                     // TODO Documention of struct field value copy
                                     val sinksAndSourcesWithFields = sinksAndSources.map {
-                                        case s : SourceDefinitionOf if s.getType.isInstanceOf[Struct] =>
+                                        case s: SourceDefinitionOf if s.getType.isInstanceOf[Struct] =>
                                             val orgType = s.getType.asInstanceOf[Struct]
                                             val orgSource = s.getDefinition
                                             orgSource.getType match {
-                                                case st : Struct => s.copy(sourceType = orgType.copy(field = st.field))
+                                                case st: Struct => s.copy(sourceType = orgType.copy(field = st.field))
                                                 case _ => s
                                             }
                                         case x => x
@@ -242,7 +242,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         val result = flowFact match {
                             case s: Source => s.getType match {
                                 case _: Variable => computeVariable(s)
-                                case _: Struct => super.computeTargets(s)
+                                case _: Struct => computeStruct(s)
                                 case _ => super.computeTargets(s)
                             }
                             case z: Zero if !initialSeedsExists(destinationMethod.method.entry) =>
@@ -253,6 +253,33 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                             case x => super.computeTargets(x)
                         }
                         result
+                    }
+
+                    private def computeStruct(source: Source): util.Set[InformationFlowFact] = {
+                        assert(source.getType.isInstanceOf[Struct], "Computation source must be a variable.")
+                        lazy val copy = copySource(source, currOpt)
+                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val varName = source.getType.getName
+
+                        val global = super.computeTargets(copy)
+
+                        val sourcesAndSinks = {
+                            val sourcesAndSinks = fCallParamsToFDefParams.flatMap(callParamToDefParam => {
+                                if (callParamToDefParam._1.exists(fields => usesField(fields).exists(field => isFullFieldMatch(source, field)))) { // struct(.field) to variable
+                                    callParamToDefParam._2.flatMap(dstPDef => {
+                                        val assignee = dstPDef.entry.decl.getId
+                                        val sources = singleVisitOnSourceTypes(assignee, destinationVarEnv.varEnv, genStructSource(SCOPE_LOCAL), genVarSource(SCOPE_LOCAL))
+                                        val sourcesOf = sources.map(cs => SourceDefinitionOf(cs.getType, cs.getStmt, currSourceDefinition, cs.getScope, cs.getPreviousStmt))
+                                        val sink = SinkToAssignment(currOpt, currSourceDefinition, assignee)
+
+                                        sink :: sources ::: sourcesOf
+                                    })
+                                } else None // TODO struct field copy missing
+                            })
+                            GEN(sourcesAndSinks)
+                        }
+
+                        GEN(global, sourcesAndSinks)
                     }
 
                     private def computeVariable(source: Source): util.Set[InformationFlowFact] = {
@@ -476,13 +503,13 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             sourcesOf ::: sinks
         }
 
-        private def genVarSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Variable(define), currOpt, scope, Some(currOpt.entry)))
+        protected def genVarSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Variable(define), currOpt, scope, Some(currOpt.entry)))
 
-        private def genStructSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Struct(define, None), currOpt, scope, Some(currOpt.entry)))
+        protected def genStructSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Struct(define, None), currOpt, scope, Some(currOpt.entry)))
 
         private def genSource(define: Id): List[SourceDefinition] = {
             val scope = getCurrentScope(define)
-            singleVisitOnSourceTypes(define, genStructSource(scope), genVarSource(scope))
+            singleVisitOnSourceTypes(define, succVarEnv.varEnv, genStructSource(scope), genVarSource(scope))
         }
 
         private def genFieldSource(field: Id, parents: List[Id]): List[SourceDefinition] = {
@@ -533,8 +560,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
          * We are using the variability-aware typesystem of TypeChef. However, variability encoded within the type definition of an variable or struct does not matter for us.
          * As a consequence we only visit one type-definition as we do assume correct type assignments.
          */
-        private def singleVisitOnSourceTypes[T <: InformationFlowFact](currId: Id, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
-            val cTypes = succVarEnv.varEnv.lookupType(currId.name)
+        protected def singleVisitOnSourceTypes[T <: InformationFlowFact](currId: Id, env: succTS.VarTypingContext, structFun: (Id => List[T]), varFun: (Id => List[T])): List[T] = {
+            val cTypes = env.lookupType(currId.name)
             var cFacts: List[T] = List()
 
             // Do not generate sources for every possible type condition; only once for either struct or variable
@@ -546,19 +573,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
             cFacts
         }
-
-        private def isUnknownType(cType: CType): Boolean =
-            cType.atype match {
-                case _: CUnknown => true
-                case _ => false
-            }
-
-        private def isStructOrUnion(cType: CType): Boolean =
-            cType.atype match {
-                case CPointer(t) => isStructOrUnion(t) // simple pointer detection - really, really cheap coding
-                case _: CStruct | _: CAnonymousStruct => true
-                case _ => false
-            }
 
         override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
             flowFact match {
@@ -626,11 +640,15 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             }
         }
 
-        private val fCall = filterASTElems[FunctionCall](callStmt.getStmt.entry).head
-        private val fCallExprs = fCall.params.exprs
-        private val fDefParams = getFDefParameters(destinationMethod.method)
+        private lazy val fCall = filterASTElems[FunctionCall](callStmt.getStmt.entry).head
+        private lazy val fCallExprs = fCall.params.exprs
+        private lazy val fDefParams = getFDefParameters(destinationMethod.method)
 
-        val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
+        lazy val destinationStmt = interproceduralCFG.getSuccsOf(destinationMethod).asScala.headOption.getOrElse(destinationMethod)
+        lazy val destinationTS = interproceduralCFG.getTS(destinationStmt)
+        lazy val destinationVarEnv = destinationTS.lookupEnv(destinationStmt.getStmt.entry)
+
+        lazy val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, fDefParams)
     }
 
 }

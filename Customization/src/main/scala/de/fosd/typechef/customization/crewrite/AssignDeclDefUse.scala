@@ -144,7 +144,8 @@ trait AssignDeclDefUse {
         case i: Id => List()
         case i: InitDeclaratorI => List()
         case c: Constant => List()
-        case _ => List()
+        case l: List[AnyRef@unchecked] => l.flatMap(usesField)
+        case x => List()
     }
 
     lazy val assignsVariables: AnyRef => List[(Id, List[Id])] =
