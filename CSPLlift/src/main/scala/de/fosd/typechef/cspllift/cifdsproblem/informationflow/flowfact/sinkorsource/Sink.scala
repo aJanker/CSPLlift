@@ -1,4 +1,4 @@
-package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact
+package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.ProductDerivation

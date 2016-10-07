@@ -4,7 +4,8 @@ import java.io.{StringWriter, Writer}
 
 import de.fosd.typechef.conditional.{One, Opt}
 import de.fosd.typechef.cspllift.LiftedCFlowFact
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Sink, SinkOrSource, Source}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SinkOrSource, Source}
 import de.fosd.typechef.parser.c.{AST, EmptyStatement, ForStatement, PrettyPrinter}
 import spllift.Constraint
 

@@ -4,6 +4,7 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, Source}
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.{CICFGStmt, CInterCFG}
 import de.fosd.typechef.parser.c._

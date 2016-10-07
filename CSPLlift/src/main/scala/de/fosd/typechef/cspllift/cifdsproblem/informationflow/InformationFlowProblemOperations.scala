@@ -2,6 +2,7 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Source, SourceDefinition, SourceDefinitionOf, Struct}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations}
 import de.fosd.typechef.parser.c.{AST, Id}
 
