@@ -4,12 +4,13 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Source, SourceDefinition, SourceDefinitionOf, Struct}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations}
-import de.fosd.typechef.parser.c.{AST, Id}
+import de.fosd.typechef.cspllift.commons.CInterCFGCommons
+import de.fosd.typechef.parser.c.{AST, ASTEnv, ArrayAccess, Id}
 import de.fosd.typechef.typesystem._
 
 trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
 
-trait InformationFlowHelper  {
+trait InformationFlowHelper extends CInterCFGCommons {
     def copySource(s: Source, previousStmt: Opt[AST]): Source =
         s match {
             case s: SourceDefinition => s.copy(previousStmt = Some(previousStmt.entry))
@@ -23,6 +24,7 @@ trait InformationFlowHelper  {
             case so: SourceDefinitionOf => so.getDefinition
         }
 
+    def isOnlyUsedAsArrayAccess(id : Id, uses : List[Id], env : ASTEnv) : Boolean = !uses.filter(id.equals).exists(findPriorASTElem[ArrayAccess](_, env).isEmpty)
 
     def isFullFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
         def matches(s: Source, parents: List[Id]): Boolean =

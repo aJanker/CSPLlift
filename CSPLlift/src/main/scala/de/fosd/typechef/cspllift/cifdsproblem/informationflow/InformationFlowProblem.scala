@@ -165,8 +165,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                             }
                                         case x => x
                                     }
-
-
                                     GEN(sinksAndSourcesWithFields)
                                 } else KILL
                             }
@@ -197,7 +195,16 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                     } else if (currStructFieldAssigns.nonEmpty && currUses.contains(varName)) currStructFieldAssigns.flatMap(assign => getDefineSourcesFromAssignment(assign._2.head))
                                     else List()
 
-                                GEN(getSinksAndSourcesOf(currSourceDefinition, sources))
+                                val sourcesOf =
+                                    if (isOnlyUsedAsArrayAccess(currSourceDefinition.sourceType.getName, currUses, currASTEnv)) List()
+                                    else sources.flatMap {
+                                        case s: Source => Some(SourceDefinitionOf(s.getType, currOpt, currSourceDefinition, s.getScope, Some(currOpt.entry)))
+                                        case _ => None
+                                    }
+
+                                val sinks = sources.map(genSource => SinkToAssignment(currOpt, currSourceDefinition, genSource.getType.getName))
+
+                                GEN(sourcesOf ::: sinks)
                             }
 
                             val assignment =
@@ -265,7 +272,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                         val sourcesAndSinks = {
                             val sourcesAndSinks = fCallParamsToFDefParams.flatMap(callParamToDefParam => {
-                                if (callParamToDefParam._1.exists(fields => usesField(fields).exists(field => isFullFieldMatch(source, field)))) { // struct(.field) to variable
+                                if (callParamToDefParam._1.exists(fields => usesField(fields).exists(field => isFullFieldMatch(source, field)))) {
+                                    // struct(.field) to variable
                                     callParamToDefParam._2.flatMap(dstPDef => {
                                         val assignee = dstPDef.entry.decl.getId
                                         val sources = singleVisitOnSourceTypes(assignee, destinationVarEnv.varEnv, genStructSource(SCOPE_LOCAL), genVarSource(SCOPE_LOCAL))
