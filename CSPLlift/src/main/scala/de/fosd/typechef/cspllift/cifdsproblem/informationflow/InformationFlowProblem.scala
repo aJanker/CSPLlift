@@ -266,7 +266,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         assert(source.getType.isInstanceOf[Struct], "Computation source must be a variable.")
                         lazy val copy = copySource(source, currOpt)
                         lazy val currSourceDefinition = getSourceDefinition(source)
-                        lazy val varName = source.getType.getName
+                        lazy val structName = source.getType.getName
+                        lazy val structField = source.getType.asInstanceOf[Struct].field
 
                         val global = super.computeTargets(copy)
 
@@ -282,7 +283,19 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                                         sink :: sources ::: sourcesOf
                                     })
-                                } else None // TODO struct field copy missing
+                                } else if (callParamToDefParam._1.exists(fields => usesField(fields).isEmpty && uses(fields).contains(structName))) {
+                                    // complete struct to struct -> copy fields
+                                    callParamToDefParam._2.flatMap(dstPDef => {
+                                        val assignee = dstPDef.entry.decl.getId
+                                        val sources = singleVisitOnSourceTypes(assignee, destinationVarEnv.varEnv, genStructSource(SCOPE_LOCAL), genVarSource(SCOPE_LOCAL)) // sources of parent
+                                        // copy field source
+                                        val fieldSources = sources.map(parentSource => parentSource.copy(sourceType = Struct(assignee, structField)))
+                                        val sourcesOf = fieldSources.map(cs => SourceDefinitionOf(cs.getType, cs.getStmt, currSourceDefinition, cs.getScope, cs.getPreviousStmt))
+                                        val sink = SinkToAssignment(currOpt, currSourceDefinition, assignee)
+
+                                        sink :: fieldSources ::: sourcesOf
+                                    })
+                                } else None
                             })
                             GEN(sourcesAndSinks)
                         }
