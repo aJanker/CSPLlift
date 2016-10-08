@@ -24,7 +24,11 @@ trait InformationFlowHelper extends CInterCFGCommons {
             case so: SourceDefinitionOf => so.getDefinition
         }
 
-    def isOnlyUsedAsArrayAccess(id : Id, uses : List[Id], env : ASTEnv) : Boolean = !uses.filter(id.equals).exists(findPriorASTElem[ArrayAccess](_, env).isEmpty)
+    def isOnlyUsedAsArrayAccess(id: Id, uses: List[Id], env: ASTEnv): Boolean = {
+        val matchingUses = uses.filter(id.equals)
+        if (matchingUses.isEmpty) false
+        else !matchingUses.exists(findPriorASTElem[ArrayAccess](_, env).isEmpty)
+    }
 
     def isFullFieldMatch(s: Source, fieldAssignment: (Id, List[Id])): Boolean = {
         def matches(s: Source, parents: List[Id]): Boolean =
