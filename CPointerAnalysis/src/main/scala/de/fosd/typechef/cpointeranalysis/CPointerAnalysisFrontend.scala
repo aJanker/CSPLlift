@@ -682,7 +682,8 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
             }
         }
 
-        def extractCurlyInitializer(curly: LcurlyInitializer, ctx: FeatureExpr): Option[String] = { // TODO Refactor
+        def extractCurlyInitializer(curly: LcurlyInitializer, ctx: FeatureExpr): Option[String] = {
+            // TODO Refactor
             if (DEBUG) {
                 println(curly)
             }
@@ -696,7 +697,16 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
             }
 
             val ts = getTypeSystem(curly).get
-            val tsEnv = ts.lookupEnv(curly)
+
+            val tsEnv =
+                try {
+                    ts.lookupEnv(curly)
+                } catch {
+                    case e: Exception =>
+                        println("No typechecked env of curly declaration found.\n" + PrettyPrinter.print(curly))
+                        return None
+                }
+
 
             lazy val typeDefTypeSpecifiers = filterASTElems[TypeDefTypeSpecifier](priorDeclaration.get)
             lazy val structOrUnionSpecifiers = filterASTElems[StructOrUnionSpecifier](priorDeclaration.get)
