@@ -93,9 +93,9 @@ trait EquivalenceContext extends PointerContext {
                 if (eqClassLocal.isDefined) conditionLocal
                 else conditionGlobal
 
-            if (eqClass.isEmpty) {
+            /* if (eqClass.isEmpty) {
                 println("Warning: No eq class found for: " + objectName)
-            }
+            } */
 
             Opt(condition, eqClass)
         }
@@ -119,18 +119,18 @@ trait EquivalenceContext extends PointerContext {
                     } else {
                         eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
                     }
-                } else {
+                } /* else {
                     println("Equivalence class not found for object name" + o)
-                }
+                } */
             } else if (uo.startsWith(ObjectNameOperator.PointerDereference.toString)) {
                 val uo1 = uo.replace(ObjectNameOperator.PointerDereference.toString, "")
                 val condEqClassO1 = lookup(scope + uo1)
 
                 if (condEqClassO1.entry.isDefined) {
                     condEqClassO1.entry.get.addPrefix((ObjectNameOperator.PointerDereference.toString, o), oCondition.and(condEqClassO1.condition))
-                } else {
+                } /* else {
                     println("Prefix set [pointer dereference] not generated for object name: " + o)
-                }
+                } */
 
             } else if (uo.contains(ObjectNameOperator.StructAccess.toString) || uo.contains(ObjectNameOperator.StructPointerAccess.toString)) {
                 val field = ObjectNameOperator.getField(uo)
@@ -140,13 +140,13 @@ trait EquivalenceContext extends PointerContext {
 
                 if (condEqClassO1.entry.isDefined) {
                     condEqClassO1.entry.get.addPrefix((field, o), oCondition.and(condEqClassO1.condition))
-                } else {
+                } /* else {
                     println("Prefix set [field access] not generated for object name: " + o)
-                }
+                } */
 
             } else {
-                if (uo.contains(ObjectNameOperator.PointerCreation.toString) || uo.contains(ObjectNameOperator.PointerDereference.toString))
-                    println("Prefix set not generated for object name: " + o)
+                /* if (uo.contains(ObjectNameOperator.PointerCreation.toString) || uo.contains(ObjectNameOperator.PointerDereference.toString))
+                    println("Prefix set not generated for object name: " + o) */
             }
         }
 
