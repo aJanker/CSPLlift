@@ -382,14 +382,14 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 }
 
                 def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOfTerm(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
-                val assignments = assignsReturnVariablesTo(callSite.getStmt.entry, exitStmt.getStmt.entry)
+                lazy val assignments = assignsReturnVariablesTo(callSite.getStmt.entry, exitStmt.getStmt.entry)
 
                 new InfoFlowFunction(exitStmt, callSite, default) {
                     override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
                         val result = flowFact match {
                             case s: Source => s.getType match {
                                 case _: Variable => computeVariable(s)
-                                case _: Struct => super.computeTargets(s)
+                                case _: Struct => computeStruct(s)
                                 case _ => super.computeTargets(s)
                             }
                             case s: Sink => GEN(s)
@@ -399,26 +399,49 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         result
                     }
 
+                    private def computeStruct(source: Source): util.Set[InformationFlowFact] = {
+                        assert(source.getType.isInstanceOf[Struct], "Computation source must be a struct.")
+                        lazy val copy = copySource(source, currOpt)
+                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val structName = source.getType.getName
+                        lazy val structField = source.getType.asInstanceOf[Struct].field
+
+                        val global = super.computeTargets(copy)
+
+                        val sourcesAndSinks = {
+                            if (assignments.exists(assignment => assignment._2.contains(structName))) { // struct to struct assignment
+                                GEN(assignments.flatMap(assignment => assignment._2.flatMap {
+                                    case x if structName.equals(x) =>
+                                        val assignee = assignment._1
+                                        val scope = SCOPE_LOCAL // TODO Correct Scoping
+                                        val newSource = SourceDefinition(Struct(assignee, structField), fCallOpt, scope, Some(currOpt.entry))
+                                        val sourceOf = SourceDefinitionOf(Struct(assignee, structField), fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
+                                        val sink = SinkToAssignment(fCallOpt, currSourceDefinition, assignee)
+                                        List(newSource, sourceOf, sink)
+                                    case _ => None
+                                }))
+                            } else KILL
+                        }
+
+                        GEN(global, sourcesAndSinks)
+                    }
+
                     private def computeVariable(source: Source): util.Set[InformationFlowFact] = {
                         assert(source.getType.isInstanceOf[Variable], "Computation source must be a variable.")
                         lazy val copy = copySource(source, currOpt)
                         lazy val currSourceDefinition = getSourceDefinition(source)
                         lazy val varName = source.getType.getName
 
-                        val sourcesAndSinks = {
-                            val sourcesAndSinks = assignments.flatMap(assignment => assignment._2.flatMap {
-                                case x if varName.equals(x) =>
-                                    val assignee = assignment._1
-                                    val scope = interproceduralCFG.getTS(callSite).lookupEnv(callSite.getStmt.entry).varEnv.lookupScope(assignee.name).select(currSatisfiableCondition)
-                                    val newSource = SourceDefinition(Variable(assignee), fCallOpt, scope, Some(currOpt.entry))
-                                    val sourceOf = SourceDefinitionOf(Variable(assignee), fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
-                                    val sink = SinkToAssignment(fCallOpt, currSourceDefinition, assignee)
-                                    List(newSource, sourceOf, sink)
-                                case _ => None
-                            })
-
-                            GEN(sourcesAndSinks)
-                        }
+                        val sourcesAndSinks = GEN(assignments.flatMap(assignment => assignment._2.flatMap {
+                            case x if varName.equals(x) =>
+                                val assignee = assignment._1
+                                val scope = SCOPE_LOCAL // TODO Correct Scoping
+                                val newSource = SourceDefinition(Variable(assignee), fCallOpt, scope, Some(currOpt.entry))
+                                val sourceOf = SourceDefinitionOf(Variable(assignee), fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
+                                val sink = SinkToAssignment(fCallOpt, currSourceDefinition, assignee)
+                                List(newSource, sourceOf, sink)
+                            case _ => None
+                        }))
 
 
                         val global = super.computeTargets(copy)
