@@ -4,7 +4,7 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, Source}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.{CICFGStmt, CInterCFG}
 import de.fosd.typechef.parser.c._
@@ -20,26 +20,23 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProb
         val callStructUses = usesField(callExprs)
 
         new FlowFunction[InformationFlowFact] {
-            override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
-                flowFact match {
-                    case s: Source => s match {
-                       /* case _: VarSource | StructSource(_, None, _, _, _) | StructSourceOf(_, None, _, _, _, _) if callUses.contains(s.getId) =>
-                            val sink = SinkToUse(fCallNode, s)
-                            if (s.getScope == SCOPE_GLOBAL) GEN(List(s, sink)) else GEN(sink)
-                        case StructSource(_, Some(field), _, _, _) if callStructUses.exists(use => isFullFieldMatch(s, use)) =>
-                            val sink = SinkToUse(fCallNode, s)
-                            if (s.getScope == SCOPE_GLOBAL) GEN(List(s, sink)) else GEN(sink)
-                        case _ :  VarSourceOf | StructSourceOf(_, None, _, _, _, _) if callUses.contains(s.getId) =>
-                            val sink = SinkToUse(fCallNode, s.asInstanceOf[SourceDefinitionOf].getDefinition)
-                            if (s.getScope == SCOPE_GLOBAL) GEN(List(s, sink)) else GEN(sink)
-                        case s@StructSourceOf(_, Some(field), _, _, _, _) if callStructUses.exists(use => isFullFieldMatch(s, use)) =>
-                            val sink = SinkToUse(fCallNode, s.source)
-                            if (s.getScope == SCOPE_GLOBAL) GEN(List(s, sink)) else GEN(sink)
-                        case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s) */
-                        case _ => KILL
-                    }
+            override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
+                val use = flowFact match {
+                    case s: Source if s.getType.isInstanceOf[Variable] && callUses.contains(s.getType.getName) =>
+                        GEN(SinkToUse(callStmt.getStmt, s))
+                    case s: Source if s.getType.isInstanceOf[Struct] && callStructUses.exists(field => isFullFieldMatch(s, field)) =>
+                        GEN(SinkToUse(callStmt.getStmt, s))
+                    case s: Source if s.getType.isInstanceOf[Struct] && callStructUses.isEmpty && s.getType.asInstanceOf[Struct].field.isEmpty && callUses.contains(s.getType.getName) =>
+                        GEN(SinkToUse(callStmt.getStmt, s))
                     case _ => KILL
                 }
+
+                val global = flowFact match {
+                    case s: Source if s.getScope == SCOPE_GLOBAL => GEN(copySource(s, callStmt.getStmt))
+                    case _ => KILL
+                }
+                GEN(global, use)
+            }
         }
     }
 
@@ -48,7 +45,7 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProb
             override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
                 flowFact match {
                     case s: Sink => GEN(s)
-                    case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s) // TODO Copy
+                    case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                     case _ => KILL
                 }
         }

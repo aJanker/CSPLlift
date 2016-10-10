@@ -28,7 +28,7 @@ sealed abstract class Source(sourceType: SourceType, override val stmt: Opt[AST]
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
         if (!canEqual(other)) return false
 
-        val otherSource = other.asInstanceOf[SourceDefinition]
+        val otherSource = other.asInstanceOf[Source]
 
         lazy val stmtProduct = ProductDerivation.deriveProduct(getStmt.entry, configuration.getTrueFeatures)
         lazy val eqStmt = stmtProduct.equals(otherSource.getStmt.entry)
