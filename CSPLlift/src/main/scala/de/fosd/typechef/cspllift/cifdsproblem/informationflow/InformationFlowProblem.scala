@@ -409,18 +409,21 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         val global = super.computeTargets(copy)
 
                         val sourcesAndSinks = {
-                            if (assignments.exists(assignment => assignment._2.contains(structName))) { // struct to struct assignment
+                            if (assignments.exists(assignment => assignment._2.contains(structName))) {
+                                // struct to struct assignment
                                 GEN(assignments.flatMap(assignment => assignment._2.flatMap {
                                     case x if structName.equals(x) =>
                                         val assignee = assignment._1
                                         val scope = SCOPE_LOCAL // TODO Correct Scoping
-                                        val newSource = SourceDefinition(Struct(assignee, structField), fCallOpt, scope, Some(currOpt.entry))
+                                    val newSource = SourceDefinition(Struct(assignee, structField), fCallOpt, scope, Some(currOpt.entry))
                                         val sourceOf = SourceDefinitionOf(Struct(assignee, structField), fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
                                         val sink = SinkToAssignment(fCallOpt, currSourceDefinition, assignee)
                                         List(newSource, sourceOf, sink)
                                     case _ => None
                                 }))
-                            } else KILL
+                            } else {
+                                KILL
+                            }
                         }
 
                         GEN(global, sourcesAndSinks)
@@ -436,10 +439,20 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                             case x if varName.equals(x) =>
                                 val assignee = assignment._1
                                 val scope = SCOPE_LOCAL // TODO Correct Scoping
-                                val newSource = SourceDefinition(Variable(assignee), fCallOpt, scope, Some(currOpt.entry))
-                                val sourceOf = SourceDefinitionOf(Variable(assignee), fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
+
+                                val sourceType =
+                                    if (assignsField(callSite.getStmt).isEmpty) List(Variable(assignee))
+                                    else assignsField(callSite.getStmt).flatMap(field => genSourceForField(field._1, field._2).map(_.getType)) // variable to struct field
+
+                                val sources = sourceType.flatMap { st =>
+                                    val newSource = SourceDefinition(st, fCallOpt, scope, Some(currOpt.entry))
+                                    val sourceOf = SourceDefinitionOf(st, fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
+
+                                    newSource :: sourceOf :: Nil
+                                }
+
                                 val sink = SinkToAssignment(fCallOpt, currSourceDefinition, assignee)
-                                List(newSource, sourceOf, sink)
+                                sink :: sources
                             case _ => None
                         }))
 
@@ -551,6 +564,22 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         protected def genStructSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Struct(define, None), currOpt, scope, Some(currOpt.entry)))
 
+        def genSourceForField(field: Id, parents: List[Id]): List[SourceDefinition] = {
+            val scope = getCurrentScope(field)
+            val fieldSources = genFieldSource(field, parents)
+            val parentSources =
+                if (parents.nonEmpty) parents.tail.flatMap(genStructSource(scope)) ::: genSource(parents.head) ::: Nil
+                else List()
+
+            val result = fieldSources.map(cFieldSource =>
+                parentSources.foldLeft(cFieldSource) {
+                    case (fieldSource, s: Source) => SourceDefinition(Struct(s.getType.getName, Some(fieldSource)), s.getStmt, s.getScope, s.getPreviousStmt)
+                    case (fieldSource, _) => fieldSource
+                })
+
+            result
+        }
+
         private def genSource(define: Id): List[SourceDefinition] = {
             val scope = getCurrentScope(define)
             singleVisitOnSourceTypes(define, succVarEnv.varEnv, genStructSource(scope), genVarSource(scope))
@@ -584,21 +613,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             result
         }
 
-        private def genSourceForField(field: Id, parents: List[Id]): List[SourceDefinition] = {
-            val scope = getCurrentScope(field)
-            val fieldSources = genFieldSource(field, parents)
-            val parentSources =
-                if (parents.nonEmpty) parents.tail.flatMap(genStructSource(scope)) ::: genSource(parents.head) ::: Nil
-                else List()
-
-            val result = fieldSources.map(cFieldSource =>
-                parentSources.foldLeft(cFieldSource) {
-                    case (fieldSource, s: Source) => SourceDefinition(Struct(s.getType.getName, Some(fieldSource)), s.getStmt, s.getScope, s.getPreviousStmt)
-                    case (fieldSource, _) => fieldSource
-                })
-
-            result
-        }
 
         /*
          * We are using the variability-aware typesystem of TypeChef. However, variability encoded within the type definition of an variable or struct does not matter for us.
