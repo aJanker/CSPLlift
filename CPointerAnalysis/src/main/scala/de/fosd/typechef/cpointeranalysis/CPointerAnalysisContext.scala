@@ -58,7 +58,7 @@ trait EquivalenceContext extends PointerContext {
     }
 
     def initEquivalenceClasses(objectNameContext: ObjectNameContext): Unit = {
-        clearEquivalenceClasses
+        clearEquivalenceClasses()
 
         val r = objectNameContext.getObjectNames.keys.foldLeft((getEquivalenceClassesMap, getEquivalenceClasses))((e, k) => {
             val ec = new EquivalenceClass(ConditionalSet(k, objectNameContext.getObjectNames.get(k)), ConditionalSet())
@@ -264,13 +264,7 @@ trait EquivalenceContext extends PointerContext {
 
                     // if any two eq classes have the same prefix relation, merge them recursively
                     if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged && !eqClassO.equals(eqClassO1)) {
-                        merge(eqClassO.get, eqClassO1.get);
-                    } else {
-                        if (!eqClassO.isDefined) {
-                            println("Equivalence class not merged: " + eqClassO);
-                        } else if (!eqClassO1.isDefined) {
-                            println("Equivalence class not merged: " + eqClassO1);
-                        }
+                        merge(eqClassO.get, eqClassO1.get)
                     }
                 })
             } else newPrefixSet += ((a, o), e2.prefixes().get((a, o)))
@@ -279,8 +273,8 @@ trait EquivalenceContext extends PointerContext {
         equivalenceClasses -= (e1, e2)
         val e = new EquivalenceClass(newObjectNamesSet.objectNames, newPrefixSet)
         equivalenceClasses += e
-        e1.objectNames.toPlainSet().foreach({ o => equivalenceClassesMap += ((o -> e)) })
-        e2.objectNames.toPlainSet().foreach({ o => equivalenceClassesMap += ((o -> e)) })
+        e1.objectNames.toPlainSet().foreach({ o => equivalenceClassesMap += (o -> e) })
+        e2.objectNames.toPlainSet().foreach({ o => equivalenceClassesMap += (o -> e) })
     }
 
 }
@@ -399,8 +393,8 @@ object LinkedObjectNames extends PointerContext {
     def get(name: ObjectName) = paramLinks.get(name)
 
     def save(file: String) = new PrintWriter(file) {
-        write(paramLinks.keySet.map(key => (key, paramLinks.get(key).get)).pickle.toString)
-        close
+        write(paramLinks.keySet.map(key => (key, paramLinks(key))).pickle.toString)
+        close()
     }
 
     def load(file: String) =

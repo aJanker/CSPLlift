@@ -161,7 +161,18 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             println("\n### Following results were not covered by the condition coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
 
-            unmatchedLiftedFacts.foreach(uc => println("Error:\n" + "\tCondition:" + uc._2 + "\n\t" + uc._1.toText))
+            var conditions : List[BDDFeatureExpr] = List()
+
+            unmatchedLiftedFacts.foreach(uc => {
+                conditions = uc._2.getFeatureExpr :: conditions
+                println("Error:\n" + "\tCondition:" + uc._2 + "\n\t" + uc._1.toText)
+            })
+
+            println("#unique conditions")
+
+            conditions.distinct.foreach(cond => {
+                println(cond)
+            })
         } else println("\n### All results were covered by the condition coverage approach!")
 
 
@@ -220,11 +231,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         val unmatchedLiftedFacts = matchedLiftedFacts.toList.collect { case ((x, 0)) => x }
-
-        /* interestingSamplingFacts.foreach(s => {
-            println(s._2)
-            s._1.foreach(x => println(x._1.toText))
-        }) */
 
         (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts)
     }

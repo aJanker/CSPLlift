@@ -31,9 +31,6 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
         extractIntraproceduralAssignments(context)
         context.solve()
-
-        /*extractInterproceduralFieldPointerAccesses(context)
-        context.solve() */
     }
 
     private def extractInterproceduralFieldPointerAccesses(context: CPointerAnalysisContext): CPointerAnalysisContext = {
