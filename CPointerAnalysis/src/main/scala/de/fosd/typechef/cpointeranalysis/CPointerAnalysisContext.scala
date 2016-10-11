@@ -258,7 +258,7 @@ trait EquivalenceContext extends PointerContext {
                     val eqClassO1 = find(o1)
 
                     // if any two eq classes have the same prefix relation, merge them recursively
-                    if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged /*&& !eqClassO.equals(eqClassO1) */ ) {
+                    if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged && !eqClassO.equals(eqClassO1) ) {
                         merge(eqClassO.get, eqClassO1.get)
                     }
                 })
