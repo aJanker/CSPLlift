@@ -109,14 +109,14 @@ object Launch extends App {
                 if (opt.isLiftAnalysisEnabled) {
                     println("#static analysis with spllift")
 
-                    val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
-                    cSPLliftFrontend.analyze(opt)
-
                     if (opt.isLiftEvaluationModeEnabled) {
                         val cSPLliftEvalFrontend = new CSPLliftEvaluationFrontend(ast, fullFM)
                         val successful = cSPLliftEvalFrontend.evaluate(opt)
 
                         println("\n###static analysis evaluation with spllift was complete:\t" + successful)
+                    } else {
+                        val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
+                        cSPLliftFrontend.analyze(opt)
                     }
                 }
 

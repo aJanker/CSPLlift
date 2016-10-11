@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift.evaluation
 
 import java.io._
 
-import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
+import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
@@ -84,8 +84,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
-
-            // unmatchedLiftedFacts.foreach(uc => println("Error:\n" + uc))
         }
 
         if (unmatchedCoverageFacts.nonEmpty) {
@@ -142,21 +140,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
 
-        val allSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[LiftedCFlowFact[InformationFlowFact]]])
-
-        println("### Coverage Facts:")
-        val singleSinks = coverageFacts.zipWithIndex.map(x => {
-            val facts = x._1._1
-            val index = x._2
-
-            val factSinks = Taint.allSinks(facts.asInstanceOf[List[LiftedCFlowFact[InformationFlowFact]]])
-            println("### Config:" )
-            println(x._1._2)
-            println(Taint.prettyPrintSinks(factSinks))
-            factSinks
-        })
-
-
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the condition coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
@@ -175,7 +158,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             })
         } else println("\n### All results were covered by the condition coverage approach!")
 
-
         if (unmatchedCoverageFacts.nonEmpty) {
             println("\n### Following results were not covered by the lifted approach: ")
             println("Size:\t" + unmatchedCoverageFacts.foldLeft(0)((i, x) => x._1.size + i))
@@ -191,14 +173,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                 println("###\n")
             })
         } else println("\n### All condition coverage results were covered by the lifted approach!")
-
-        if (!(unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty)) {
-            val interestingCoverageFacts = coverageFacts.map {
-                fact => (Taint.allSinks(fact._1.asInstanceOf[List[LiftedCFlowFact[InformationFlowFact]]]), fact._2)
-            }
-            // debug purpose only
-            println(interestingCoverageFacts.size)
-        }
 
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
