@@ -10,7 +10,7 @@ mainClass in Runtime := Some("de.fosd.typechef.cspllift.Launch")
 //generate lift.sh file with full classpath
 TaskKey[File]("mkrun") <<= (baseDirectory, fullClasspath in Runtime, mainClass in Runtime) map { (base, cp, main) =>
   val template = """#!/bin/sh
-java -ea -Xmx12g -Xms2g -Xss1g -classpath "%s" %s "$@"
+java -ea -classpath "%s" %s "$@"
 """
   val mainStr = main getOrElse sys.error("No main class specified")
   val contents = template.format(cp.files.absString, mainStr)

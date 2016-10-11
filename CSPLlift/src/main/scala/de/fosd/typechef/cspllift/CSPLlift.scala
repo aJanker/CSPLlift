@@ -76,7 +76,6 @@ object CSPLlift {
             println("#TOTAL Warnings:\t" +  WarningsCache.issuedWarnings())
         }
 
-        // Looks messy, but requiered for a clean conversion from java collections to scala collections...
         liftedFlowFactsAsScala(solver.getAllResults)
     }
 }

@@ -17,6 +17,7 @@ package object cspllift {
 
     type LiftedCFlowFact[D <: CFlowFact] = (D, Constraint)
 
+    // Looks messy, but requiered for a clean conversion from java collections to scala collections...
     def liftedFlowFactsAsScala[D <: CFlowFact](javaFacts: util.List[util.Map[D, Constraint]]): List[LiftedCFlowFact[D]] = javaFacts.asScala.flatMap(_.asScala).map {case (fact, constraint) => (fact.get, constraint)}.toList.distinct.asInstanceOf[List[LiftedCFlowFact[D]]]
 
 }
