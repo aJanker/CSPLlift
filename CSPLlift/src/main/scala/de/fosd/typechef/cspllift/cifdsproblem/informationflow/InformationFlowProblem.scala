@@ -569,7 +569,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         protected def genStructSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Struct(define, None), currOpt, scope, Some(currOpt.entry)))
 
-        def genSourceForField(field: Id, parents: List[Id], scopes : List[Int]): List[SourceDefinition] = {
+        def genSourceForField(field: Id, parents: List[Id], scopes: List[Int]): List[SourceDefinition] = {
             val fieldSources = genFieldSource(field, parents)
             val parentSources =
                 if (parents.nonEmpty) scopes.flatMap(scope => parents.tail.flatMap(genStructSource(scope)) ::: genSource(parents.head) ::: Nil)
@@ -676,8 +676,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             val defPs = groupOptListVAware(defParams, interproceduralCFG.getFeatureModel)
 
             // deal with variadic functions
-            def defParamHasVarArgs: Boolean =
-            defPs.lastOption match {
+            def defParamHasVarArgs: Boolean = defPs.lastOption match {
                 case Some(l) if l.exists {
                     case Opt(_, v: VarArgs) => true
                     case _ => false
@@ -691,7 +690,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     case _ => false
                 }
 
-            if ((callPs.size != defPs.size) && defParamHasVarArgs) callPs.map((_, defPs.head))
+            if (defParamHasVarArgs) callPs.map((_, defPs.head))
             else if ((callPs.size != defPs.size) && defParamIsVoidSpecifier) List()
             else {
                 if (callPs.size != defPs.size)
