@@ -78,7 +78,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
     private val tunitToPseudoCall: util.IdentityHashMap[AST, Opt[FunctionDef]] = new util.IdentityHashMap()
 
-    private val cFunctionPointerAnalysis = new CPointerAnalysisFrontend(cModuleInterfacePath, fm)
+    private var cFunctionPointerAnalysis = new CPointerAnalysisFrontend(fm)
     var cFunctionPointerEQRelation: CPointerAnalysisContext = _
 
     private val cModuleInterface: Option[CModuleInterface] =
@@ -152,6 +152,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     private def calculatePointerEquivalenceRelations = {
         StopWatch.measureUserTime(options.getStopWatchPrefix + "pointsToAnalysis", {
+            cFunctionPointerAnalysis = new CPointerAnalysisFrontend(fm)
             cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, (getEnvs, envToTS))
         })
     }

@@ -8,7 +8,6 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem._
-import de.fosd.typechef.typesystem.linker.CSignature
 
 import scala.collection.immutable.Map
 import scala.collection.mutable
@@ -18,12 +17,7 @@ import scala.collection.mutable
   * Pointer Analysis for TypeChef. This is implementation is adapted from the CCallGraph Implementation of TypeChef by Gabriel Ferreira
   * Improved by Andreas Janker
   */
-class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
-                               featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty) extends PointerContext with ASTNavigation with ConditionalNavigation {
-
-    lazy val linking: Option[CLinking] = None
-    /*if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
-    else None */
+class CPointerAnalysisFrontend(featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
     def calculatePointerEquivalenceRelation(tUnit: TranslationUnit, env: (List[ASTEnv], util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse])): CPointerAnalysisContext = {
         val context = extractObjectNames(tUnit, env)
@@ -133,41 +127,9 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         context
     }
 
-    private def getExternalParamsFuncDef(function: String, context: CPointerAnalysisContext): List[Opt[ObjectName]] = {
-        def findInInterface(interface: CLinking): List[Opt[context.ObjectName]] = {
-            interface.getSignatures(function) match {
-                case None => List[Opt[ObjectName]]()
-                case signatures => signatures.get.flatMap(findInSignature)
-            }
-        }
-
-        def findInSignature(signature: CSignature): List[Opt[ObjectName]] =
-            signature.ctype.atype match {
-                case CFunction(params, ret) => params.toList.zipWithIndex.map {
-                    case (cType, value) => {
-                        val filename = signature.pos.headOption match {
-                            case Some(name) => extractFilenameS(name.getFile)
-                            case None => "NOFILENAME"
-                        }
-                        val name = context.applyScope("ARGUMENT" + value, signature.name, filename) // TODO VAARGS
-                        LinkedObjectNames.addName(name)
-                        Opt(signature.fexpr, name)
-                    }
-                }
-                case _ => List()
-            }
-
-        linking match {
-            case None => List()
-            case Some(interface) => findInInterface(interface)
-        }
-    }
-
-
     private def addAssignmentsFromFunctionCallParameters(context: CPointerAnalysisContext): CPointerAnalysisContext = {
         for ((function, listParams) <- context.functionCallParameters) {
-            val externalFuncDef = getExternalParamsFuncDef(function, context)
-            val listParamsFuncDef: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(context.functionDefParameters.getOrElse(function, externalFuncDef))
+            val listParamsFuncDef: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(context.functionDefParameters.getOrElse(function, List()))
             val listParamsFuncCal: Conditional[List[ObjectName]] = ConditionalLib.explodeOptList(listParams)
 
             val assignments = ConditionalLib.explode(listParamsFuncCal, listParamsFuncDef).toList
