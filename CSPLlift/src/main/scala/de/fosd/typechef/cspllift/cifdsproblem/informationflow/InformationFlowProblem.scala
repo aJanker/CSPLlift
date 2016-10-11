@@ -518,7 +518,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
         lazy val succTS = interproceduralCFG.getTS(succ)
         lazy val succVarEnv = succ.getStmt.entry match {
             case f: FunctionDef => succTS.lookupEnv(f.stmt.innerStatements.headOption.getOrElse(currOpt).entry)
-            case _ => currTS.lookupEnv(succ.getStmt.entry)
+            case _ => succTS.lookupEnv(succ.getStmt.entry)
         }
 
         lazy val currDefines = defines(currStmt)

@@ -155,6 +155,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the condition coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
+            println(liftedFacts.filter(_._1.isInterestingFact).size)
 
             var conditions : List[BDDFeatureExpr] = List()
 
