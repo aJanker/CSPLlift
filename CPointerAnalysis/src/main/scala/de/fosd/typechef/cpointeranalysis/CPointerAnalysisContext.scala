@@ -53,10 +53,6 @@ trait EquivalenceContext extends PointerContext {
 
     def pointerEquivalenceClassesToString() = equivalenceClasses.foldLeft(new StringWriter())((w, e) => w.append(e.toString + "\n")).toString
 
-    def _initEquivalenceClasses(objectNames: Set[ObjectName]) : Unit = {
-
-    }
-
     def initEquivalenceClasses(objectNameContext: ObjectNameContext): Unit = {
         clearEquivalenceClasses()
 
@@ -76,8 +72,8 @@ trait EquivalenceContext extends PointerContext {
         // equivalenceClassesPrefixSets = Set[(ObjectName, ObjectName)]()
     }
 
-    def createInitialPrefixSets(objectNameContext: ObjectNameContext ,equivalenceClassesPrefixSets: Set[(ObjectName, ObjectName)] = equivalenceClassesPrefixSets, equivalenceClassesMap: Map[ObjectName, EquivalenceClass] = equivalenceClassesMap): Unit = {
-        def lookup(objectName: ObjectName) : Opt[Option[EquivalenceClass]] = {
+    def createInitialPrefixSets(objectNameContext: ObjectNameContext, equivalenceClassesPrefixSets: Set[(ObjectName, ObjectName)] = equivalenceClassesPrefixSets, equivalenceClassesMap: Map[ObjectName, EquivalenceClass] = equivalenceClassesMap): Unit = {
+        def lookup(objectName: ObjectName): Opt[Option[EquivalenceClass]] = {
             val eqClassLocal = find(objectName)
             val conditionLocal = objectNameContext.getObjectNames.get(objectName)
 
@@ -93,9 +89,6 @@ trait EquivalenceContext extends PointerContext {
                 if (eqClassLocal.isDefined) conditionLocal
                 else conditionGlobal
 
-            /* if (eqClass.isEmpty) {
-                println("Warning: No eq class found for: " + objectName)
-            } */
 
             Opt(condition, eqClass)
         }
@@ -119,35 +112,37 @@ trait EquivalenceContext extends PointerContext {
                     } else {
                         eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
                     }
-                } /* else {
+                } else {
                     println("Equivalence class not found for object name" + o)
-                } */
+                }
             } else if (uo.startsWith(ObjectNameOperator.PointerDereference.toString)) {
                 val uo1 = uo.replace(ObjectNameOperator.PointerDereference.toString, "")
-                val condEqClassO1 = lookup(scope + uo1)
 
-                if (condEqClassO1.entry.isDefined) {
-                    condEqClassO1.entry.get.addPrefix((ObjectNameOperator.PointerDereference.toString, o), oCondition.and(condEqClassO1.condition))
-                } /* else {
-                    println("Prefix set [pointer dereference] not generated for object name: " + o)
-                } */
+                val query = scope + uo1
+                val query2 = scope + ObjectNameOperator.unparenthesize(uo1)
+
+                val condEqClass = if (lookup(query).entry.isDefined) lookup(query) else lookup(query2)
+
+                if (condEqClass.entry.isDefined) condEqClass.entry.get.addPrefix((ObjectNameOperator.PointerDereference.toString, o), oCondition.and(condEqClass.condition))
+                else println("Prefix set [pointer dereference] not generated for object name: " + o)
 
             } else if (uo.contains(ObjectNameOperator.StructAccess.toString) || uo.contains(ObjectNameOperator.StructPointerAccess.toString)) {
-                val field = ObjectNameOperator.getField(uo)
-                val uo1 = uo.replace(field, "")
+                val split = ObjectNameOperator.splitParentAndField(uo)
 
-                val condEqClassO1 = lookup(scope + uo1)
+                if (split.isEmpty) {
+                    println("Could not determine struct field for: " + uo)
+                } else {
 
-                if (condEqClassO1.entry.isDefined) {
-                    condEqClassO1.entry.get.addPrefix((field, o), oCondition.and(condEqClassO1.condition))
-                } /* else {
-                    println("Prefix set [field access] not generated for object name: " + o)
-                } */
+                    val (uo1, field) = split.get
 
-            } else {
-                /* if (uo.contains(ObjectNameOperator.PointerCreation.toString) || uo.contains(ObjectNameOperator.PointerDereference.toString))
-                    println("Prefix set not generated for object name: " + o) */
-            }
+                    val query = scope + uo1
+                    val condEqClass = lookup(query)
+
+                    if (condEqClass.entry.isDefined) condEqClass.entry.get.addPrefix((field, o), oCondition.and(condEqClass.condition))
+                    else println("Prefix set [field access] not generated for object name: " + o)
+                }
+            } else if (uo.contains(ObjectNameOperator.PointerCreation.toString) || uo.contains(ObjectNameOperator.PointerDereference.toString))
+                println("Prefix set not generated for object name: " + o)
         }
 
 
@@ -263,7 +258,7 @@ trait EquivalenceContext extends PointerContext {
                     val eqClassO1 = find(o1)
 
                     // if any two eq classes have the same prefix relation, merge them recursively
-                    if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged && !eqClassO.equals(eqClassO1)) {
+                    if (eqClassO.isDefined && eqClassO1.isDefined && !eqClassO.get.beingMerged && !eqClassO1.get.beingMerged /*&& !eqClassO.equals(eqClassO1) */ ) {
                         merge(eqClassO.get, eqClassO1.get)
                     }
                 })
@@ -281,7 +276,7 @@ trait EquivalenceContext extends PointerContext {
 
 trait ObjectNameContext extends PointerContext {
 
-    private var _objectNames : Set[Opt[ObjectName]] = Set()
+    private var _objectNames: Set[Opt[ObjectName]] = Set()
     private var objectNames: ConditionalSet[ObjectName] = ConditionalSet()
     private var objectNamesScope: Map[ObjectName, Scope] = Map()
     private var objectNameAssignments: ConditionalSet[Assignment] = ConditionalSet()
@@ -326,7 +321,7 @@ trait ObjectNameContext extends PointerContext {
 
     def showExtractedObjectNames() = println(objectNames)
 
-    def getField(objectName: ObjectName) : String = {
+    def getField(objectName: ObjectName): String = {
         val delimiter =
             if (objectName.contains(ObjectNameOperator.StructPointerAccess.toString)) Some(ObjectNameOperator.StructPointerAccess.toString)
             else if (objectName.contains(ObjectNameOperator.StructAccess.toString)) Some(ObjectNameOperator.StructAccess.toString)

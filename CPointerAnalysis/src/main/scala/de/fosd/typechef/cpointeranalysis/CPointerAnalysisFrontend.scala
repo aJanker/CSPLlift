@@ -19,8 +19,7 @@ import scala.collection.mutable
   * Improved by Andreas Janker
   */
 class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
-                               featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty,
-                               DEBUG: Boolean = false) extends PointerContext with ASTNavigation with ConditionalNavigation {
+                               featureModel: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty) extends PointerContext with ASTNavigation with ConditionalNavigation {
 
     lazy val linking: Option[CLinking] = None
     /*if (Files.exists(Paths.get(linkingInterface.getOrElse(" ")))) Some(new CLinking(linkingInterface.get))
@@ -253,8 +252,6 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
 
         // Recursive Extraction Functions
         def extractAST(ast: AST, ctx: FeatureExpr = True): Option[String] = {
-            if (DEBUG) println(ast)
-
             currentFile = extractFilename(ast)
 
             ast match {
@@ -524,8 +521,6 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         }
 
         def extractExpr(expr: Expr, ctx: FeatureExpr): Option[String] = {
-            if (DEBUG) println(expr)
-
             expr match {
                 case Id(name: String) => Some(name)
                 // constants are not important
@@ -683,18 +678,16 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         }
 
         def extractCurlyInitializer(curly: LcurlyInitializer, ctx: FeatureExpr): Option[String] = {
-            // TODO Refactor
-            if (DEBUG) {
-                println(curly)
-            }
-
             val env = getEnv(curly).get
             val priorDeclaration = findPriorASTElem[Declaration](curly, env)
 
-            if (priorDeclaration.isEmpty) {
-                println("No parent of curly declaration found.\n" + PrettyPrinter.print(curly))
-                return None
-            }
+            if (priorDeclaration.isEmpty) return None
+
+            /**
+              * Currently we do not support curly arrays.
+              */
+            val isArrayDecl = filterASTElems[DeclArrayAccess](priorDeclaration.get).nonEmpty
+            if (isArrayDecl) return None
 
             val ts = getTypeSystem(curly).get
 
@@ -702,17 +695,37 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                 try {
                     ts.lookupEnv(curly)
                 } catch {
-                    case e: Exception =>
-                        println("No typechecked env of curly declaration found.\n" + PrettyPrinter.print(curly))
-                        return None
+                    case e: Exception => return None // No typechecked env available - silently ignore this special corner case
                 }
 
 
             lazy val typeDefTypeSpecifiers = filterASTElems[TypeDefTypeSpecifier](priorDeclaration.get)
             lazy val structOrUnionSpecifiers = filterASTElems[StructOrUnionSpecifier](priorDeclaration.get)
             lazy val isPointer = priorDeclaration.get.init.exists(init => init.entry.declarator.pointers.nonEmpty)
-            lazy val accessOperator = if (isPointer) ObjectNameOperator.StructPointerAccess.toString else ObjectNameOperator.StructAccess.toString
+            lazy val accessOperator = /*if (isPointer) */ ObjectNameOperator.StructPointerAccess.toString /* else ObjectNameOperator.StructAccess.toString */
 
+            def matchStructFieldWithCurlyInits(fields: List[Opt[ConditionalTypeMap]]): Unit = {
+                fields.foreach(cField => {
+                    val allFields = cField.entry.keys.toList.map(key => (key, cField.entry.apply(key)))
+                    val zip = allFields.zip(curly.inits)
+
+                    zip.foreach {
+                        case ((field, fieldType), init) =>
+                            val scope = analyisContext.findScopeForObjectName(currentDeclarator, currentFunction)
+                            val name = extractAST(init.entry, ctx and init.condition and cField.condition)
+
+                            if (name.isDefined) {
+                                val objectName1 = analyisContext.applyScope(applyOperator(accessOperator, ObjectNameOperator.parenthesize(currentDeclarator)) + ObjectNameOperator.parenthesize(field), scope, currentFile)
+                                val objectName2 = analyisContext.applyScope(name.get, scope, currentFile)
+                                fieldType.toList.foreach(ft => {
+                                    analyisContext.addObjectName(objectName1, ctx and ft._1 and cField.condition)
+                                    analyisContext.addObjectName(objectName2, ctx and ft._1 and cField.condition)
+                                    analyisContext.addObjectNameAssignment((objectName1, objectName2), ctx and ft._1 and init.condition and cField.condition)
+                                })
+                            }
+                    }
+                })
+            }
             if (typeDefTypeSpecifiers.nonEmpty) {
                 typeDefTypeSpecifiers.foreach(spec => {
                     val cTypes = tsEnv.typedefEnv.apply(spec.name.name)
@@ -720,7 +733,7 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                         case CType(s: CAnonymousStruct, _, _, _) =>
 
                             val allFields = s.fields.keys.toList.map(key => (key, s.fields.apply(key)))
-                            val zip = allFields.zip(curly.inits) // TODO Check for vaa-errors
+                            val zip = allFields.zip(curly.inits)
 
                             zip.foreach {
                                 case ((field, fieldType), init) =>
@@ -736,41 +749,22 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
                                         })
                                     }
                             }
+                        case CType(s: CStruct, _, _, _) =>
+                            val fields = tsEnv.structEnv.getFields(s.s, s.isUnion).toOptList
+                            matchStructFieldWithCurlyInits(fields)
                         case x => println("Missed curly type of: " + x)
                     }
                 })
             } else if (structOrUnionSpecifiers.nonEmpty) {
                 for (spec <- structOrUnionSpecifiers if spec.id.isDefined) {
                     val fields = tsEnv.structEnv.getFields(spec.id.get.name, spec.isUnion).toOptList
-
-                    fields.foreach(cField => {
-                        val allFields = cField.entry.keys.toList.map(key => (key, cField.entry.apply(key)))
-                        val zip = allFields.zip(curly.inits) // TODO Check for vaa-errors
-
-                        zip.foreach {
-                            case ((field, fieldType), init) =>
-                                val scope = analyisContext.findScopeForObjectName(currentDeclarator, currentFunction)
-                                val name = extractAST(init.entry, ctx and init.condition and cField.condition)
-
-                                if (name.isDefined) {
-                                    val objectName1 = analyisContext.applyScope(applyOperator(accessOperator, ObjectNameOperator.parenthesize(currentDeclarator)) + ObjectNameOperator.parenthesize(field), scope, currentFile)
-                                    val objectName2 = analyisContext.applyScope(name.get, scope, currentFile)
-                                    fieldType.toList.foreach(ft => {
-                                        analyisContext.addObjectName(objectName1, ctx and ft._1 and cField.condition)
-                                        analyisContext.addObjectNameAssignment((objectName1, objectName2), ctx and ft._1 and init.condition and cField.condition)
-                                    })
-                                }
-                        }
-                    })
+                    matchStructFieldWithCurlyInits(fields)
                 }
             }
             None
         }
 
         def extractStmt(stmt: Statement, ctx: FeatureExpr): Option[String] = {
-            if (DEBUG) {
-                println(stmt)
-            }
             stmt match {
                 case CompoundStatement(innerStatements: List[Opt[Statement]]) => {
                     for (Opt(fExpr, e) <- innerStatements) extractStmt(e, ctx and fExpr)
@@ -916,9 +910,6 @@ class CPointerAnalysisFrontend(linkingInterface: Option[String] = None,
         }
 
         def extractDeclarator(declarator: AST, ctx: FeatureExpr): Option[String] = {
-            if (DEBUG) {
-                println(declarator)
-            }
             declarator match {
                 // variable declarator with initializer
                 case InitDeclaratorI(decl: Declarator, _, init: Option[Initializer]) => {

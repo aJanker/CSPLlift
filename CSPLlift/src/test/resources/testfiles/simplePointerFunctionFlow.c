@@ -1,46 +1,6 @@
 //#include <stdlib.h>
 //#include <stdio.h>
 
-
-int main() {
-    int x = 5;
-    int i = 0;
-    int sink;
-    int sink2;
-    int sink3;
-    int sink4;
-    int sink5;
-
-    start = x;
-
-    #ifdef A
-       i = x;
-       sink2 = i;
-    #endif
-
-    int a;
-    int b;
-    sink3 = i;
-    sink5 = x;
-
-    #ifdef A
-     sink4 = i;
-    #endif
-
-    int c;
-
-    #ifndef A
-       sink = i;
-    #endif
-
-    int e;
-    int f;
-    int g;
-
-    return;
-}
-
-/*
 int cipher1(int i) {
    int res, x = 0;
    int y = 10;
@@ -109,4 +69,4 @@ int main() {
     printf("%i\n", sink);
 
     return 0;
-} */
+}

@@ -177,10 +177,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (callees.isEmpty)
             WarningsCache.add("No function destinations found for:\t" + call)
 
-        if (calleeNames.exists(_.entry.equalsIgnoreCase("mbedtls_zeroize"))) {
-            calleeNames.size
-        }
-
         callees
     }
 

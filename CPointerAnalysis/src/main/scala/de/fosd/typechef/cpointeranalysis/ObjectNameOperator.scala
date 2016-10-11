@@ -45,6 +45,12 @@ trait PointerContext extends Serializable {
         else objName
     }
 
+    def unparenthesize(objName: String): String = {
+        val matchingGroup = "^.*\\((.*)\\).*$".r.findFirstMatchIn(objName)
+        if (matchingGroup.isDefined) matchingGroup.get.group(1)
+        else objName
+    }
+
     def extractFilename(ast: AST, default: String = "NOFILENAME"): String = extractFilenameS(ast.getFile.getOrElse(default))
 
     def extractFilenameS(str: String, default: String = "NOFILENAME"): String = {
@@ -70,7 +76,16 @@ object ObjectNameOperator extends Enumeration with PointerContext {
     private lazy val regexPattern = regex.r
     private lazy val regexRemoveBraces = "\\(([A-Za-z0-9_\\-\\>]+)\\)".r
 
+    def splitParentAndField(objectNameWithField: ObjectName) : Option[(String, String)] = {
+        val lastIndexOfSPA = objectNameWithField.lastIndexOf(StructPointerAccess.toString)
+        val lastIndexOfSA = objectNameWithField.lastIndexOf(StructPointerAccess.toString)
 
+        val lastIndex = math.min(lastIndexOfSA, lastIndexOfSPA)
+
+        if (lastIndex == -1) return None
+
+        Some(unparenthesize(unscopeName(objectNameWithField.substring(0, lastIndex))), objectNameWithField.substring(lastIndex, objectNameWithField.length))
+    }
     def getField(objectNameWithField: ObjectName): String = objectNameWithField.replaceFirst(regex, "")
     def removeFields(objectNameWithField: ObjectName) = regexPattern.findPrefixOf(objectNameWithField)
     def containsFieldPointerAccess(name: ObjectName): Boolean = unscopeName(name).contains(StructPointerAccess.toString)
