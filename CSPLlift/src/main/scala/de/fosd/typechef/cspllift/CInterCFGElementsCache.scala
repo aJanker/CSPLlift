@@ -161,7 +161,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     def getAllFiles = fileToTUnit.toList
 
-    def getAllKnownTUnitsAsSingleTUnit: TranslationUnit = TranslationUnit(getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs })
+    def getAllKnownTUnitsAsSingleTUnit: TranslationUnit = TranslationUnit(getAllKnownTUnits.foldLeft(List[Opt[ExternalDef]]()) { (l, ast) => l ::: ast.defs }.distinct)
 
     def getTunitForEnv(env: ASTEnv) = envToTUnit.get(env)
 
