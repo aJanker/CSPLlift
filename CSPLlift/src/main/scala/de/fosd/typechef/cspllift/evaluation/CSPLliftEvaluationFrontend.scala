@@ -55,6 +55,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
         val (vaaWallTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
+        if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
 
         // 2. Generate Code Coverage Configurations for all referenced files
@@ -65,16 +66,18 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val coverageFacts = configs.zipWithIndex.map(x => {
             val (config, i) = x
             val run = "coverage_" + i
-            val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
-            println("### starting run:\t" + run)
-            println(config)
-            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
-            if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
-            (solution, config, icfg, wallTime)
-        })
 
-        // Print Variants
-        if (opt.writeVariants) writeVariants(icfg, coverageFacts, opt, method)
+            println("### starting run:\t" + i + " of " + configs.size)
+            println(config)
+
+            val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
+            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
+
+            if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
+            if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
+
+            (solution, config, wallTime)
+        })
 
         // 4. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -114,6 +117,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
+        if (opt.writeVariants) writeVariants(icfg, opt, method)
+        if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
+
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[BDDFeatureExpr]())((cfgConds, fact) => {
             val cfgCond = fact._2.getFeatureExpr
@@ -128,16 +134,18 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val coverageFacts = configs.zipWithIndex.map(x => {
             val (config, i) = x
             val run = "singleConf_" + i
-            println("### starting run:\t" + run)
+
+            println("### starting run:\t" + i + " of " + configs.size)
             println(config)
+
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
             val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
-            if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
-            (solution, config, icfg, wallTime)
-        })
 
-        // Print Variants
-        if (opt.writeVariants) writeVariants(icfg, coverageFacts, opt, method)
+            if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
+            if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
+
+            (solution, config, wallTime)
+        })
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
@@ -222,32 +230,19 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             (CSPLlift.solve[D](problem), cInterCFG)
         })
 
-    private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](vaaCIFG: CInterCFG, coverageFacts: List[(List[(D, Constraint)], SimpleConfiguration, CInterCFG, Long)], opt: CSPLliftOptions, method: String): Unit = {
+    private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](icfg: CInterCFG, opt: CSPLliftOptions, method: String = "", index : Option[Int] = None, config : Option[SimpleConfiguration] = None) = {
         val printDir = opt.getVariantsOutputDir + "/" + method + "/"
-        val dir = new File(printDir)
+        val outputDir = if (index.isDefined) printDir + "/" + index.get else printDir
 
-        if (!(dir.exists() && dir.isDirectory)) dir.mkdirs()
+        val currDir = new File(outputDir)
+        if (!(currDir.exists() && currDir.isDirectory)) currDir.mkdirs()
 
-        vaaCIFG.cInterCFGElementsCacheEnv.getAllFiles.foreach {
+        if (config.isDefined) writeStringToGZipFile(config.get.toString, outputDir + "/config")
+
+        icfg.cInterCFGElementsCacheEnv.getAllFiles.foreach {
             case (file, tunit) =>
-                val variant = printDir + "/" + getPlainFileNameS(file) + ".c"
+                val variant = outputDir + "/" + getPlainFileNameS(file) + ".c"
                 writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
-        }
-
-        coverageFacts.zipWithIndex.foreach {
-            case ((_, config, icfg, _), index) =>
-                val outputDir = printDir + "/" + index
-                val currDir = new File(outputDir)
-
-                if (!(currDir.exists() && currDir.isDirectory)) currDir.mkdirs()
-
-                writeStringToGZipFile(config.toString, outputDir + "/config")
-
-                icfg.cInterCFGElementsCacheEnv.getAllFiles.foreach {
-                    case (file, tunit) =>
-                        val variant = outputDir + "/" + getPlainFileNameS(file) + ".c"
-                        writeStringToGZipFile(PrettyPrinter.print(tunit), variant)
-                }
         }
     }
 
