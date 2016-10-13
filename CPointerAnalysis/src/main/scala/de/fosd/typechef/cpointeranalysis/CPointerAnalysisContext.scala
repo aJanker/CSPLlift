@@ -129,10 +129,8 @@ trait EquivalenceContext extends PointerContext {
             } else if (uo.contains(ObjectNameOperator.StructAccess.toString) || uo.contains(ObjectNameOperator.StructPointerAccess.toString)) {
                 val split = ObjectNameOperator.splitParentAndField(uo)
 
-                if (split.isEmpty) {
-                    println("Could not determine struct field for: " + uo)
-                } else {
-
+                if (split.isEmpty) println("Could not determine struct field for: " + uo)
+                else {
                     val (uo1, field) = split.get
 
                     val query = scope + uo1
