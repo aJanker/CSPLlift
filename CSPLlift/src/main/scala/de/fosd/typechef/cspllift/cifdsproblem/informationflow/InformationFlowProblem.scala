@@ -229,10 +229,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: CICFGStmt, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
-                val flowCondition = destinationMethod.getStmt.condition.and(callStmt.getStmt.condition)
+                val flowCondition = interproceduralCFG.getLiftedMethodOf(callStmt ,destinationMethod).method.condition.and(callStmt.getStmt.condition)
                 val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
                 val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
-                SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition))
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && destinationMethod.method.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallCallFlowFunction(callStmt, interproceduralCFG.getASTEnv(callStmt), interproceduralCFG)
@@ -257,7 +256,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 // Introduce Global Variables from linked file
                                 filesWithSeeds = filesWithSeeds + destinationMethod.method.entry.getFile.getOrElse("")
                                 GEN(getZeroFactWithFlowCondition(z) :: globalsAsInitialSeedsL(destinationMethod))
-                            case z: Zero => GEN(getZeroFactWithFlowCondition(z))
+                            case z: Zero =>
+                                SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition.and(z.flowCondition)))
+                                GEN(getZeroFactWithFlowCondition(z))
                             case x => super.computeTargets(x)
                         }
                         result
