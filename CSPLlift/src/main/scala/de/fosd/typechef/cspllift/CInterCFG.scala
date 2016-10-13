@@ -115,9 +115,12 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         }
 
     override def getLiftedMethodOf(callSite: CICFGStmt, callee: CICFGFDef): CICFGFDef = {
-        val pointsTo = getCalleesOfCallAtS(callSite)
+        val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
 
-        pointsTo.find(pointTo => pointTo.method.equals(callee.method)).getOrElse(callee)
+        val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
+        val calleeCond = pointsTo.getStmt.condition
+
+        pointsTo.copy(method = pointsTo.method.copy(condition = calleeCond.and(callCond)))
     }
 
     /**
@@ -159,7 +162,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns all callee methods for a given call.
       */
-    override def getCalleesOfCallAt(call: CICFGStmt): util.Set[CICFGFDef] = asJavaIdentitySet(getCalleesOfCallAtS(call))
+    override def getCalleesOfCallAt(call: CICFGStmt): util.Set[CICFGFDef] = asJavaIdentitySet(getCalleesOfCallAtS(call).map(getOriginalOptCalleeNode))
+
+    /**
+      * Every callee found by the function getCalleesOfCallAtS has the presence condition of its flow condition but not of its original presence condition within the ast.
+      * SPLlift requieres for a sound result the callee orignal node!
+      */
+    private def getOriginalOptCalleeNode(callee : CICFGFDef) : CICFGFDef = callee.copy(method = parentOpt(callee.method.entry, getASTEnv(callee)).asInstanceOf[Opt[FunctionDef]])
 
     private def getCalleesOfCallAtS(call: CICFGStmt): List[CICFGFDef] = {
         if (!isCallStmt(call)) return List[CICFGFDef]()
@@ -293,6 +302,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     }
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[CICFGFDef] = {
+        val dstCond = name.condition
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
             return {
                 val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
@@ -301,8 +311,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         def findCalleeInTunit(tunit: TranslationUnit) = {
             tunit.defs.flatMap {
-                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isSatisfiable(getFeatureModel) =>
-                    Some(CICFGFDef(Opt(ft, f), f.getPositionFrom))
+                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(dstCond).isSatisfiable(getFeatureModel) =>
+                    Some(CICFGFDef(Opt(ft.and(dstCond), f), f.getPositionFrom))
                 case _ => None
             }
         }
