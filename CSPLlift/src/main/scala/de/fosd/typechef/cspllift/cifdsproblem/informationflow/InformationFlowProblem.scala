@@ -242,7 +242,10 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         case _ => KILL
                     }
 
-                def getZeroFactWithFlowCondition(zero: Zero): Zero = zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
+                def getZeroFactWithFlowCondition(zero: Zero): Zero = {
+                    SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition.and(zero.flowCondition)))
+                    zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
+                }
 
                 new CallFlowFunction(callStmt, destinationMethod, default) {
                     override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
@@ -257,7 +260,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 filesWithSeeds = filesWithSeeds + destinationMethod.method.entry.getFile.getOrElse("")
                                 GEN(getZeroFactWithFlowCondition(z) :: globalsAsInitialSeedsL(destinationMethod))
                             case z: Zero =>
-                                SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition.and(z.flowCondition)))
                                 GEN(getZeroFactWithFlowCondition(z))
                             case x => super.computeTargets(x)
                         }
