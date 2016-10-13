@@ -76,15 +76,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
             if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
 
-            println("### results for " + config)
-            val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
-
-            interestingSamplingFacts.foreach(uc2 => {
-                println("Error:\n" + uc2._1)
-                println
-                println(uc2._1.toText)
-            })
-
             (solution, config, wallTime)
         })
 
@@ -152,6 +143,15 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
             if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
             if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
+
+            println("### results for " + config)
+            val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
+
+            interestingSamplingFacts.foreach(uc2 => {
+                println("Error:\n" + uc2._1)
+                println
+                println(uc2._1.toText)
+            })
 
             (solution, config, wallTime)
         })
