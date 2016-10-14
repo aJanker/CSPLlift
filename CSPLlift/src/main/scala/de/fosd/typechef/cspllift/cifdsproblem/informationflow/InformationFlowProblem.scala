@@ -238,13 +238,14 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 def default(flowFact: InformationFlowFact) =
                     flowFact match {
+                        case s: Sink => GEN(s)
                         case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                         case _ => KILL
                     }
 
                 def getZeroFactWithFlowCondition(zero: Zero): Zero = {
                     SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition.and(zero.flowCondition)))
-                    zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
+                    zero.copy(flowCondition = flowCondition.and(zero.flowCondition), stack = callStmt :: zero.stack)
                 }
 
                 new CallFlowFunction(callStmt, destinationMethod, default) {
@@ -255,12 +256,12 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 case _: Struct => computeStruct(s)
                                 case _ => super.computeTargets(s)
                             }
+                            case s: Sink => GEN(s)
                             case z: Zero if !initialSeedsExists(destinationMethod.method.entry) =>
                                 // Introduce Global Variables from linked file
                                 filesWithSeeds = filesWithSeeds + destinationMethod.method.entry.getFile.getOrElse("")
                                 GEN(getZeroFactWithFlowCondition(z) :: globalsAsInitialSeedsL(destinationMethod))
-                            case z: Zero =>
-                                GEN(getZeroFactWithFlowCondition(z))
+                            case z: Zero => GEN(getZeroFactWithFlowCondition(z))
                             case x => super.computeTargets(x)
                         }
                         result
@@ -396,7 +397,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 case _: Struct => computeStruct(s)
                                 case _ => super.computeTargets(s)
                             }
-                            case s: Sink => GEN(s)
+                            case s : Sink => GEN(s)
                             case z: Zero => KILL
                             case x => super.computeTargets(flowFact)
                         }

@@ -66,6 +66,8 @@ int main() {
 
     int sink = cipher_do(c, secret);
 
+    int sink2 = cipher1(secret);
+
     printf("%i\n", sink);
 
     return 0;

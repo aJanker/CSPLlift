@@ -24,16 +24,17 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
             }
 
             class IFDSEdgeFunctions implements EdgeFunctions<CICFGStmt, D, CICFGFDef, Constraint> {
-                private final FlowFunctions<CICFGStmt, D, CICFGFDef> zeroedFlowFunctions;
+                private final FlowFunctions<CICFGStmt, D, CICFGFDef> flowFunctions;
                 private final CInterCFG icfg;
 
                 private IFDSEdgeFunctions(CInterCFG icfg) {
                     this.icfg = icfg;
-                    zeroedFlowFunctions = new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(), ifdsProblem.zeroValue());
+                    this.flowFunctions = ifdsProblem.autoAddZero() ?
+                            new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(), ifdsProblem.zeroValue()) : ifdsProblem.flowFunctions();
                 }
 
                 public EdgeFunction<Constraint> getNormalEdgeFunction(CICFGStmt currStmt, D currNode, CICFGStmt succStmt, D succNode) {
-                    return buildFlowFunction(currStmt, succStmt, currNode, succNode, zeroedFlowFunctions.getNormalFlowFunction(currStmt, succStmt), false);
+                    return buildFlowFunction(currStmt, succStmt, currNode, succNode, flowFunctions.getNormalFlowFunction(currStmt, succStmt), false);
                 }
 
                 public EdgeFunction<Constraint> getCallEdgeFunction(CICFGStmt callStmt, D srcNode, CICFGFDef destinationMethod, D destNode) {
@@ -50,7 +51,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
 
                     Constraint flow = icfg.getConstraint(liftedDestinationMethod).and(icfg.getConstraint(liftedCallStmt));
 
-                    return buildFlowFunction(liftedCallStmt, liftedDestinationMethod, srcNode, destNode, zeroedFlowFunctions.getCallFlowFunction(liftedCallStmt, destinationMethod), true, flow);
+                    return buildFlowFunction(liftedCallStmt, liftedDestinationMethod, srcNode, destNode, flowFunctions.getCallFlowFunction(liftedCallStmt, destinationMethod), true, flow);
                 }
 
                 public EdgeFunction<Constraint> getReturnEdgeFunction(CICFGStmt callSite, CICFGFDef calleeMethod, CICFGStmt exitStmt, D exitNode, CICFGStmt returnSite, D retNode) {
@@ -60,11 +61,11 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                      */
                     CICFGFDef liftedCalleeMethod = icfg.getLiftedMethodOf(callSite, calleeMethod);
                     Constraint flow = icfg.getConstraint(liftedCalleeMethod).and(icfg.getConstraint(exitStmt));
-                    return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, zeroedFlowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, flow);
+                    return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, flowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, flow);
                 }
 
                 public EdgeFunction<Constraint> getCallToReturnEdgeFunction(CICFGStmt callSite, D callNode, CICFGStmt returnSite, D returnSideNode) {
-                    return buildFlowFunction(callSite, returnSite, callNode, returnSideNode, zeroedFlowFunctions.getCallToReturnFlowFunction(callSite, returnSite), false);
+                    return buildFlowFunction(callSite, returnSite, callNode, returnSideNode, flowFunctions.getCallToReturnFlowFunction(callSite, returnSite), false);
                 }
 
                 private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {

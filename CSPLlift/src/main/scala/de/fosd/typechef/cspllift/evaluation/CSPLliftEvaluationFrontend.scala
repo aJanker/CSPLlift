@@ -2,9 +2,10 @@ package de.fosd.typechef.cspllift.evaluation
 
 import java.io._
 
-import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph}
+import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.SinkToAssignment
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
@@ -111,7 +112,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     }
 
     private def runErrorConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], opt: CSPLliftOptions): Boolean = {
-        val method : String = "conditionCoverage"
+        val method: String = "conditionCoverage"
 
         // 1. Step -> Run VAA first in order to detect all affected features
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
@@ -119,6 +120,13 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
+
+        println("### results for lifiting ")
+        val interestingSamplingFacts_lift = liftedFacts.filter(_._1.isInterestingFact)
+
+        val allLiftSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, Constraint)]])
+
+        println(Taint.prettyPrintSinks(allLiftSinks))
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[BDDFeatureExpr]())((cfgConds, fact) => {
@@ -147,26 +155,33 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             println("### results for " + config)
             val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
 
-            interestingSamplingFacts.foreach(uc2 => {
+            /*interestingSamplingFacts.foreach(uc2 => {
                 println("Error:\n" + uc2._1)
                 println
                 println(uc2._1.toText)
-            })
+            }) */
 
             (solution, config, wallTime)
         })
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
+        val interestingFacts = coverageFacts.map(x => (x._1.filter(fact => fact._1.isInterestingFact), x._2))
+        val interestingFacts2 = interestingFacts.map(x => (x._1.filter(entry => entry._1 match {
+            case s: SinkToAssignment => s.assignee.name.equalsIgnoreCase("fuck")
+            case _ => false
+        }), x._2))
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
+        // println(interestingFacts)
+        // println(interestingFacts2)
 
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the condition coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
-            println(liftedFacts.filter(_._1.isInterestingFact).size)
+            println(liftedFacts.count(_._1.isInterestingFact))
 
-            var conditions : List[BDDFeatureExpr] = List()
+            var conditions: List[BDDFeatureExpr] = List()
 
             unmatchedLiftedFacts.foreach(uc => {
                 conditions = uc._2.getFeatureExpr :: conditions
@@ -186,15 +201,19 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
             unmatchedCoverageFacts.foreach(uc => {
                 println("Configuration:\t" + uc._2)
-                uc._1.foreach(uc2 => {
+                val all = Taint.allSinks(uc._1.asInstanceOf[List[(InformationFlowFact, Constraint)]])
+                println(Taint.prettyPrintSinks(all))
+                /*uc._1.foreach(uc2 => {
                     println("Error:\n" + uc2._1)
                     println
                     println(uc2._1.toText)
-                })
+                }) */
 
                 println("###\n")
             })
         } else println("\n### All condition coverage results were covered by the lifted approach!")
+
+        // println(coverageFacts)
 
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
@@ -240,7 +259,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             (CSPLlift.solve[D](problem), cInterCFG)
         })
 
-    private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](icfg: CInterCFG, opt: CSPLliftOptions, method: String = "", index : Option[Int] = None, config : Option[SimpleConfiguration] = None) = {
+    private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](icfg: CInterCFG, opt: CSPLliftOptions, method: String = "", index: Option[Int] = None, config: Option[SimpleConfiguration] = None) = {
         val printDir = opt.getVariantsOutputDir + "/" + method + "/"
         val outputDir = if (index.isDefined) printDir + "/" + index.get else printDir
 
@@ -256,7 +275,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         }
     }
 
-    private def writeExplodedSuperCallGraph(opt: CSPLliftOptions, method: String, variant : Option[String] = None) : Unit = {
+    private def writeExplodedSuperCallGraph(opt: CSPLliftOptions, method: String, variant: Option[String] = None): Unit = {
         val graphDir = opt.getInformationFlowGraphsOutputDir + "/" + method + "/"
         val dir = new File(graphDir)
 
