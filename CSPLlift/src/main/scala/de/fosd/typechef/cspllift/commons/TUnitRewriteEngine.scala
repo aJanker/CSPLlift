@@ -207,9 +207,9 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
                         }
 
                         val tmpEnv = CASTEnv.createASTEnv(f)
-                        val currCall = findPriorASTElem[PostfixExpr](previousReplacements.head._2, tmpEnv)
+                        lazy val currCall = findPriorASTElem[PostfixExpr](previousReplacements.head._2, tmpEnv)
 
-                        if (currCall.isEmpty) {
+                        if (previousReplacements.isEmpty || currCall.isEmpty) {
                             Console.err.println("Could not convert nested function parameter:\t" + f)
                             (curr, correctedDeclaration)
                         } else (parentOpt(currCall.get, tmpEnv).asInstanceOf[Opt[Expr]], correctedDeclaration)
