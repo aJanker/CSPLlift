@@ -8,7 +8,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
-import de.fosd.typechef.cspllift.commons.{ASTRewritingRules, CInterCFGCommons, WarningsCache}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, WarningsCache}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -68,7 +68,7 @@ trait CInterCFGElementsCache {
     }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends ASTRewritingRules with CFlowConstants with CInterCFGCommons with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends RewritingRules with CFlowConstants with CInterCFGCommons with PointerContext {
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
@@ -94,13 +94,12 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit = super.prepareAST(tunit)
 
         tunit = removeStmtVariability(tunit, fm)
-        // tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
-        tunit = rewriteNestedFunctionCalls(tunit, fm)
+        //tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
+        //tunit = rewriteNestedFunctionCalls(tunit, fm)
+        //tunit = addReturnStmtsForNonReturnExits(tunit, fm)
 
         if (options.getConfiguration.isDefined)
             tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
-
-        checkPositionInformation(tunit)
 
         tunit.asInstanceOf[T]
     }
@@ -118,12 +117,11 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             val pseudoSystemFunctionCall = makePseudoSystemFunctionCall(Some(pos, pos))
 
             // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
-            tunit =
-              if (options.pseudoVisitingSystemLibFunctions) {
-                  val copy = tunit.copy(defs = pseudoSystemFunctionCall :: tunit.defs)
-                  copy.range = tunit.range
-                  copy
-              } else tunit
+            tunit = if (options.pseudoVisitingSystemLibFunctions) {
+                val copy = tunit.copy(defs = pseudoSystemFunctionCall :: tunit.defs)
+                copy.range = tunit.range
+                copy
+            } else tunit
 
             checkPositionInformation(tunit)
 
@@ -181,7 +179,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     def getEnvs: List[ASTEnv] = envToTUnit.keySet.toList
 
-    def getPseudoSystemFunctionCall(tunit: TranslationUnit): Opt[FunctionDef] = tunitToPseudoCall.get(tunit)
+    def getPseudoSystemFunctionCall(tunit : TranslationUnit) : Opt[FunctionDef] = tunitToPseudoCall.get(tunit)
 
     def isNameKnown(name: Opt[String]): Boolean =
         cModuleInterface match {

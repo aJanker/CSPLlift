@@ -3,13 +3,12 @@ package de.fosd.typechef.cspllift.commons
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.{IntraCFG, ProductDerivation}
 import de.fosd.typechef.cspllift.evaluation.Sampling
-import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 
-trait ASTRewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation with EnforceTreeHelper {
+trait RewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation with EnforceTreeHelper  {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manytd(rule[Any] {
@@ -51,7 +50,7 @@ trait ASTRewritingRules extends ASTRewriting with ASTNavigation with Conditional
     }
 }
 
-trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with ASTRewritingRules {
+trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with RewritingRules {
 
     private var tmpVariablesCount = 0
 
@@ -158,7 +157,6 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
 
                     val parent = parentOpt(r, env).asInstanceOf[Opt[ReturnStatement]]
                     val returnReplacement = extractExprFromReturnStatement(parent)
-                    addPreviousRange(r.range, returnReplacement)
                     val ccReplacement = replaceStmtWithStmtsListInCCStmt(cc.get, parent, returnReplacement)
 
                     replace(currentTUnit, cc.get, ccReplacement)
@@ -217,6 +215,8 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
 
                 previousReplacements = (currReplacement, replacedExpr) :: previousReplacements
                 (replace(f, currReplacement, replacedExpr), currDeclaration :: newDecls)
+
+
             }
 
             val res = nestedOptCalls.foldLeft((orgFCall, List[Opt[Statement]]()))((fCall_newDecls, o) =>
@@ -242,22 +242,13 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
             } // return not part of a compound statement -> can not rewrite
 
             val parent = parentOpt(stmt.get, env).asInstanceOf[Opt[Statement]]
-
-            addPreviousRange(r._1.range, r._2)
-            addPreviousRange(stmt.get.range, r._3)
-
             val ccReplacement = insertStmtListBeforeStmt(cc.get, parent, r._3)
 
-            replace(replace(t, cc.get, ccReplacement), r._1, r._2)
+            val tmp = replace(t, cc.get, ccReplacement)
+            replace(tmp, r._1, r._2)
 
         })
     }
-
-    private def addPreviousRange(range: Option[(Position, Position)], p: Product) = filterAllASTElems[AST](p).foreach {
-        case ast if !ast.hasPosition => ast.range = range
-        case _ =>
-    }
-
 
     private def makeTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
         val tmpSpecifiers = getExprTypeSpecifiers(expr, ts)
@@ -267,11 +258,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
         val tmpInitDeclarator = List(Opt(expr.condition, InitDeclaratorI(tmpNameDeclarator, List(), tmpInitializer)))
         tmpVariablesCount += 1
 
-        val decl = DeclarationStatement(Declaration(tmpSpecifiers, tmpInitDeclarator))
-
-        addPreviousRange(expr.entry.range, decl)
-
-        (tmpName, Opt(expr.condition, decl))
+        (tmpName, Opt(expr.condition, DeclarationStatement(Declaration(tmpSpecifiers, tmpInitDeclarator))))
     }
 
     private def getExprTypeSpecifiers(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {

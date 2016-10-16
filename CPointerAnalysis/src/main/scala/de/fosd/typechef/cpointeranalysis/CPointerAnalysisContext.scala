@@ -106,9 +106,15 @@ trait EquivalenceContext extends PointerContext {
                 val uo1 = uo.replace(ObjectNameOperator.PointerCreation.toString, "")
                 val o1Condition = lookup(scope + uo1).condition
 
-                if (eqClassObjectO.isDefined)
-                    if (o1Condition.equivalentTo(False)) eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition.and(o1Condition))
-                    else eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
+                if (eqClassObjectO.isDefined) {
+                    if (o1Condition.equivalentTo(False)) {
+                        eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition.and(o1Condition))
+                    } else {
+                        eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
+                    }
+                } else {
+                    println("Equivalence class not found for object name" + o)
+                }
             } else if (uo.startsWith(ObjectNameOperator.PointerDereference.toString)) {
                 val uo1 = uo.replace(ObjectNameOperator.PointerDereference.toString, "")
 
@@ -118,18 +124,23 @@ trait EquivalenceContext extends PointerContext {
                 val condEqClass = if (lookup(query).entry.isDefined) lookup(query) else lookup(query2)
 
                 if (condEqClass.entry.isDefined) condEqClass.entry.get.addPrefix((ObjectNameOperator.PointerDereference.toString, o), oCondition.and(condEqClass.condition))
+                else println("Prefix set [pointer dereference] not generated for object name: " + o)
+
             } else if (uo.contains(ObjectNameOperator.StructAccess.toString) || uo.contains(ObjectNameOperator.StructPointerAccess.toString)) {
                 val split = ObjectNameOperator.splitParentAndField(uo)
 
-                if (split.isDefined) {
+                if (split.isEmpty) println("Could not determine struct field for: " + uo)
+                else {
                     val (uo1, field) = split.get
 
                     val query = scope + uo1
                     val condEqClass = lookup(query)
 
                     if (condEqClass.entry.isDefined) condEqClass.entry.get.addPrefix((field, o), oCondition.and(condEqClass.condition))
+                    else println("Prefix set [field access] not generated for object name: " + o)
                 }
-            }
+            } else if (uo.contains(ObjectNameOperator.PointerCreation.toString) || uo.contains(ObjectNameOperator.PointerDereference.toString))
+                println("Prefix set not generated for object name: " + o)
         }
 
 
