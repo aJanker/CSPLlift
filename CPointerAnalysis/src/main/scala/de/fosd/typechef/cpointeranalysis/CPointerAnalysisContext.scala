@@ -98,13 +98,9 @@ trait EquivalenceContext extends PointerContext {
                 val uo1 = uo.replace(ObjectNameOperator.PointerCreation.toString, "")
                 val o1Condition = lookup(scope + uo1).condition
 
-                if (eqClassObjectO.isDefined) {
-                    if (o1Condition.equivalentTo(False)) {
-                        eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition.and(o1Condition))
-                    } else {
-                        eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
-                    }
-                }
+                if (eqClassObjectO.isDefined)
+                    if (o1Condition.equivalentTo(False)) eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition.and(o1Condition))
+                    else eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
             } else if (uo.startsWith(ObjectNameOperator.PointerDereference.toString)) {
                 val uo1 = uo.replace(ObjectNameOperator.PointerDereference.toString, "")
 

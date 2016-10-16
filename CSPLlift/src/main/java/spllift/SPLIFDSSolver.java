@@ -29,8 +29,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
 
                 private IFDSEdgeFunctions(CInterCFG icfg) {
                     this.icfg = icfg;
-                    this.flowFunctions = ifdsProblem.autoAddZero() ?
-                            new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(), ifdsProblem.zeroValue()) : ifdsProblem.flowFunctions();
+                    flowFunctions = new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(), ifdsProblem.zeroValue());
                 }
 
                 public EdgeFunction<Constraint> getNormalEdgeFunction(CICFGStmt currStmt, D currNode, CICFGStmt succStmt, D succNode) {
