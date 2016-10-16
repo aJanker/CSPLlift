@@ -102,7 +102,7 @@ object ShellPrompt {
 object Dependencies {
     val junit = "junit" % "junit" % "4.12" % "test"
     val junitInterface = "com.novocode" % "junit-interface" % "0.11" % "test"
-    val scalacheck = "org.scalacheck" %% "scalacheck" % "1.12.0" % "test"
+    val scalacheck = "org.scalacheck" %% "scalacheck" % "1.12.5" % "test"
     val scalatest = "org.scalatest" %% "scalatest" % "2.2.5" % "test"
     val scalaparsercombinators = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
     val scalaxml = "org.scala-lang.modules" %% "scala-xml" % "1.0.5"
