@@ -189,8 +189,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
         def rewrite(nestedFCalls : List[FunctionCall], t : T) : T =
             if (nestedFCalls.isEmpty) t
             else {
-                val curr = nestedFCalls.head
-                val replacement = rewriteNestedFCalls(t, fm, curr)
+                val replacement = rewriteNestedFCalls(t, fm, nestedFCalls.head)
                 val res = replaceFCallInTunit(t, replacement)
                 rewrite(getNestedFunctionCalls(res), res)
             }
@@ -215,7 +214,6 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
         addPreviousRange(stmt.get.range, replacement._3)
 
         val ccReplacement = insertStmtListBeforeStmt(cc.get, parent, replacement._3)
-
         replace(replace(tunit, cc.get, ccReplacement), replacement._1, replacement._2)
     }
 
@@ -224,15 +222,15 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
         val env = CASTEnv.createASTEnv(tunit)
         ts.checkASTSilent
 
-        var previousReplacements = List[(Opt[Expr], Opt[Expr])]()
         val nestedOptCalls = filterAllASTElems[PostfixExpr](orgFCall).reverse.map(parentOpt(_, env))
 
         def rewriteSingleNestedFCall(x: (FunctionCall, List[Opt[Statement]]), curr: Opt[Expr]): (FunctionCall, List[Opt[Statement]]) = {
             val (f, newDecls) = x
             val (name, declaration) = makeTmpDeclarationFromExpr(curr, ts)
             val replacedExpr = curr.copy(entry = Id(name))
+            val newCall = replace(f, curr, replacedExpr)
 
-            (replace(f, declaration, replacedExpr), declaration :: newDecls)
+            (newCall, declaration :: newDecls)
         }
 
         val res = nestedOptCalls.foldLeft((orgFCall, List[Opt[Statement]]()))((fCall_newDecls, o) =>
