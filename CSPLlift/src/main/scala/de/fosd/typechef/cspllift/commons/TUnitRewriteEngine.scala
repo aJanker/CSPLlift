@@ -2,13 +2,15 @@ package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.{IntraCFG, ProductDerivation}
+import de.fosd.typechef.cspllift.CICFGConcreteStmt
 import de.fosd.typechef.cspllift.evaluation.Sampling
+import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 
-trait RewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation with EnforceTreeHelper  {
+trait ASTRewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation with EnforceTreeHelper {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manytd(rule[Any] {
@@ -50,9 +52,19 @@ trait RewritingRules extends ASTRewriting with ASTNavigation with ConditionalNav
     }
 }
 
-trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with RewritingRules {
+trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with ASTRewritingRules {
 
     private var tmpVariablesCount = 0
+
+    def checkForDuplicates[T <: Product](ast : T): Boolean = {
+        val astEnv = CASTEnv.createASTEnv(ast)
+        val cFGStmt = getCFGStatements(ast).map(stmt => CICFGConcreteStmt(parentOpt(stmt, astEnv).asInstanceOf[Opt[AST]], stmt.getPositionFrom))
+        val diff = cFGStmt.diff(cFGStmt.distinct)
+
+        println(cFGStmt.diff(cFGStmt.distinct))
+
+        diff.nonEmpty
+    }
 
     /**
       * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
@@ -61,27 +73,25 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with R
         val cfg = new Object with IntraCFG
         val astEnv = CASTEnv.createASTEnv(ast)
 
-        def isExitWithoutReturn(stmt: AST): Boolean = {
-            stmt match {
-                /* case w: WhileStatement =>
-                    cfg.succ(w.expr, astEnv).forall(cfgStmt => w.s.toOptList.exists(stmt => cfgStmt.equals(stmt))) */
-                case _ => cfg.succ(stmt, astEnv).exists {
-                    case Opt(_, f: FunctionDef) =>
-                        stmt match {
-                            case _: ReturnStatement => false
-                            case _ => true
-                        }
-                    case _ => false
-                }
+        val voidFunctions = filterAllASTElems[FunctionDef](ast).filter(fDef => fDef.specifiers.exists(_.entry match {
+            case v: VoidSpecifier => true
+            case _ => false
+        }))
+
+        val replacements = voidFunctions.flatMap(func => {
+            lazy val condition = astEnv.featureExpr(func)
+            lazy val ret = Opt(condition, ReturnStatement(None))
+            ret.entry.range = func.range
+
+            func.stmt.innerStatements.lastOption match {
+                case Some(Opt(_, r: ReturnStatement)) => None
+                case None => None
+                case _ => Some((func.stmt.innerStatements, func.stmt.innerStatements :+ ret))
             }
 
-        }
+        })
 
-        val exitsWithoutReturn = getCFGStatements(ast).filter(isExitWithoutReturn).map(parentOpt(_, astEnv).asInstanceOf[Opt[Statement]])
-
-        val ret = exitsWithoutReturn.foldLeft(ast)((currAST, stmt) => replaceStmtWithStmtList(currAST, stmt.entry, List(stmt, stmt.copy(entry = ReturnStatement(None).setPositionRange(stmt.entry.getPositionFrom, stmt.entry.getPositionTo)))))
-
-        ret
+        replacements.foldLeft(ast)((currAST, replacement) => replace(currAST, replacement._1, replacement._2))
     }
 
     /**
@@ -157,6 +167,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with R
 
                     val parent = parentOpt(r, env).asInstanceOf[Opt[ReturnStatement]]
                     val returnReplacement = extractExprFromReturnStatement(parent)
+                    addPreviousRange(r.range, returnReplacement)
                     val ccReplacement = replaceStmtWithStmtsListInCCStmt(cc.get, parent, returnReplacement)
 
                     replace(currentTUnit, cc.get, ccReplacement)
@@ -175,80 +186,91 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with R
       * int foo = outer(tmp);
       */
     def rewriteNestedFunctionCalls[T <: Product](tunit: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
-        val nestedFunctionCalls = getNestedFunctionCalls(tunit)
+        def rewrite(nestedFCalls : List[FunctionCall], t : T) : T =
+            if (nestedFCalls.isEmpty) t
+            else {
+                val curr = nestedFCalls.head
+                val replacement = rewriteNestedFCalls(t, fm, curr)
+                val res = replaceFCallInTunit(t, replacement)
+                rewrite(getNestedFunctionCalls(res), res)
+            }
 
-        if (nestedFunctionCalls.isEmpty) return tunit
+        rewrite(getNestedFunctionCalls(tunit), tunit)
+    }
 
+    private def replaceFCallInTunit[T <: Product](tunit: T, replacement: (FunctionCall, FunctionCall, List[Opt[Statement]])): T = {
+        val env = CASTEnv.createASTEnv(tunit)
+
+        val cc = findPriorASTElem[CompoundStatement](replacement._1, env)
+        val stmt = findPriorASTElem[Statement](replacement._1, env)
+
+        if (cc.isEmpty || stmt.isEmpty) {
+            Console.err.println("Warning: function rewrite rule may not by exhaustive for:\t" + replacement._1)
+            return tunit
+        } // return not part of a compound statement -> can not rewrite
+
+        val parent = parentOpt(stmt.get, env).asInstanceOf[Opt[Statement]]
+
+        addPreviousRange(replacement._1.range, replacement._2)
+        addPreviousRange(stmt.get.range, replacement._3)
+
+        val ccReplacement = insertStmtListBeforeStmt(cc.get, parent, replacement._3)
+
+        replace(replace(tunit, cc.get, ccReplacement), replacement._1, replacement._2)
+    }
+
+    private def rewriteNestedFCalls[T <: Product](tunit: T, fm: FeatureModel = BDDFeatureModel.empty, orgFCall: FunctionCall): (FunctionCall, FunctionCall, List[Opt[Statement]]) = {
         val ts = new CTypeSystemFrontend(tunit.asInstanceOf[TranslationUnit], fm) with CTypeCache with CDeclUse
         val env = CASTEnv.createASTEnv(tunit)
         ts.checkASTSilent
 
-        def rewriteAllNestedFCalls(orgFCall: FunctionCall): (FunctionCall, FunctionCall, List[Opt[Statement]]) = {
+        var previousReplacements = List[(Opt[Expr], Opt[Expr])]()
+        val nestedOptCalls = filterAllASTElems[PostfixExpr](orgFCall).reverse.map(parentOpt(_, env))
 
-            var previousReplacements = List[(Opt[Expr], Opt[Expr])]()
-            val nestedOptCalls = filterAllASTElems[PostfixExpr](orgFCall).reverse.map(parentOpt(_, env))
+        def rewriteSingleNestedFCall(x: (FunctionCall, List[Opt[Statement]]), curr: Opt[Expr]): (FunctionCall, List[Opt[Statement]]) = {
+            val (f, newDecls) = x
+            val (tmpName, tmpDeclaration) = makeTmpDeclarationFromExpr(curr, ts)
+            val replacedExpr = curr.copy(entry = Id(tmpName))
 
-            def rewriteSingleNestedFCall(x: (FunctionCall, List[Opt[Statement]]), curr: Opt[Expr]): (FunctionCall, List[Opt[Statement]]) = {
-                val (f, newDecls) = x
-                val (tmpName, tmpDeclaration) = makeTmpDeclarationFromExpr(curr, ts)
-                val replacedExpr = curr.copy(entry = Id(tmpName))
+            // lookup if we have already replaced some parts of the extracted function call expr, if so replace with the cached value
+            val previousReplacement = previousReplacements.filter(prev => filterAllOptElems(curr).exists(prev._1.eq(_)))
 
-                // lookup if we have already replaced some parts of the extracted function call expr, if so replace with the cached value
-                val previousReplacement = previousReplacements.filter(prev => filterAllOptElems(curr).exists(prev._1.eq(_)))
-
-                val (currReplacement, currDeclaration) =
-                    if (previousReplacement.nonEmpty) {
-                        val correctedDeclaration = previousReplacement.foldLeft(tmpDeclaration) {
-                            (tmp, prev) => {
-                                tmp.copy(entry = replace(tmp.entry, prev._1, prev._2.copy()))
-                            }
+            val (currReplacement, currDeclaration) =
+                if (previousReplacement.nonEmpty) {
+                    val correctedDeclaration = previousReplacement.foldLeft(tmpDeclaration) {
+                        (tmp, prev) => {
+                            tmp.copy(entry = replace(tmp.entry, prev._1, prev._2.copy()))
                         }
+                    }
 
-                        val tmpEnv = CASTEnv.createASTEnv(f)
-                        lazy val currCall = findPriorASTElem[PostfixExpr](previousReplacements.head._2, tmpEnv)
+                    val tmpEnv = CASTEnv.createASTEnv(f)
+                    val currCall = findPriorASTElem[PostfixExpr](previousReplacements.head._2, tmpEnv)
 
-                        if (previousReplacements.isEmpty || currCall.isEmpty) {
-                            Console.err.println("Could not convert nested function parameter:\t" + f)
-                            (curr, correctedDeclaration)
-                        } else (parentOpt(currCall.get, tmpEnv).asInstanceOf[Opt[Expr]], correctedDeclaration)
-                    } else (curr, tmpDeclaration)
+                    if (currCall.isEmpty) {
+                        Console.err.println("Could not convert nested function parameter:\t" + f)
+                        (curr, correctedDeclaration)
+                    } else (parentOpt(currCall.get, tmpEnv).asInstanceOf[Opt[Expr]], correctedDeclaration)
+                } else (curr, tmpDeclaration)
 
-                previousReplacements = (currReplacement, replacedExpr) :: previousReplacements
-                (replace(f, currReplacement, replacedExpr), currDeclaration :: newDecls)
-
-
-            }
-
-            val res = nestedOptCalls.foldLeft((orgFCall, List[Opt[Statement]]()))((fCall_newDecls, o) =>
-                o match {
-                    case Opt(_, e: Expr) => rewriteSingleNestedFCall(fCall_newDecls, o.asInstanceOf[Opt[Expr]])
-                    case _ => fCall_newDecls
-                })
-
-            (orgFCall, res._1, res._2.reverse)
+            previousReplacements = (currReplacement, replacedExpr) :: previousReplacements
+            (replace(f, currReplacement, replacedExpr), currDeclaration :: newDecls)
         }
 
-        val toReplace = nestedFunctionCalls.map(rewriteAllNestedFCalls)
+        val res = nestedOptCalls.foldLeft((orgFCall, List[Opt[Statement]]()))((fCall_newDecls, o) =>
+            o match {
+                case Opt(_, e: Expr) => rewriteSingleNestedFCall(fCall_newDecls, o.asInstanceOf[Opt[Expr]])
+                case _ => fCall_newDecls
+            })
 
-        toReplace.foldLeft(tunit)((t, r) => {
-            val env = CASTEnv.createASTEnv(t)
-
-            val cc = findPriorASTElem[CompoundStatement](r._1, env)
-            val stmt = findPriorASTElem[Statement](r._1, env)
-
-            if (cc.isEmpty || stmt.isEmpty) {
-                Console.err.println("Warning: function rewrite rule may not by exhaustive for:\t" + r._1)
-                return t
-            } // return not part of a compound statement -> can not rewrite
-
-            val parent = parentOpt(stmt.get, env).asInstanceOf[Opt[Statement]]
-            val ccReplacement = insertStmtListBeforeStmt(cc.get, parent, r._3)
-
-            val tmp = replace(t, cc.get, ccReplacement)
-            replace(tmp, r._1, r._2)
-
-        })
+        (orgFCall, res._1, res._2.reverse)
     }
+
+
+    private def addPreviousRange(range: Option[(Position, Position)], p: Product) = filterAllASTElems[AST](p).foreach {
+        case ast if !ast.hasPosition => ast.range = range
+        case _ =>
+    }
+
 
     private def makeTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
         val tmpSpecifiers = getExprTypeSpecifiers(expr, ts)
@@ -258,7 +280,11 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with R
         val tmpInitDeclarator = List(Opt(expr.condition, InitDeclaratorI(tmpNameDeclarator, List(), tmpInitializer)))
         tmpVariablesCount += 1
 
-        (tmpName, Opt(expr.condition, DeclarationStatement(Declaration(tmpSpecifiers, tmpInitDeclarator))))
+        val decl = DeclarationStatement(Declaration(tmpSpecifiers, tmpInitDeclarator))
+
+        addPreviousRange(expr.entry.range, decl)
+
+        (tmpName, Opt(expr.condition, decl))
     }
 
     private def getExprTypeSpecifiers(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {

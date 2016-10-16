@@ -155,11 +155,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             println("### results for " + config)
             val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
 
-            /*interestingSamplingFacts.foreach(uc2 => {
-                println("Error:\n" + uc2._1)
-                println
-                println(uc2._1.toText)
-            }) */
+            val allSinks = Taint.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, Constraint)]])
+
+            println(Taint.prettyPrintSinks(allSinks))
 
             (solution, config, wallTime)
         })

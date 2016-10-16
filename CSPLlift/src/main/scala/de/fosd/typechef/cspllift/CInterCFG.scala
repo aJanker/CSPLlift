@@ -3,8 +3,9 @@ package de.fosd.typechef.cspllift
 import java.util
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.crewrite.IntraCFG
+import de.fosd.typechef.crewrite._
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
+import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
@@ -115,9 +116,12 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         }
 
     override def getLiftedMethodOf(callSite: CICFGStmt, callee: CICFGFDef): CICFGFDef = {
-        val pointsTo = getCalleesOfCallAtS(callSite)
+        val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
 
-        pointsTo.find(pointTo => pointTo.method.equals(callee.method)).getOrElse(callee)
+        val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
+        val calleeCond = pointsTo.getStmt.condition
+
+        pointsTo.copy(method = pointsTo.method.copy(condition = calleeCond.and(callCond)))
     }
 
     /**
@@ -159,7 +163,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns all callee methods for a given call.
       */
-    override def getCalleesOfCallAt(call: CICFGStmt): util.Set[CICFGFDef] = asJavaIdentitySet(getCalleesOfCallAtS(call))
+    override def getCalleesOfCallAt(call: CICFGStmt): util.Set[CICFGFDef] = asJavaIdentitySet(getCalleesOfCallAtS(call).map(getOriginalOptCalleeNode))
+
+    /**
+      * Every callee found by the function getCalleesOfCallAtS has the presence condition of its flow condition but not of its original presence condition within the ast.
+      * SPLlift requieres for a sound result the callee orignal node!
+      */
+    private def getOriginalOptCalleeNode(callee: CICFGFDef): CICFGFDef = callee.copy(method = parentOpt(callee.method.entry, getASTEnv(callee)).asInstanceOf[Opt[FunctionDef]])
 
     private def getCalleesOfCallAtS(call: CICFGStmt): List[CICFGFDef] = {
         if (!isCallStmt(call)) return List[CICFGFDef]()
@@ -231,11 +241,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         succs.asJava
     }
 
-    private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] =
-        succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)).filter {
-            case Opt(_, f: FunctionDef) => false
-            case _ => true
-        }.filter(_.condition.isSatisfiable(getFeatureModel)).map(succStmt => CICFGConcreteStmt(succStmt, succStmt.entry.getPositionFrom))
+    private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)), cICFGStmt.getPosition)
+
 
     override def getPredsOf(cICFGStmt: CICFGStmt): util.List[CICFGStmt] = {
         val preds = getPredsOfS(cICFGStmt)
@@ -243,11 +250,16 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         preds.asJava
     }
 
-    private def getPredsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] =
-        pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)).filter {
+    private def getPredsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)), cICFGStmt.getPosition)
+
+    private def getCFGElements(elements : CFG, fallbackPosition : Position) : List[CICFGStmt] = {
+        elements.filter {
             case Opt(_, f: FunctionDef) => false
-            case _ => true
-        }.filter(_.condition.isSatisfiable(getFeatureModel)).map(succStmt => CICFGConcreteStmt(succStmt, succStmt.entry.getPositionFrom))
+            case x => x.condition.isSatisfiable(fm)
+        }.map(element => CICFGConcreteStmt(element, replaceMacroFileLocation(element.entry.getPositionFrom, fallbackPosition)))
+    }
+
+    private def replaceMacroFileLocation(position: Position, fallBack: Position): Position = if (position.getFile.endsWith(".h")) fallBack else position
 
     /**
       * Returns <code>true</code> if the given statement leads to a method return
@@ -293,6 +305,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     }
 
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[CICFGFDef] = {
+        val dstCond = name.condition
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
             return {
                 val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
@@ -301,8 +314,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
         def findCalleeInTunit(tunit: TranslationUnit) = {
             tunit.defs.flatMap {
-                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(name.condition).isSatisfiable(getFeatureModel) =>
-                    Some(CICFGFDef(Opt(ft, f), f.getPositionFrom))
+                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(dstCond).isSatisfiable(getFeatureModel) =>
+                    Some(CICFGFDef(Opt(ft.and(dstCond), f), f.getPositionFrom))
                 case _ => None
             }
         }
