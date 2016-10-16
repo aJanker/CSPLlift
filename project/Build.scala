@@ -12,7 +12,7 @@ object BuildSettings {
 
     val buildOrganization = "de.fosd.typechef"
     val buildVersion = "0.1.0"
-    val buildScalaVersion = "2.11.7"
+    val buildScalaVersion = "2.11.8"
 
 
   val buildSettings = Defaults.coreDefaultSettings ++ Seq(
