@@ -34,12 +34,10 @@ trait EquivalenceContext extends PointerContext {
 
     def find(objectName: ObjectName): Option[EquivalenceClass] = {
         val eqClass1: Option[EquivalenceClass] = equivalenceClassesMap.get(objectName)
-        val eqClass2: Option[EquivalenceClass] = equivalenceClassesMap.get(parenthesize(objectName))
+        lazy val eqClass2: Option[EquivalenceClass] = equivalenceClassesMap.get(parenthesize(objectName))
 
-        if (eqClass1.isDefined)
-            eqClass1
-        else if (eqClass2.isDefined)
-            eqClass2
+        if (eqClass1.isDefined) eqClass1
+        else if (eqClass2.isDefined) eqClass2
         else None
     }
 
@@ -81,14 +79,8 @@ trait EquivalenceContext extends PointerContext {
             lazy val eqClassGlobal = find(globalObjectName)
             lazy val conditionGlobal = objectNameContext.getObjectNames.get(globalObjectName)
 
-            val eqClass =
-                if (eqClassLocal.isDefined) eqClassLocal
-                else eqClassGlobal
-
-            val condition =
-                if (eqClassLocal.isDefined) conditionLocal
-                else conditionGlobal
-
+            val eqClass = if (eqClassLocal.isDefined) eqClassLocal else eqClassGlobal
+            val condition = if (eqClassLocal.isDefined) conditionLocal else conditionGlobal
 
             Opt(condition, eqClass)
         }
@@ -112,8 +104,6 @@ trait EquivalenceContext extends PointerContext {
                     } else {
                         eqClassObjectO.get.addPrefix((ObjectNameOperator.PointerDereference.toString, scope + uo1), oCondition)
                     }
-                } else {
-                    println("Equivalence class not found for object name" + o)
                 }
             } else if (uo.startsWith(ObjectNameOperator.PointerDereference.toString)) {
                 val uo1 = uo.replace(ObjectNameOperator.PointerDereference.toString, "")
@@ -124,102 +114,20 @@ trait EquivalenceContext extends PointerContext {
                 val condEqClass = if (lookup(query).entry.isDefined) lookup(query) else lookup(query2)
 
                 if (condEqClass.entry.isDefined) condEqClass.entry.get.addPrefix((ObjectNameOperator.PointerDereference.toString, o), oCondition.and(condEqClass.condition))
-                else println("Prefix set [pointer dereference] not generated for object name: " + o)
 
             } else if (uo.contains(ObjectNameOperator.StructAccess.toString) || uo.contains(ObjectNameOperator.StructPointerAccess.toString)) {
                 val split = ObjectNameOperator.splitParentAndField(uo)
 
-                if (split.isEmpty) println("Could not determine struct field for: " + uo)
-                else {
+                if (split.nonEmpty) {
                     val (uo1, field) = split.get
 
                     val query = scope + uo1
                     val condEqClass = lookup(query)
 
                     if (condEqClass.entry.isDefined) condEqClass.entry.get.addPrefix((field, o), oCondition.and(condEqClass.condition))
-                    else println("Prefix set [field access] not generated for object name: " + o)
                 }
-            } else if (uo.contains(ObjectNameOperator.PointerCreation.toString) || uo.contains(ObjectNameOperator.PointerDereference.toString))
-                println("Prefix set not generated for object name: " + o)
+            }
         }
-
-
-        // generate cross product of all object names
-        // for ((o, o1) <- equivalenceClassesPrefixSets) {
-        /* for { o <- objectNames; o1 <- objectNames; if haveSameScope(o, o1)} {
-            val findObjectNameO = equivalenceClassesMap.get(o)
-            val findObjectNameO1 = equivalenceClassesMap.get(o1)
-
-            if (findObjectNameO.isDefined && findObjectNameO1.isDefined) {
-                eqClassObjectO = findObjectNameO.get
-                eqClassObjectO1 = findObjectNameO1.get
-
-                val eqClassObjectOFeatExpr = eqClassObjectO.objectNames.get(o)
-                val eqClassObjectO1FeatExpr = eqClassObjectO1.objectNames.get(o1)
-
-                val uo = unscopeName(o)
-                val uo1 = unscopeName(o1)
-
-                // pointer creation operator
-                if ((uo.equals(applyOperator(ObjectNameOperator.PointerCreation.toString, uo1))) || uo.equals(applyOperator(ObjectNameOperator.PointerCreation.toString, parenthesize(uo1)))) {
-                    // add * edge from o to o1 (removing the pointer creation effect with a dereferencing operator)
-                    eqClassObjectO.addPrefix((ObjectNameOperator.PointerDereference.toString, o1), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
-
-                    // pointer dereference operator
-                } else if ((uo.equals(applyOperator(ObjectNameOperator.PointerDereference.toString, uo1)) || uo.equals(applyOperator(ObjectNameOperator.PointerDereference.toString, parenthesize(uo1))))) {
-                    // add * edge from o1 to o
-                    eqClassObjectO1.addPrefix((ObjectNameOperator.PointerDereference.toString, o), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
-
-                    // struct dot access operator
-                } else if ((uo.startsWith(applyOperator(ObjectNameOperator.StructAccess.toString, uo1)) || uo.startsWith(applyOperator(ObjectNameOperator.StructAccess.toString, parenthesize(uo1))))) {
-                    val objectNameFields = (o.take(o.lastIndexOf(ObjectNameOperator.StructAccess.toString)), uo.drop(uo.lastIndexOf(ObjectNameOperator.StructAccess.toString) + ObjectNameOperator.StructAccess.toString.length))
-                    val eqClassObjectOPartial = equivalenceClassesMap.get(objectNameFields._1)
-
-                    // add field edge from o to o1
-                    if (eqClassObjectOPartial.isDefined) {
-                        eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
-
-                    }
-                    // remove pointer dereference -> causes wrong results when applied on function calls
-                } else if ((uo.startsWith(applyOperator(ObjectNameOperator.StructAccess.toString, unapplyPointer(uo1))) || uo.startsWith(applyOperator(ObjectNameOperator.StructAccess.toString, parenthesize(unapplyPointer(uo1)))))) {
-                    val objectNameFields = (o.take(o.lastIndexOf(ObjectNameOperator.StructAccess.toString)), uo.drop(uo.lastIndexOf(ObjectNameOperator.StructAccess.toString) + ObjectNameOperator.StructAccess.toString.length))
-                    val eqClassObjectOPartial = equivalenceClassesMap.get(objectNameFields._1)
-
-                    // add field edge from o to o1
-                    if (eqClassObjectOPartial.isDefined) {
-                        eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
-
-                    }
-                    // struct pointer access operator  (dereference + dot)
-                } else if ((uo.startsWith(applyOperator(ObjectNameOperator.StructPointerAccess.toString, uo1)) || uo.startsWith(applyOperator(ObjectNameOperator.StructPointerAccess.toString, parenthesize(uo1))))) {
-                    val objectNameFields = (o.take(o.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString)), uo.drop(uo.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString) + ObjectNameOperator.StructPointerAccess.toString.length))
-                    val eqClassObjectOPartial = equivalenceClassesMap.get(applyOperator(ObjectNameOperator.PointerDereference.toString, objectNameFields._1))
-
-                    // add field edge from o to o1
-                    if (eqClassObjectOPartial.isDefined) {
-                        eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
-                    }
-                    // remove pointer dereference -> causes wrong results when applied on function calls
-                } else if ((uo.startsWith(applyOperator(ObjectNameOperator.StructPointerAccess.toString, unapplyPointer(uo1))) || uo.startsWith(applyOperator(ObjectNameOperator.StructPointerAccess.toString, parenthesize(unapplyPointer(uo1)))))) {
-                    val objectNameFields = (o.take(o.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString)), uo.drop(uo.lastIndexOf(ObjectNameOperator.StructPointerAccess.toString) + ObjectNameOperator.StructPointerAccess.toString.length))
-                    val eqClassObjectOPartial = equivalenceClassesMap.get(objectNameFields._1)
-
-                    // add field edge from o to o1
-                    if (eqClassObjectOPartial.isDefined) {
-                        eqClassObjectOPartial.get.addPrefix((objectNameFields._2, o), eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
-                    }
-                }
-                eqClassObjectO.objectNames = eqClassObjectO.objectNames.and(o, eqClassObjectOFeatExpr and eqClassObjectO1FeatExpr)
-                eqClassObjectO1.objectNames = eqClassObjectO1.objectNames.and(o1, eqClassObjectO1FeatExpr and eqClassObjectOFeatExpr)
-            }
-            else {
-                if (!findObjectNameO.isDefined) {
-                    println("Equivalence class not found for object name" + o)
-                } else if (!findObjectNameO1.isDefined) {
-                    println("Equivalence class not found for object name" + o1)
-                }
-            }
-        } */
     }
 
     def solveEquivalenceClasses(context: ObjectNameContext) =
