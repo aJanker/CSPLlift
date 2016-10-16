@@ -229,31 +229,10 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
 
         def rewriteSingleNestedFCall(x: (FunctionCall, List[Opt[Statement]]), curr: Opt[Expr]): (FunctionCall, List[Opt[Statement]]) = {
             val (f, newDecls) = x
-            val (tmpName, tmpDeclaration) = makeTmpDeclarationFromExpr(curr, ts)
-            val replacedExpr = curr.copy(entry = Id(tmpName))
+            val (name, declaration) = makeTmpDeclarationFromExpr(curr, ts)
+            val replacedExpr = curr.copy(entry = Id(name))
 
-            // lookup if we have already replaced some parts of the extracted function call expr, if so replace with the cached value
-            val previousReplacement = previousReplacements.filter(prev => filterAllOptElems(curr).exists(prev._1.eq(_)))
-
-            val (currReplacement, currDeclaration) =
-                if (previousReplacement.nonEmpty) {
-                    val correctedDeclaration = previousReplacement.foldLeft(tmpDeclaration) {
-                        (tmp, prev) => {
-                            tmp.copy(entry = replace(tmp.entry, prev._1, prev._2.copy()))
-                        }
-                    }
-
-                    val tmpEnv = CASTEnv.createASTEnv(f)
-                    val currCall = findPriorASTElem[PostfixExpr](previousReplacements.head._2, tmpEnv)
-
-                    if (currCall.isEmpty) {
-                        Console.err.println("Could not convert nested function parameter:\t" + f)
-                        (curr, correctedDeclaration)
-                    } else (parentOpt(currCall.get, tmpEnv).asInstanceOf[Opt[Expr]], correctedDeclaration)
-                } else (curr, tmpDeclaration)
-
-            previousReplacements = (currReplacement, replacedExpr) :: previousReplacements
-            (replace(f, currReplacement, replacedExpr), currDeclaration :: newDecls)
+            (replace(f, declaration, replacedExpr), declaration :: newDecls)
         }
 
         val res = nestedOptCalls.foldLeft((orgFCall, List[Opt[Statement]]()))((fCall_newDecls, o) =>
