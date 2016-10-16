@@ -41,13 +41,17 @@ int main() {
       res_m = foo(secret);
     #endif
 
+    int ret;
+
     sink_m = res_m;
 
     printf("%i\n", secret);
 
     printf("%i\n", sink_m);
 
-    printf("%i\n", foo(secret));
+    if ((ret = foo(5 + foo(secret))) == 0) {
+        printf("%i\n", foo(secret));
+    }
 
     return 0;
 };

@@ -92,5 +92,5 @@ trait TestHelper {
     r.asInstanceOf[p.Success[TranslationUnit]].result
   }
 
-  private object Prepare extends EnforceTreeHelper
+  private object Prepare extends ASTRewriting with EnforceTreeHelper
 }

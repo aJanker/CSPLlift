@@ -68,7 +68,7 @@ trait CInterCFGElementsCache {
     }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends ASTRewritingRules with CFlowConstants with CInterCFGCommons with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends ASTRewritingRules with CFlowConstants with CInterCFGCommons with EnforceTreeHelper with PointerContext {
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
@@ -96,7 +96,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit = removeStmtVariability(tunit, fm)
         // tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
-        //tunit = addReturnStmtsForNonReturnExits(tunit, fm)
+        // tunit = addReturnStmtsForNonReturnExits(tunit, fm)
 
         if (options.getConfiguration.isDefined)
             tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)

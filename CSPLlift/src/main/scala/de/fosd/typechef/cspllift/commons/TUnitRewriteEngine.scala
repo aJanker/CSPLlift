@@ -2,7 +2,6 @@ package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite.{IntraCFG, ProductDerivation}
-import de.fosd.typechef.cspllift.CICFGConcreteStmt
 import de.fosd.typechef.cspllift.evaluation.Sampling
 import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
@@ -10,7 +9,7 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureMod
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 
-trait ASTRewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation with EnforceTreeHelper {
+trait ASTRewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation {
 
     def replace[T <: Product, U](t: T, e: U, n: U): T = {
         val r = manytd(rule[Any] {
@@ -55,16 +54,6 @@ trait ASTRewritingRules extends ASTRewriting with ASTNavigation with Conditional
 trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with ASTRewritingRules {
 
     private var tmpVariablesCount = 0
-
-    def checkForDuplicates[T <: Product](ast : T): Boolean = {
-        val astEnv = CASTEnv.createASTEnv(ast)
-        val cFGStmt = getCFGStatements(ast).map(stmt => CICFGConcreteStmt(parentOpt(stmt, astEnv).asInstanceOf[Opt[AST]], stmt.getPositionFrom))
-        val diff = cFGStmt.diff(cFGStmt.distinct)
-
-        println(cFGStmt.diff(cFGStmt.distinct))
-
-        diff.nonEmpty
-    }
 
     /**
       * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
@@ -227,8 +216,8 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
         def rewriteSingleNestedFCall(x: (FunctionCall, List[Opt[Statement]]), curr: Opt[Expr]): (FunctionCall, List[Opt[Statement]]) = {
             val (f, newDecls) = x
             val (name, declaration) = makeTmpDeclarationFromExpr(curr, ts)
-            val replacedExpr = curr.copy(entry = Id(name))
-            val newCall = replace(f, curr, replacedExpr)
+            val replacedExpr = Id(name)
+            val newCall = replace(f, curr.entry, replacedExpr)
 
             (newCall, declaration :: newDecls)
         }
@@ -236,6 +225,7 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
         val res = nestedOptCalls.foldLeft((orgFCall, List[Opt[Statement]]()))((fCall_newDecls, o) =>
             o match {
                 case Opt(_, e: Expr) => rewriteSingleNestedFCall(fCall_newDecls, o.asInstanceOf[Opt[Expr]])
+                case Opt(_, NArySubExpr(_, e)) => rewriteSingleNestedFCall(fCall_newDecls, Opt(o.condition, e))
                 case _ => fCall_newDecls
             })
 
@@ -291,7 +281,6 @@ trait TUnitRewriteEngine extends ASTNavigation with ConditionalNavigation with A
                 case CInt() => List(Opt(condition, IntSpecifier()))
                 case CShort() => List(Opt(condition, ShortSpecifier()))
             }
-
         ts.lookupExprType(expr.entry).toOptList.flatMap(t => aTypeToASTTypeSpecifier(t.entry.atype, t.condition.and(expr.condition)))
     }
 
