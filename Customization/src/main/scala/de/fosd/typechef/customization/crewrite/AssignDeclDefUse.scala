@@ -2,11 +2,10 @@ package de.fosd.typechef.customization.crewrite
 
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.parser.c._
-import org.kiama.attribution.Attribution._
 
 // defines functions to compute sets for used, defined, and declared variables
 // used for Liveness and ReachingDefinitions
-trait AssignDeclDefUse {
+trait AssignDeclDefUse extends org.bitbucket.inkytonik.kiama.attribution.AttributionCore {
 
     // returns all declared Ids independent of their annotation
     lazy val declares: AnyRef => List[Id] =

@@ -11,7 +11,7 @@ import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, 
 
 import scala.collection.JavaConverters._
 
-trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with ConditionalNavigation with TUnitRewriteEngine {
+trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with ConditionalNavigation with RewriteEngine {
 
     def writeStringToGZipFile(output : String, destination : String) = {
         val fw = new PrintWriter(new GZIPOutputStream(new FileOutputStream(destination + ".gz")))

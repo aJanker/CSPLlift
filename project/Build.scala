@@ -162,7 +162,7 @@ object SPLlift extends Build {
   lazy val customization = Project(
     "Customization",
     file("Customization"),
-    settings = buildSettings
+    settings = buildSettings ++ Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
   )
 
   lazy val cpointeranalysis = Project(
@@ -174,8 +174,16 @@ object SPLlift extends Build {
   lazy val cspllift = Project(
     "CSPLlift",
     file("CSPLlift"),
-    settings = buildSettings
+    settings = buildSettings ++ Seq(libraryDependencies <+= scalaVersion(kiamaDependency(_)))
   ) dependsOn(cpointeranalysis, customization)
+
+  def kiamaDependency(scalaVersion: String, testOnly: Boolean = false) = {
+    val x = scalaVersion match {
+      case "2.9.1" => "com.googlecode.kiama" %% "kiama" % "1.2.0"
+      case _ => "org.bitbucket.inkytonik.kiama" %% "kiama" % "2.0.0"
+    }
+    if (testOnly) x % "test" else x
+  }
 
 }
 

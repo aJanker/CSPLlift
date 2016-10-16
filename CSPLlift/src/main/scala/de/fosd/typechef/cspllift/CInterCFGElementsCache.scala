@@ -8,7 +8,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
-import de.fosd.typechef.cspllift.commons.{ASTRewritingRules, CInterCFGCommons, WarningsCache}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, WarningsCache}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -68,7 +68,7 @@ trait CInterCFGElementsCache {
     }
 }
 
-class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends ASTRewritingRules with CFlowConstants with CInterCFGCommons with EnforceTreeHelper with PointerContext {
+class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: FeatureModel, cModuleInterfacePath: Option[String], options: CInterCFGConfiguration) extends RewritingRules with CFlowConstants with CInterCFGCommons with EnforceTreeHelper with PointerContext {
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
