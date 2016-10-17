@@ -1,7 +1,7 @@
 package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.crewrite.{IntraCFG, ProductDerivation}
+import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.evaluation.Sampling
 import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
@@ -19,7 +19,6 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
       * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
       */
     def addReturnStmtsForNonReturnExits[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
-        val cfg = new Object with IntraCFG
         val astEnv = CASTEnv.createASTEnv(ast)
 
         val voidFunctions = filterAllASTElems[FunctionDef](ast).filter(fDef => fDef.specifiers.exists(_.entry match {

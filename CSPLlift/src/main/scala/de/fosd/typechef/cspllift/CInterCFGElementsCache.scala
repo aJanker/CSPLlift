@@ -96,7 +96,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit = removeStmtVariability(tunit, fm)
         // tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
-        // tunit = addReturnStmtsForNonReturnExits(tunit, fm)
+        tunit = addReturnStmtsForNonReturnExits(tunit, fm)
 
         if (options.getConfiguration.isDefined)
             tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
