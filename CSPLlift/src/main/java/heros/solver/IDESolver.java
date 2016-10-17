@@ -833,7 +833,6 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 		//filter out the artificial zero-value
 		//no need to synchronize here as all threads are known to have terminated
 		return Maps.filterKeys(val.row(stmt), new Predicate<D>() {
-
 			public boolean apply(D val) {
 				return val!=zeroValue;
 			}

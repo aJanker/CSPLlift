@@ -1,5 +1,6 @@
 int secret = 666;
 
+#define function(x) foo(x)
 
 int foo(int value) {
    int i = 20;
@@ -35,7 +36,11 @@ int foo(int value) {
 
 int main() {
     int res_m = 0;
+    int trace = 0;
     int sink_m;
+
+    function(trace);
+    function(trace);
 
     #ifdef F
       res_m = foo(secret);
