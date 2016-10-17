@@ -207,10 +207,11 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         }
 
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {
+        val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
         val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
         println("#loading:\t" + filename)
 
-        val (source, extension) = filename.splitAt(filename.lastIndexOf(".c"))
+        val (source, _) = filename.splitAt(filename.lastIndexOf(fileExtension))
         val inputStream = new ObjectInputStream(new GZIPInputStream(new FileInputStream(source + ".ast"))) {
             override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
         }
