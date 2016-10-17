@@ -17,7 +17,7 @@ case class Variable(name: Id) extends SourceType(name)
 sealed abstract class Source(sourceType: SourceType, override val stmt: Opt[AST], scope: Int, previousStmt: Option[AST]) extends SinkOrSource(stmt) {
     def getScope = scope
 
-    def getType : SourceType
+    def getType : SourceType = sourceType
 
     def getStmt = stmt
 
@@ -35,47 +35,10 @@ sealed abstract class Source(sourceType: SourceType, override val stmt: Opt[AST]
 
         otherSource.getType.equals(getType) && eqStmt
     }
-
-    override def canEqual(other: Any): Boolean = other.isInstanceOf[Source]
-
-    override def equals(other: scala.Any): Boolean = {
-        if (!canEqual(other)) return false
-
-        val otherSource = other.asInstanceOf[Source]
-        lazy val eqStmt = getStmt.equals(otherSource.getStmt)
-
-        otherSource.getType.equals(getType) && eqStmt && scope.equals(otherSource.getScope) && getPreviousStmt.equals(otherSource.getPreviousStmt)
-    }
-
-    override def hashCode(): Int = getType.hashCode() + getStmt.entry.hashCode() + getStmt.condition.hashCode() + getScope.hashCode() + previousStmt.hashCode()
 }
 
-case class SourceDefinition(sourceType: SourceType, override val stmt: Opt[AST], scope: Int, previousStmt: Option[AST]) extends Source(sourceType, stmt, scope, previousStmt) {
-    override def canEqual(other: Any): Boolean = other.isInstanceOf[SourceDefinition]
-
-    override def equals(other: scala.Any): Boolean = {
-        if (!canEqual(other)) false
-        else super.equals(other)
-    }
-
-    override def getType: SourceType = sourceType
-}
+case class SourceDefinition(sourceType: SourceType, override val stmt: Opt[AST], scope: Int, previousStmt: Option[AST]) extends Source(sourceType, stmt, scope, previousStmt)
 
 case class SourceDefinitionOf(sourceType: SourceType, override val stmt: Opt[AST], define: SourceDefinition, scope: Int, previousStmt: Option[AST]) extends Source(sourceType, stmt, scope, previousStmt) {
-
-    def getDefinition: SourceDefinition = define
-
-    override def canEqual(other: Any): Boolean = other.isInstanceOf[SourceDefinitionOf]
-
-    override def equals(other: scala.Any): Boolean = {
-        if (!canEqual(other)) return false
-
-        val otherSourceOf = other.asInstanceOf[SourceDefinitionOf]
-
-        getDefinition.equals(otherSourceOf.getDefinition) && super.equals(other)
-    }
-
-    override def getType: SourceType = sourceType
-
-    override def hashCode(): Int = super.hashCode() + define.hashCode()
+    def getDefinition = define
 }
