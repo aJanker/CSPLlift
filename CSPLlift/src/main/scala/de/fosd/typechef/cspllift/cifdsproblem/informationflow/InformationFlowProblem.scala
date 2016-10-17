@@ -65,6 +65,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
         })
 
         globalInfoFlowFacts
+        List()
     }
 
 
