@@ -758,7 +758,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 		// TOP is the implicit default value which we do not need to store.
 		synchronized (val) {
 			if (l == valueLattice.topElement())    // do not store top values
-				val.remove(nHashN, nHashD);
+                val.put(nHashN, nHashD,l);
 			else
 				val.put(nHashN, nHashD,l);
 		}
