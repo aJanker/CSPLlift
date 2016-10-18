@@ -11,12 +11,12 @@ import de.fosd.typechef.typesystem._
 trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
 
 trait InformationFlowHelper extends CInterCFGCommons {
-    def copySource(s: Source, previousStmt: Opt[AST]): Source =
-        s match {
+    def copySource(s: Source, previousStmt: Opt[AST]): Source = s
+       /* s match {
             case s: SourceDefinition => s.copy(previousStmt = Some(previousStmt.entry))
             case sOf: SourceDefinitionOf => sOf.copy(previousStmt = Some(previousStmt.entry))
             case _ => s
-        }
+        } */
 
     def getSourceDefinition(s: Source): SourceDefinition =
         s match {
