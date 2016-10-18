@@ -95,11 +95,11 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                     if (!(flow.equals(Constraint.falseValue()) || flow.equals(Constraint.trueValue())))
                         features = features.equals(Constraint.falseValue()) ? features.or(flow) : features.and(flow);
 
-                    Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? features : Constraint.falseValue();
-                    Constraint neg = srcNode == tgtNode ? features.not() : Constraint.falseValue();
-                    Constraint lifted = pos.or(neg);
+                    /* Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? features : Constraint.falseValue();
+                    Constraint neg = srcNode == tgtNode ? features.not() : Constraint.falseValue(); // TODO Testing
+                    Constraint lifted = pos.or(neg); */
 
-                    return new SPLFeatureFunction(lifted, fm, useFMInEdgeComputations);
+                    return new SPLFeatureFunction(features, fm, useFMInEdgeComputations);
                 }
             }
 
