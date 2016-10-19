@@ -6,7 +6,6 @@ import de.fosd.typechef.cspllift.CICFGStmt;
 import de.fosd.typechef.cspllift.CInterCFG;
 import de.fosd.typechef.featureexpr.FeatureModel;
 import heros.*;
-import heros.edgefunc.EdgeIdentity;
 import heros.solver.IDESolver;
 
 import java.util.Map;
@@ -72,12 +71,12 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                 }
 
                 private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
-                    if (flow.equals(Constraint.trueValue())) return EdgeIdentity.v();
+                    /*if (flow.equals(Constraint.trueValue())) return EdgeIdentity.v();
 
                     boolean srcAnnotated = hasFeatureAnnotation(src);
                     boolean succAnnotated = hasFeatureAnnotation(successor);
 
-                    if (!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v();
+                    if (!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v(); */
 
                     return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall, flow);
                 }
@@ -86,18 +85,12 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                     boolean srcAnnotated = hasFeatureAnnotation(src);
                     boolean succAnnotated = hasFeatureAnnotation(successor);
 
-                    Constraint features = Constraint.falseValue();
+                    Constraint features = icfg.getConstraint(src);
 
-                    if (srcAnnotated)
-                        features = features.or(icfg.getConstraint(src));
                     if (isCall && succAnnotated)
-                        features = features.or(icfg.getConstraint(successor));
+                        features = features.and(icfg.getConstraint(successor));
                     if (!(flow.equals(Constraint.falseValue()) || flow.equals(Constraint.trueValue())))
-                        features = features.equals(Constraint.falseValue()) ? features.or(flow) : features.and(flow);
-
-                    /* Constraint pos = originalFlowFunction.computeTargets(srcNode).contains(tgtNode) ? features : Constraint.falseValue();
-                    Constraint neg = srcNode == tgtNode ? features.not() : Constraint.falseValue(); // TODO Testing
-                    Constraint lifted = pos.or(neg); */
+                        features = features.and(flow);
 
                     return new SPLFeatureFunction(features, fm, useFMInEdgeComputations);
                 }

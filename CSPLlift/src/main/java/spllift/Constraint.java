@@ -10,9 +10,7 @@ import net.sf.javabdd.BDDFactory;
  */
 public class Constraint implements Cloneable {
 
-    private final BDDFeatureExpr bddFeatureExpr;
-
-    public static BDDFactory FACTORY;
+    private final static BDDFactory FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory();
 
     public synchronized static Constraint make(final BDDFeatureExpr bdd) {
         synchronized (FACTORY) {
@@ -23,6 +21,8 @@ public class Constraint implements Cloneable {
             else return new Constraint(bdd);
         }
     }
+
+    private final BDDFeatureExpr bddFeatureExpr;
 
     private Constraint(BDDFeatureExpr bdd) {
         this.bddFeatureExpr = bdd;
@@ -46,6 +46,95 @@ public class Constraint implements Cloneable {
 
     public static Constraint falseValue() {
         return FALSE;
+    }
+
+    public Constraint simplify() {
+        return new Constraint((BDDFeatureExpr) getFeatureExpr().simplify(BDDFeatureExprFactory.TrueB()));
+    }
+
+    /**
+     * Computes the constraint representing this OR other.
+     * The constraint is automatically reduced such that
+     * a || !a results in true.
+     *
+     * @see Constraint#trueValue()
+     */
+    public Constraint or(Constraint other) {
+        synchronized (FACTORY) {
+            if (other == trueValue()) return other;
+            if (other == falseValue()) return this;
+
+            final BDDFeatureExpr disjunction = (BDDFeatureExpr) getFeatureExpr().or(other.getFeatureExpr());
+
+            if (disjunction.leak().isOne())
+                return trueValue();
+            else if (disjunction.leak().isZero())
+                return falseValue();
+            else
+                return new Constraint(disjunction);
+        }
+    }
+
+    /**
+     * Computes the constraint representing this AND other.
+     * The constraint is automatically reduced such that
+     * a && !a results in false.
+     *
+     * @see Constraint#falseValue()
+     */
+    public Constraint and(Constraint other) {
+        synchronized (FACTORY) {
+            if (other == trueValue()) return this;
+            if (other == falseValue()) return other;
+
+            BDDFeatureExpr conjunction = (BDDFeatureExpr) getFeatureExpr().and(other.getFeatureExpr());
+            if (conjunction.leak().isZero())
+                return falseValue();
+            else
+                return new Constraint(conjunction);
+        }
+    }
+
+    public Constraint not() {
+        return Constraint.make((BDDFeatureExpr) getFeatureExpr().not());
+    }
+
+    @Override
+    public String toString() {
+        return getFeatureExpr().toTextExpr();
+    }
+
+    @Override
+    public int hashCode() {
+        synchronized (FACTORY) {
+            return this.bddFeatureExpr.hashCode();
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        synchronized (FACTORY) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            @SuppressWarnings("rawtypes")
+            Constraint other = (Constraint) obj;
+            if (getFeatureExpr() == null) {
+                if (other.getFeatureExpr() != null)
+                    return false;
+            } else if (!getFeatureExpr().equals(other.getFeatureExpr()))
+                return false;
+            return true;
+        }
+    }
+
+    public int size() {
+        synchronized (FACTORY) {
+            return getFeatureExpr().leak().nodeCount();
+        }
     }
 
     @SuppressWarnings({"rawtypes"})
@@ -105,90 +194,4 @@ public class Constraint implements Cloneable {
             return 0;
         }
     };
-
-    public Constraint simplify() {
-        return new Constraint((BDDFeatureExpr) getFeatureExpr().simplify(BDDFeatureExprFactory.TrueB()));
-    }
-
-    /**
-     * Computes the constraint representing this OR other.
-     * The constraint is automatically reduced such that
-     * a || !a results in true.
-     *
-     * @see Constraint#trueValue()
-     */
-    public Constraint or(Constraint other) {
-        synchronized (FACTORY) {
-            if (other == trueValue()) return other;
-            if (other == falseValue()) return this;
-
-            BDDFeatureExpr disjunction = (BDDFeatureExpr) getFeatureExpr().or(other.getFeatureExpr());
-            if (disjunction.leak().isOne())
-                return trueValue();
-            else
-                return new Constraint(disjunction);
-        }
-    }
-
-    /**
-     * Computes the constraint representing this AND other.
-     * The constraint is automatically reduced such that
-     * a && !a results in false.
-     *
-     * @see Constraint#falseValue()
-     */
-    public Constraint and(Constraint other) {
-        synchronized (FACTORY) {
-            if (other == trueValue()) return this;
-            if (other == falseValue()) return other;
-
-            BDDFeatureExpr conjunction = (BDDFeatureExpr) getFeatureExpr().and(other.getFeatureExpr());
-            if (conjunction.leak().isZero())
-                return falseValue();
-            else
-                return new Constraint(conjunction);
-        }
-    }
-
-    @Override
-    public String toString() {
-        return getFeatureExpr()./* toString() */ toTextExpr();
-    }
-
-    public Constraint not() {
-        return Constraint.make((BDDFeatureExpr) getFeatureExpr().not());
-    }
-
-    @Override
-    public int hashCode() {
-        synchronized (FACTORY) {
-            return this.bddFeatureExpr.hashCode();
-        }
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        synchronized (FACTORY) {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (getClass() != obj.getClass())
-                return false;
-            @SuppressWarnings("rawtypes")
-            Constraint other = (Constraint) obj;
-            if (getFeatureExpr() == null) {
-                if (other.getFeatureExpr() != null)
-                    return false;
-            } else if (!getFeatureExpr().equals(other.getFeatureExpr()))
-                return false;
-            return true;
-        }
-    }
-
-    public int size() {
-        synchronized (FACTORY) {
-            return getFeatureExpr().leak().nodeCount();
-        }
-    }
 }
