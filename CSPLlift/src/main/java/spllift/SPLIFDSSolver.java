@@ -31,7 +31,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                 }
 
                 public EdgeFunction<Constraint> getNormalEdgeFunction(CICFGStmt currStmt, D currNode, CICFGStmt succStmt, D succNode) {
-                    return buildFlowFunction(currStmt, succStmt, currNode, succNode, flowFunctions.getNormalFlowFunction(currStmt, succStmt), false);
+                    return buildFlowFunction(currStmt, succStmt);
                 }
 
                 public EdgeFunction<Constraint> getCallEdgeFunction(CICFGStmt callStmt, D srcNode, CICFGFDef destinationMethod, D destNode) {
@@ -43,7 +43,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                      * flow presence condition along the normal-flow edges.
                      */
                     Constraint flow = icfg.getPointsToConstraint(callStmt, destinationMethod);
-                    return buildFlowFunction(callStmt, destinationMethod, srcNode, destNode, flowFunctions.getCallFlowFunction(callStmt, destinationMethod), true, flow);
+                    return buildFlowFunction(callStmt, destinationMethod, flow);
                 }
 
                 public EdgeFunction<Constraint> getReturnEdgeFunction(CICFGStmt callSite, CICFGFDef calleeMethod, CICFGStmt exitStmt, D exitNode, CICFGStmt returnSite, D retNode) {
@@ -51,34 +51,25 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                      * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
                      * Otherwise we would assume this flow has the presence condition of true.
                      */
-                    Constraint flow = icfg.getPointsToConstraint(callSite, calleeMethod).and(icfg.getConstraint(exitStmt)).and(icfg.getConstraint(returnSite));
-                    return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, flowFunctions.getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite), true, flow);
+                    Constraint flow = icfg.getPointsToConstraint(callSite, calleeMethod).and(icfg.getConstraint(callSite)).and(icfg.getConstraint(calleeMethod));
+                    return buildFlowFunction(exitStmt, returnSite, flow);
                 }
 
                 public EdgeFunction<Constraint> getCallToReturnEdgeFunction(CICFGStmt callSite, D callNode, CICFGStmt returnSite, D returnSideNode) {
-                    return buildFlowFunction(callSite, returnSite, callNode, returnSideNode, flowFunctions.getCallToReturnFlowFunction(callSite, returnSite), false);
+                    return buildFlowFunction(callSite, returnSite);
                 }
 
-                private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall) {
-                    return buildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall, Constraint.falseValue());
+                private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor) {
+                    return buildFlowFunction(src, successor, Constraint.falseValue());
                 }
 
-                private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
-                    // Originally, at this point there were the rule for lifting located. However, in our new approach they are no longer required.
-                    return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall, flow);
-                }
+                private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor, Constraint flow) {
+                    Constraint cfgConstraint = icfg.getConstraint(src).and(icfg.getConstraint(successor));
 
-                private EdgeFunction<Constraint> preciseBuildFlowFunction(CICFGStmt src, CICFGStmt successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
-                    boolean succAnnotated = hasFeatureAnnotation(successor);
+                    if (!(Constraint.falseValue().equals(flow)))
+                        cfgConstraint = cfgConstraint.and(flow);
 
-                    Constraint features = icfg.getConstraint(src);
-
-                    if (isCall && succAnnotated)
-                        features = features.and(icfg.getConstraint(successor));
-                    if (!(flow.equals(Constraint.falseValue()) || flow.equals(Constraint.trueValue())))
-                        features = features.and(flow);
-
-                    return new SPLFeatureFunction(features, fm, useFMInEdgeComputations);
+                    return new SPLFeatureFunction(cfgConstraint, fm, useFMInEdgeComputations);
                 }
             }
 
