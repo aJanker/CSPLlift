@@ -15,19 +15,16 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
 
     public SPLIFDSSolver(final IFDSTabulationProblem<CICFGStmt, D, CICFGFDef, CInterCFG> ifdsProblem, final FeatureModel fm, final boolean useFMInEdgeComputations) {
         super(new DefaultSPLIFDSTabulationProblem<CICFGStmt, D, CICFGFDef, CInterCFG>(ifdsProblem) {
-
             @Override
             public Map<CICFGStmt, Set<D>> initialSeeds() {
                 return ifdsProblem.initialSeeds();
             }
 
-            class IFDSEdgeFunctions implements EdgeFunctions<CICFGStmt, D, CICFGFDef, Constraint> {
-                private final FlowFunctions<CICFGStmt, D, CICFGFDef> flowFunctions;
+            class SPLIFDSEdgeFunctions implements EdgeFunctions<CICFGStmt, D, CICFGFDef, Constraint> {
                 private final CInterCFG icfg;
 
-                private IFDSEdgeFunctions(CInterCFG icfg) {
+                private SPLIFDSEdgeFunctions(CInterCFG icfg) {
                     this.icfg = icfg;
-                    flowFunctions = new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(), ifdsProblem.zeroValue());
                 }
 
                 public EdgeFunction<Constraint> getNormalEdgeFunction(CICFGStmt currStmt, D currNode, CICFGStmt succStmt, D succNode) {
@@ -100,7 +97,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
 
             @Override
             protected EdgeFunctions<CICFGStmt, D, CICFGFDef, Constraint> createEdgeFunctionsFactory() {
-                return new IFDSEdgeFunctions(interproceduralCFG());
+                return new SPLIFDSEdgeFunctions(interproceduralCFG());
             }
 
             @Override
@@ -113,26 +110,26 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                     @Override
                     public FlowFunction<D> getNormalFlowFunction(CICFGStmt curr,
                                                                  CICFGStmt succ) {
-                        return ifdsProblem.flowFunctions().getNormalFlowFunction(curr, succ);
+                        return flowFunctions.getNormalFlowFunction(curr, succ);
                     }
 
                     @Override
                     public FlowFunction<D> getCallFlowFunction(CICFGStmt callStmt,
                                                                CICFGFDef destinationMethod) {
-                        return ifdsProblem.flowFunctions().getCallFlowFunction(callStmt, destinationMethod);
+                        return flowFunctions.getCallFlowFunction(callStmt, destinationMethod);
                     }
 
                     @Override
                     public FlowFunction<D> getReturnFlowFunction(CICFGStmt callSite,
                                                                  CICFGFDef calleeMethod, CICFGStmt exitStmt,
                                                                  CICFGStmt returnSite) {
-                        return ifdsProblem.flowFunctions().getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite);
+                        return flowFunctions.getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite);
                     }
 
                     @Override
                     public FlowFunction<D> getCallToReturnFlowFunction(
                             CICFGStmt callSite, CICFGStmt returnSite) {
-                        return ifdsProblem.flowFunctions().getCallToReturnFlowFunction(callSite, returnSite);
+                        return flowFunctions.getCallToReturnFlowFunction(callSite, returnSite);
                     }
                 };
             }
@@ -142,9 +139,8 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                 return ifdsProblem.zeroValue();
             }
 
-            private boolean hasFeatureAnnotation(CICFGStmt stmt) {
-                return ifdsProblem.interproceduralCFG().getConstraint(stmt).hasFeatureAnnotation();
-            }
+            private final FlowFunctions<CICFGStmt, D, CICFGFDef> flowFunctions =
+                    ifdsProblem.autoAddZero() ? new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(), ifdsProblem.zeroValue()) : ifdsProblem.flowFunctions();
 
         });
     }
