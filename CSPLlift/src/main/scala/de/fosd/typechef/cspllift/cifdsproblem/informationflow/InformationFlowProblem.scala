@@ -230,7 +230,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: CICFGStmt, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
-                val flowCondition = interproceduralCFG.getPointsToConstraint(callStmt ,destinationMethod).getStmt.condition.and(callStmt.getStmt.condition)
+                val flowCondition = interproceduralCFG.getPointsToConstraint(callStmt ,destinationMethod).getFeatureExpr.and(callStmt.getStmt.condition)
                 val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
                 val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
 
@@ -245,8 +245,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 def getZeroFactWithFlowCondition(zero: Zero): Zero = {
                     SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition.and(zero.flowCondition)))
-                    zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
-                    // zero
+                    // zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
+                    zero
                 }
 
                 new CallFlowFunction(callStmt, destinationMethod, default) {

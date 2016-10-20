@@ -63,9 +63,9 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
       *
       * @param callSite the statment where the call occurred
       * @param callee   the target of the call
-      * @return the correctly annotated callee target.
+      * @return the correct points to flow constraint
       */
-    def getLiftedMethodOf(callSite: N, callee: M): M
+    def getPointsToConstraint(callSite: N, callee: M): Constraint
 }
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
@@ -113,13 +113,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
         }
 
-    override def getLiftedMethodOf(callSite: CICFGStmt, callee: CICFGFDef): CICFGFDef = {
+    override def getPointsToConstraint(callSite: CICFGStmt, callee: CICFGFDef): Constraint = {
         val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
 
         val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
         val calleeCond = pointsTo.getStmt.condition
 
-        pointsTo.copy(method = pointsTo.method.copy(condition = calleeCond.and(callCond)))
+        Constraint.make(calleeCond.and(callCond).asInstanceOf[BDDFeatureExpr])
     }
 
     /**

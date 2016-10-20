@@ -1,6 +1,5 @@
 package spllift;
 
-import de.fosd.typechef.cspllift.CICFGConcreteStmt;
 import de.fosd.typechef.cspllift.CICFGFDef;
 import de.fosd.typechef.cspllift.CICFGStmt;
 import de.fosd.typechef.cspllift.CInterCFG;
@@ -43,13 +42,8 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                      * the icfg. The concrete analysis is now able to generate a custom zero element with current flow condition to propagate the correct
                      * flow presence condition along the normal-flow edges.
                      */
-                    ;
-                    CICFGStmt liftedCallStmt = new CICFGConcreteStmt(callStmt.getStmt().copy(callStmt.getStmt().condition().and(destinationMethod.getStmt().condition()), callStmt.getStmt().entry()), callStmt.getPosition());
-                    CICFGStmt liftedDestinationMethod = icfg.getLiftedMethodOf(callStmt, destinationMethod);
-
-                    Constraint flow = icfg.getConstraint(liftedDestinationMethod).and(icfg.getConstraint(liftedCallStmt));
-
-                    return buildFlowFunction(liftedCallStmt, liftedDestinationMethod, srcNode, destNode, flowFunctions.getCallFlowFunction(liftedCallStmt, destinationMethod), true, flow);
+                    Constraint flow = icfg.getPointsToConstraint(callStmt, destinationMethod);
+                    return buildFlowFunction(callStmt, destinationMethod, srcNode, destNode, flowFunctions.getCallFlowFunction(callStmt, destinationMethod), true, flow);
                 }
 
                 public EdgeFunction<Constraint> getReturnEdgeFunction(CICFGStmt callSite, CICFGFDef calleeMethod, CICFGStmt exitStmt, D exitNode, CICFGStmt returnSite, D retNode) {
@@ -57,9 +51,8 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                      * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
                      * Otherwise we would assume this flow has the presence condition of true.
                      */
-                    CICFGFDef liftedCalleeMethod = icfg.getLiftedMethodOf(callSite, calleeMethod);
-                    Constraint flow = icfg.getConstraint(liftedCalleeMethod).and(icfg.getConstraint(exitStmt));
-                    return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, flowFunctions.getReturnFlowFunction(callSite, liftedCalleeMethod, exitStmt, returnSite), true, flow);
+                    Constraint flow = icfg.getPointsToConstraint(callSite, calleeMethod).and(icfg.getConstraint(exitStmt)).and(icfg.getConstraint(returnSite));
+                    return buildFlowFunction(exitStmt, returnSite, exitNode, retNode, flowFunctions.getReturnFlowFunction(callSite, calleeMethod, exitStmt, returnSite), true, flow);
                 }
 
                 public EdgeFunction<Constraint> getCallToReturnEdgeFunction(CICFGStmt callSite, D callNode, CICFGStmt returnSite, D returnSideNode) {
@@ -71,18 +64,11 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                 }
 
                 private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
-                    /*if (flow.equals(Constraint.trueValue())) return EdgeIdentity.v();
-
-                    boolean srcAnnotated = hasFeatureAnnotation(src);
-                    boolean succAnnotated = hasFeatureAnnotation(successor);
-
-                    if (!srcAnnotated && !(isCall && succAnnotated)) return EdgeIdentity.v(); */
-
+                    // Originally, at this point there were the rule for lifting located. However, in our new approach they are no longer required.
                     return preciseBuildFlowFunction(src, successor, srcNode, tgtNode, originalFlowFunction, isCall, flow);
                 }
 
                 private EdgeFunction<Constraint> preciseBuildFlowFunction(CICFGStmt src, CICFGStmt successor, D srcNode, D tgtNode, FlowFunction<D> originalFlowFunction, boolean isCall, Constraint flow) {
-                    boolean srcAnnotated = hasFeatureAnnotation(src);
                     boolean succAnnotated = hasFeatureAnnotation(successor);
 
                     Constraint features = icfg.getConstraint(src);

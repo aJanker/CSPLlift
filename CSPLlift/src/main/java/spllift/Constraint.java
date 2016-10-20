@@ -6,7 +6,7 @@ import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory;
 import net.sf.javabdd.BDDFactory;
 
 /**
- * SPLlift's own PresenceCondition abstraction, wrapping TypeChef's BDDFeatureExpr implementation to represent presence conditions.
+ * SPLlift's own presence condition abstraction, wrapping TypeChef's BDDFeatureExpr implementation to represent presence conditions.
  */
 public class Constraint implements Cloneable {
 
