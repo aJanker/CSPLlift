@@ -130,7 +130,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     private def computeStruct(source: Source): util.Set[InformationFlowFact] = {
                         assert(source.getType.isInstanceOf[Struct], "Computation source must be a struct.")
                         lazy val copy = copySource(source, currOpt)
-                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val currSourceDefinition = getDefinition(source)
                         lazy val structName = source.getType.getName
                         lazy val field = source.getType.asInstanceOf[Struct].field
 
@@ -181,14 +181,14 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     private def computeVariable(source: Source): util.Set[InformationFlowFact] = {
                         assert(source.getType.isInstanceOf[Variable], "Computation source must be a variable.")
                         lazy val copy = copySource(source, currOpt)
-                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val currSourceDefinition = getDefinition(source)
                         lazy val varName = source.getType.getName
 
                         if (!currStatementIsAssignment) {
                             if (currUses.contains(varName)) GEN(SinkToUse(currOpt, currSourceDefinition) :: copy :: Nil)
                             else super.computeTargets(copy)
                         } else {
-                            val usage = {
+                            val rightHandSide = {
                                 val sources =
                                     if (currAssignments.nonEmpty) {
                                         val assignees = currAssignments.filter { case (assignee, assignor) => assignor.contains(varName) }
@@ -208,12 +208,12 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 GEN(sourcesOf ::: sinks)
                             }
 
-                            val assignment =
+                            val leftHandSide =
                                 if (currAssignments.exists { case (assignee, assignor) => assignee.equals(varName) } || currDefines.exists(varName.equals)
                                   && getCurrentScope(varName).forall(scope => (scope <= source.getScope) || (source.getScope == SCOPE_UNKNOWN))) KILL
                                 else super.computeTargets(copy)
 
-                            GEN(assignment, usage)
+                            GEN(leftHandSide, rightHandSide)
                         }
                     }
                 }
@@ -230,7 +230,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: CICFGStmt, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
-                val flowCondition = interproceduralCFG.getLiftedMethodOf(callStmt ,destinationMethod).method.condition.and(callStmt.getStmt.condition)
+                val flowCondition = interproceduralCFG.getPointsToConstraint(callStmt ,destinationMethod).getStmt.condition.and(callStmt.getStmt.condition)
                 val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
                 val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
 
@@ -271,7 +271,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     private def computeStruct(source: Source): util.Set[InformationFlowFact] = {
                         assert(source.getType.isInstanceOf[Struct], "Computation source must be a variable.")
                         lazy val copy = copySource(source, currOpt)
-                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val currSourceDefinition = getDefinition(source)
                         lazy val structName = source.getType.getName
                         lazy val structField = source.getType.asInstanceOf[Struct].field
 
@@ -312,7 +312,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     private def computeVariable(source: Source): util.Set[InformationFlowFact] = {
                         assert(source.getType.isInstanceOf[Variable], "Computation source must be a variable.")
                         lazy val copy = copySource(source, currOpt)
-                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val currSourceDefinition = getDefinition(source)
                         lazy val varName = source.getType.getName
 
                         val sourcesAndSinks = {
@@ -408,7 +408,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     private def computeStruct(source: Source): util.Set[InformationFlowFact] = {
                         assert(source.getType.isInstanceOf[Struct], "Computation source must be a struct.")
                         lazy val copy = copySource(source, currOpt)
-                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val currSourceDefinition = getDefinition(source)
                         lazy val structName = source.getType.getName
                         lazy val structField = source.getType.asInstanceOf[Struct].field
 
@@ -438,7 +438,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     private def computeVariable(source: Source): util.Set[InformationFlowFact] = {
                         assert(source.getType.isInstanceOf[Variable], "Computation source must be a variable.")
                         lazy val copy = copySource(source, currOpt)
-                        lazy val currSourceDefinition = getSourceDefinition(source)
+                        lazy val currSourceDefinition = getDefinition(source)
                         lazy val varName = source.getType.getName
 
                         val sourcesAndSinks = GEN(assignments.flatMap(assignment => assignment._2.flatMap {

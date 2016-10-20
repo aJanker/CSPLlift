@@ -1,7 +1,7 @@
-int secret = 30;
-
 
 int main() {
+   int secret = 30;
+
 
    int i = 20;
    int j = 1000;

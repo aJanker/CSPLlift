@@ -18,7 +18,7 @@ trait InformationFlowHelper extends CInterCFGCommons {
             case _ => s
         } */
 
-    def getSourceDefinition(s: Source): SourceDefinition =
+    def getDefinition(s: Source): SourceDefinition =
         s match {
             case sd: SourceDefinition => sd
             case so: SourceDefinitionOf => so.getDefinition

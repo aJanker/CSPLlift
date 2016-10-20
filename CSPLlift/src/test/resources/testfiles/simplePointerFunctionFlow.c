@@ -34,6 +34,9 @@ int cipher1(int i) {
 };
 
 int cipher2(int j) {
+#ifdef B
+  j = 0;
+#endif
     return j;
 };
 
@@ -61,14 +64,27 @@ int main() {
     cipher_init(c, &cipher2);
 #endif
 
-    int secret;
-    secret = 666;
+    int secret = 1;
+    int value = 5;
 
+    #ifdef D
+    secret = 666;
+    #endif
+
+    int value2000 = 2;
+#ifdef D
+    value2000 = secret;
+#endif
     int sink = cipher_do(c, secret);
 
-    int sink2 = cipher1(secret);
+    //int sink2 = cipher1(secret);
 
     printf("%i\n", sink);
+
+    #ifdef E
+    printf("%i\n", value2000);
+    #endif
+
 
     return 0;
 }

@@ -1,17 +1,17 @@
-int secret = 666;
-
 #define function(x, y) do { if (bar(x, y)) goto jump; } while( 0 )
 #define function2(x, y) do { if (bar(x, y)) ;} while( 0 )
 
 void bar(int v, int n) {
-    int p = v; while( n-- ) p;
+    int p = v; while( n-- ) p = n;
 }
 
 int foo(int value) {
    int i = 20;
    int j = 1000;
+   int trace = 0;
+   int trace2 = 0;
 
-   function(i, trace2);
+   function(i, j);
 
    int res = 0;
    int sink;
@@ -44,9 +44,11 @@ int main() {
     int trace = 0;
     int trace2 = 0;
     int sink_m;
+    int secret = 666;
+
 
     function(trace, trace2);
-    function2(trace, trace2);
+    function(trace, trace2);
 
     #ifdef F
       res_m = foo(secret);
@@ -66,7 +68,9 @@ int main() {
     #ifdef T
         trace2 = 3;
     #endif
-        function2(trace, trace2);
+    #ifdef TT
+        function(trace, trace2);
+     #endif
         int sink5000 = foo(trace2);
         printf("%i\n", foo(secret));
     }
