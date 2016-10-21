@@ -63,12 +63,12 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Feature
                 }
 
                 private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGStmt src, CICFGStmt successor, FeatureExpr flow) {
-                    FeatureExpr cfgFeatureExpr = icfg.getCondition(src).and(icfg.getCondition(successor));
+                    FeatureExpr cfgCondition = icfg.getCondition(src).and(icfg.getCondition(successor));
 
                     if (!(FeatureExprFactory.False().equivalentTo(flow)))
-                        cfgFeatureExpr = cfgFeatureExpr.and(flow);
+                        cfgCondition = cfgCondition.and(flow);
 
-                    return new SPLFeatureFunction(cfgFeatureExpr, fm, useFMInEdgeComputations);
+                    return new SPLFeatureFunction(cfgCondition, fm, useFMInEdgeComputations);
                 }
             }
 

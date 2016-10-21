@@ -13,15 +13,15 @@ class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
     private final FeatureModel fm;
     private final boolean useFM;
 
-    SPLFeatureFunction(final FeatureExpr conditions, final FeatureModel fModel, final boolean useFMInEdgeComputations) {
-        if (conditions == null) throw new RuntimeException();
-        this.condition = conditions;
+    SPLFeatureFunction(final FeatureExpr condition, final FeatureModel fModel, final boolean useFMInEdgeComputations) {
+        if (condition == null) throw new RuntimeException();
+        this.condition = condition;
         this.fm = fModel;
         this.useFM = useFMInEdgeComputations;
     }
 
     public FeatureExpr computeTarget(FeatureExpr source) {
-        return isSatisfiable(this.and(source));
+        return isValidInFM(this.and(source));
     }
 
     public EdgeFunction<FeatureExpr> composeWith(EdgeFunction<FeatureExpr> secondFunction) {
@@ -53,14 +53,14 @@ class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
     }
 
     private FeatureExpr and(final FeatureExpr other) {
-        return isSatisfiable(this.condition.and(other));
+        return isValidInFM(this.condition.and(other));
     }
 
     private FeatureExpr or(final FeatureExpr other) {
-        return isSatisfiable(this.condition.or(other));
+        return isValidInFM(this.condition.or(other));
     }
 
-    private FeatureExpr isSatisfiable(final FeatureExpr constraint) {
+    private FeatureExpr isValidInFM(final FeatureExpr constraint) {
         if (this.useFM)
             return constraint.isSatisfiable(fm) ? constraint : FeatureExprFactory.False();
         else

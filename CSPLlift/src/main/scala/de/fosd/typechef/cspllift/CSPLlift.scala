@@ -67,7 +67,7 @@ object CSPLlift {
     def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[LiftedCFlowFact[D]] = {
         SuperCallGraph.clear()
 
-        val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new SPLIFDSSolver(problem, fm, true)})
+        val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new SPLIFDSSolver(problem, fm, false)})
         StopWatch.measureWallTime("wall_lift_solve", {solver.solve()})
 
         if (printWarnings && WarningsCache.size() != 0) {
