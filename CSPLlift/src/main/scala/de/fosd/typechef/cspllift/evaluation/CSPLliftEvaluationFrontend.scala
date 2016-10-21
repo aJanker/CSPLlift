@@ -11,10 +11,9 @@ import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
 import de.fosd.typechef.customization.StopWatch
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
-import spllift.Constraint
 
 class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
 
@@ -124,13 +123,13 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         println("### results for lifiting ")
         val interestingSamplingFacts_lift = liftedFacts.filter(_._1.isInterestingFact)
 
-        val allLiftSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, Constraint)]])
+        val allLiftSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
         println(Taint.prettyPrintSinks(allLiftSinks))
 
         // 2. Collect distinct conditions
-        val cfgConditions = liftedFacts.foldLeft(Set[BDDFeatureExpr]())((cfgConds, fact) => {
-            val cfgCond = fact._2.getFeatureExpr
+        val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
+            val cfgCond = fact._2
             cfgConds + cfgCond
         })
 
@@ -155,7 +154,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             println("### results for " + config)
             val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
 
-            val allSinks = Taint.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, Constraint)]])
+            val allSinks = Taint.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
             println(Taint.prettyPrintSinks(allSinks))
 
@@ -179,10 +178,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             println("Size:\t" + unmatchedLiftedFacts.size)
             println(liftedFacts.count(_._1.isInterestingFact))
 
-            var conditions: List[BDDFeatureExpr] = List()
+            var conditions: List[FeatureExpr] = List()
 
             unmatchedLiftedFacts.foreach(uc => {
-                conditions = uc._2.getFeatureExpr :: conditions
+                conditions = uc._2 :: conditions
                 println("Error:\n" + "\tCondition:" + uc._2 + "\n\t" + uc._1.toText)
             })
 
@@ -199,7 +198,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
             unmatchedCoverageFacts.foreach(uc => {
                 println("Configuration:\t" + uc._2)
-                val all = Taint.allSinks(uc._1.asInstanceOf[List[(InformationFlowFact, Constraint)]])
+                val all = Taint.allSinks(uc._1.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
                 println(Taint.prettyPrintSinks(all))
                 /*uc._1.foreach(uc2 => {
                     println("Error:\n" + uc2._1)
@@ -223,7 +222,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         var matchedLiftedFacts = scala.collection.mutable.Map[LiftedCFlowFact[D], Int]()
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
-        def unmatchedFacts(samplingFacts: List[(D, Constraint)], liftedFacts: List[(D, Constraint)], config: SimpleConfiguration): List[(D, Constraint)] =
+        def unmatchedFacts(samplingFacts: List[(D, FeatureExpr)], liftedFacts: List[(D, FeatureExpr)], config: SimpleConfiguration): List[(D, FeatureExpr)] =
             samplingFacts.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
                 if (oFact._1.isEquivalentTo(fact._1, config)) {
                     // is match, increase vaa match counter

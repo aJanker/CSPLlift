@@ -3,6 +3,8 @@ package spllift;
 import de.fosd.typechef.cspllift.CICFGFDef;
 import de.fosd.typechef.cspllift.CICFGStmt;
 import de.fosd.typechef.cspllift.CInterCFG;
+import de.fosd.typechef.featureexpr.FeatureExpr;
+import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import de.fosd.typechef.featureexpr.FeatureModel;
 import heros.*;
 import heros.solver.IDESolver;
@@ -11,7 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 
-public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constraint, CInterCFG> {
+public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, FeatureExpr, CInterCFG> {
 
     public SPLIFDSSolver(final IFDSTabulationProblem<CICFGStmt, D, CICFGFDef, CInterCFG> ifdsProblem, final FeatureModel fm, final boolean useFMInEdgeComputations) {
         super(new DefaultSPLIFDSTabulationProblem<CICFGStmt, D, CICFGFDef, CInterCFG>(ifdsProblem) {
@@ -20,18 +22,18 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                 return ifdsProblem.initialSeeds();
             }
 
-            class SPLIFDSEdgeFunctions implements EdgeFunctions<CICFGStmt, D, CICFGFDef, Constraint> {
+            class SPLIFDSEdgeFunctions implements EdgeFunctions<CICFGStmt, D, CICFGFDef, FeatureExpr> {
                 private final CInterCFG icfg;
 
                 private SPLIFDSEdgeFunctions(CInterCFG icfg) {
                     this.icfg = icfg;
                 }
 
-                public EdgeFunction<Constraint> getNormalEdgeFunction(CICFGStmt currStmt, D currNode, CICFGStmt succStmt, D succNode) {
+                public EdgeFunction<FeatureExpr> getNormalEdgeFunction(CICFGStmt currStmt, D currNode, CICFGStmt succStmt, D succNode) {
                     return buildFlowFunction(currStmt, succStmt);
                 }
 
-                public EdgeFunction<Constraint> getCallEdgeFunction(CICFGStmt callStmt, D srcNode, CICFGFDef destinationMethod, D destNode) {
+                public EdgeFunction<FeatureExpr> getCallEdgeFunction(CICFGStmt callStmt, D srcNode, CICFGFDef destinationMethod, D destNode) {
                     /*
                      * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
                      * Otherwise we would assume this flow has the presence condition of true.
@@ -39,56 +41,56 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
                      * the icfg. The concrete analysis is now able to generate a custom zero element with current flow condition to propagate the correct
                      * flow presence condition along the normal-flow edges.
                      */
-                    Constraint flow = icfg.getPointsToConstraint(callStmt, destinationMethod);
+                    FeatureExpr flow = icfg.getPointsToCondition(callStmt, destinationMethod);
                     return buildFlowFunction(callStmt, destinationMethod, flow);
                 }
 
-                public EdgeFunction<Constraint> getReturnEdgeFunction(CICFGStmt callSite, CICFGFDef calleeMethod, CICFGStmt exitStmt, D exitNode, CICFGStmt returnSite, D retNode) {
+                public EdgeFunction<FeatureExpr> getReturnEdgeFunction(CICFGStmt callSite, CICFGFDef calleeMethod, CICFGStmt exitStmt, D exitNode, CICFGStmt returnSite, D retNode) {
                     /*
                      * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
                      * Otherwise we would assume this flow has the presence condition of true.
                      */
-                    Constraint flow = icfg.getPointsToConstraint(callSite, calleeMethod).and(icfg.getConstraint(callSite)).and(icfg.getConstraint(calleeMethod));
+                    FeatureExpr flow = icfg.getPointsToCondition(callSite, calleeMethod).and(icfg.getCondition(callSite)).and(icfg.getCondition(calleeMethod));
                     return buildFlowFunction(exitStmt, returnSite, flow);
                 }
 
-                public EdgeFunction<Constraint> getCallToReturnEdgeFunction(CICFGStmt callSite, D callNode, CICFGStmt returnSite, D returnSideNode) {
+                public EdgeFunction<FeatureExpr> getCallToReturnEdgeFunction(CICFGStmt callSite, D callNode, CICFGStmt returnSite, D returnSideNode) {
                     return buildFlowFunction(callSite, returnSite);
                 }
 
-                private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor) {
-                    return buildFlowFunction(src, successor, Constraint.falseValue());
+                private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGStmt src, CICFGStmt successor) {
+                    return buildFlowFunction(src, successor, FeatureExprFactory.False());
                 }
 
-                private EdgeFunction<Constraint> buildFlowFunction(CICFGStmt src, CICFGStmt successor, Constraint flow) {
-                    Constraint cfgConstraint = icfg.getConstraint(src).and(icfg.getConstraint(successor));
+                private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGStmt src, CICFGStmt successor, FeatureExpr flow) {
+                    FeatureExpr cfgFeatureExpr = icfg.getCondition(src).and(icfg.getCondition(successor));
 
-                    if (!(Constraint.falseValue().equals(flow)))
-                        cfgConstraint = cfgConstraint.and(flow);
+                    if (!(FeatureExprFactory.False().equivalentTo(flow)))
+                        cfgFeatureExpr = cfgFeatureExpr.and(flow);
 
-                    return new SPLFeatureFunction(cfgConstraint, fm, useFMInEdgeComputations);
+                    return new SPLFeatureFunction(cfgFeatureExpr, fm, useFMInEdgeComputations);
                 }
             }
 
 
             @Override
-            protected EdgeFunction<Constraint> createAllTopFunction() {
-                return new SPLFeatureFunction(Constraint.falseValue(), fm, useFMInEdgeComputations);
+            protected EdgeFunction<FeatureExpr> createAllTopFunction() {
+                return new SPLFeatureFunction(FeatureExprFactory.False(), fm, useFMInEdgeComputations);
             }
 
             @Override
-            protected JoinLattice<Constraint> createJoinLattice() {
-                return new JoinLattice<Constraint>() {
+            protected JoinLattice<FeatureExpr> createJoinLattice() {
+                return new JoinLattice<FeatureExpr>() {
 
-                    public Constraint topElement() {
-                        return Constraint.falseValue();
+                    public FeatureExpr topElement() {
+                        return FeatureExprFactory.False();
                     }
 
-                    public Constraint bottomElement() {
-                        return Constraint.trueValue();
+                    public FeatureExpr bottomElement() {
+                        return FeatureExprFactory.True();
                     }
 
-                    public Constraint join(Constraint left, Constraint right) {
+                    public FeatureExpr join(FeatureExpr left, FeatureExpr right) {
                         return left.or(right);
                     }
                 };
@@ -96,7 +98,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Constra
             }
 
             @Override
-            protected EdgeFunctions<CICFGStmt, D, CICFGFDef, Constraint> createEdgeFunctionsFactory() {
+            protected EdgeFunctions<CICFGStmt, D, CICFGFDef, FeatureExpr> createEdgeFunctionsFactory() {
                 return new SPLIFDSEdgeFunctions(interproceduralCFG());
             }
 

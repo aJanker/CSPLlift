@@ -230,7 +230,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: CICFGStmt, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
-                val flowCondition = interproceduralCFG.getPointsToConstraint(callStmt ,destinationMethod).getFeatureExpr.and(callStmt.getStmt.condition)
+                val flowCondition = interproceduralCFG.getPointsToCondition(callStmt ,destinationMethod).and(callStmt.getStmt.condition)
                 val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
                 val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
 

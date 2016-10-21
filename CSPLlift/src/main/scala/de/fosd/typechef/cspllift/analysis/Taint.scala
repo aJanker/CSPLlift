@@ -6,8 +6,8 @@ import de.fosd.typechef.conditional.{One, Opt}
 import de.fosd.typechef.cspllift.LiftedCFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SinkOrSource, Source}
+import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{AST, EmptyStatement, ForStatement, PrettyPrinter}
-import spllift.Constraint
 
 object Taint {
 
@@ -26,16 +26,16 @@ object Taint {
                     case x => writer.append("Sink at:\t" + PrettyPrinter.print(x) + "\tin:\t" + sink._1.entry.getPositionFrom + "\n")
                 }
 
-                sink._2.foreach { ssink => writer.append("\tCFGcondition: " + ssink._2 + "\n" +
-                  "\tCFGcondition (simplified): " + ssink._2.simplify() + "\n" +
+                sink._2.foreach { ssink => writer.append("\tCFGcondition: " + ssink._2.toTextExpr + "\n" +
+                  /*"\tCFGcondition (simplified): " + ssink._2.simplify() + "\n" + */
                   ssink._1.toText + "\n") }
                 writer.append("\n")
             }
         }
 
-    private def filter[F <: SinkOrSource](solverResult: List[(InformationFlowFact, Constraint)], isMatch: (F) => Boolean)(implicit m: Manifest[F]): Traversable[(Opt[AST], List[LiftedCFlowFact[F]])] =
+    private def filter[F <: SinkOrSource](solverResult: List[(InformationFlowFact, FeatureExpr)], isMatch: (F) => Boolean)(implicit m: Manifest[F]): Traversable[(Opt[AST], List[LiftedCFlowFact[F]])] =
         solverResult.foldLeft(Map[Opt[AST], List[LiftedCFlowFact[F]]]()) {
-            case (map, solution@(s: F, c: Constraint)) if isMatch(s) =>
+            case (map, solution@(s: F, c: FeatureExpr)) if isMatch(s) =>
                 val key = s.stmt
                 // remove duplicate source sinks
                 val value = solution.asInstanceOf[LiftedCFlowFact[F]]

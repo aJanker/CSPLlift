@@ -33,7 +33,7 @@ class ConditionalGraphTest extends InformationFlowTestHelper {
     @Test def ifTest2() = {
         val sinkStmt = ExprStatement(AssignExpr(Id("sink"),"=",Id("res")))
 
-        /*var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
+        /*var expectedReaches : List[(Constraint, List[Opt[Id]])] = List()
 
         // sink1 : True, (sink = bound = 2 (true))
         expectedReaches ::= (True, List(Opt(True, Id("bound"))))

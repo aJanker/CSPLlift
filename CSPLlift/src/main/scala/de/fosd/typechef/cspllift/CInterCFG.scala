@@ -6,13 +6,12 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.error.Position
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
-import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
-import spllift.Constraint
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -40,7 +39,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     /**
       * Retrieves the cfg contraint of a given node.
       */
-    def getConstraint(node: N): Constraint
+    def getCondition(node: N): FeatureExpr
 
     /**
       * Gets the context of a given node.
@@ -65,7 +64,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
       * @param callee   the target of the call
       * @return the correct points to flow constraint
       */
-    def getPointsToConstraint(callSite: N, callee: M): Constraint
+    def getPointsToCondition(callSite: N, callee: M): FeatureExpr
 }
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
@@ -87,7 +86,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getOptions = options
 
     // undocumented function call to cifg from spllift -> gets current flow condition
-    override def getConstraint(node: CICFGStmt): Constraint = Constraint.make(node.getStmt.condition.asInstanceOf[BDDFeatureExpr])
+    override def getCondition(node: CICFGStmt): FeatureExpr = node.getStmt.condition
 
     override def getASTEnv(node: CICFGStmt): ASTEnv = getASTEnv(node.getStmt.entry)
 
@@ -113,13 +112,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
         }
 
-    override def getPointsToConstraint(callSite: CICFGStmt, callee: CICFGFDef): Constraint = {
+    override def getPointsToCondition(callSite: CICFGStmt, callee: CICFGFDef): FeatureExpr = {
         val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
 
         val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
         val calleeCond = pointsTo.getStmt.condition
 
-        Constraint.make(calleeCond.and(callCond).asInstanceOf[BDDFeatureExpr])
+        calleeCond.and(callCond)
     }
 
     /**
