@@ -41,8 +41,8 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Feature
                      * the icfg. The concrete analysis is now able to generate a custom zero element with current flow condition to propagate the correct
                      * flow presence condition along the normal-flow edges.
                      */
-                    FeatureExpr flow = icfg.getPointsToCondition(callStmt, destinationMethod);
-                    return buildFlowFunction(callStmt, destinationMethod, flow);
+                    FeatureExpr pointsToflowCondition= icfg.getPointsToCondition(callStmt, destinationMethod);
+                    return buildFlowFunction(callStmt, destinationMethod, pointsToflowCondition);
                 }
 
                 public EdgeFunction<FeatureExpr> getReturnEdgeFunction(CICFGStmt callSite, CICFGFDef calleeMethod, CICFGStmt exitStmt, D exitNode, CICFGStmt returnSite, D retNode) {
@@ -50,8 +50,8 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Feature
                      * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
                      * Otherwise we would assume this flow has the presence condition of true.
                      */
-                    FeatureExpr flow = icfg.getPointsToCondition(callSite, calleeMethod).and(icfg.getCondition(callSite)).and(icfg.getCondition(calleeMethod));
-                    return buildFlowFunction(exitStmt, returnSite, flow);
+                    FeatureExpr pointsToflowCondition = icfg.getPointsToCondition(callSite, calleeMethod).and(icfg.getCondition(callSite)).and(icfg.getCondition(calleeMethod));
+                    return buildFlowFunction(exitStmt, returnSite, pointsToflowCondition);
                 }
 
                 public EdgeFunction<FeatureExpr> getCallToReturnEdgeFunction(CICFGStmt callSite, D callNode, CICFGStmt returnSite, D returnSideNode) {
@@ -59,14 +59,14 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Feature
                 }
 
                 private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGStmt src, CICFGStmt successor) {
-                    return buildFlowFunction(src, successor, FeatureExprFactory.False());
+                    return buildFlowFunction(src, successor, null);
                 }
 
-                private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGStmt src, CICFGStmt successor, FeatureExpr flow) {
+                private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGStmt src, CICFGStmt successor, FeatureExpr pointsToflowCondition) {
                     FeatureExpr cfgCondition = icfg.getCondition(src).and(icfg.getCondition(successor));
 
-                    if (!(FeatureExprFactory.False().equivalentTo(flow)))
-                        cfgCondition = cfgCondition.and(flow);
+                    if (pointsToflowCondition != null)
+                        cfgCondition = cfgCondition.and(pointsToflowCondition);
 
                     return new SPLFeatureFunction(cfgCondition, fm, useFMInEdgeComputations);
                 }
