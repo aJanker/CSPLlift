@@ -52,6 +52,8 @@ int main() {
     function(trace, trace2);
     function(trace, sec2);
     function(trace, trace2);
+#else
+    function(trace, trace2);
 #endif
 
     #ifdef F
