@@ -5,9 +5,9 @@ import de.fosd.typechef.parser.c._
 
 trait RewritingRules extends ASTRewriting with ASTNavigation with ConditionalNavigation {
 
-    def replace[T <: Product, U](t: T, e: U, n: U): T = {
-        val r = manytd(rule[Any] {
-            case i if i.asInstanceOf[AnyRef] eq e.asInstanceOf[AnyRef] => n
+    def replace[T <: Product, U <: AnyRef](t: T, e: U, n: U): T = {
+        val r = manytd(rule[AnyRef] {
+            case i if i eq e => n
         })
         r(t).getOrElse(t).asInstanceOf[T]
     }

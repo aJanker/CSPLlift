@@ -23,11 +23,11 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProb
             override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
                 val use = flowFact match {
                     case s: Source if s.getType.isInstanceOf[Variable] && callUses.contains(s.getType.getName) =>
-                        GEN(SinkToUse(callStmt.getStmt, s))
+                        GEN(SinkToUse(callStmt, getDefinition(s)))
                     case s: Source if s.getType.isInstanceOf[Struct] && callStructUses.exists(field => isFullFieldMatch(s, field)) =>
-                        GEN(SinkToUse(callStmt.getStmt, s))
+                        GEN(SinkToUse(callStmt, getDefinition(s)))
                     case s: Source if s.getType.isInstanceOf[Struct] && callStructUses.isEmpty && s.getType.asInstanceOf[Struct].field.isEmpty && callUses.contains(s.getType.getName) =>
-                        GEN(SinkToUse(callStmt.getStmt, s))
+                        GEN(SinkToUse(callStmt, getDefinition(s)))
                     case _ => KILL
                 }
 

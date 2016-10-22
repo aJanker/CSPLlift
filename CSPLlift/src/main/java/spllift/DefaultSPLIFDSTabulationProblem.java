@@ -1,11 +1,12 @@
 package spllift;
 
+import de.fosd.typechef.featureexpr.FeatureExpr;
 import heros.IFDSTabulationProblem;
 import heros.InterproceduralCFG;
 import heros.solver.IDESolver;
 import heros.template.DefaultIDETabulationProblem;
 
-abstract class DefaultSPLIFDSTabulationProblem<N,D,M, I extends InterproceduralCFG<N,M>> extends DefaultIDETabulationProblem<N, D, M, Constraint, I> {
+abstract class DefaultSPLIFDSTabulationProblem<N,D,M, I extends InterproceduralCFG<N,M>> extends DefaultIDETabulationProblem<N, D, M, FeatureExpr, I> {
     private final IFDSTabulationProblem<N, D, M, I> problem;
 
     @SuppressWarnings("unchecked")

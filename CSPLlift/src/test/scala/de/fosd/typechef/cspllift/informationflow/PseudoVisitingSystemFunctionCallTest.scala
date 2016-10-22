@@ -25,7 +25,7 @@ class PseudoVisitingSystemFunctionCallTest extends CSPLliftTestHelper {
             case _ => false
         })
 
-        var expectedReaches: List[(FeatureExpr, List[Opt[Id]])] = List()
+        var expectedReaches: List[(Constraint, List[Opt[Id]])] = List()
 
         // sink1 : True, (returnSite, True), (y, True)
         expectedReaches ::=(True,  List(Opt(True, Id("returnSite")), Opt(True, Id("y"))))

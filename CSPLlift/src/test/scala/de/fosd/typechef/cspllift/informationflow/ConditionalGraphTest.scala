@@ -14,7 +14,7 @@ class ConditionalGraphTest extends InformationFlowTestHelper {
         val sinkStmt1 = ExprStatement(AssignExpr(Id("sink"),"=",Id("bound")))
         val sinkStmt2 = ExprStatement(AssignExpr(Id("sink2"),"=",Id("i")))
 
-        expectedSinks ::= (sinkStmt1, List(Opt(True, Id("start")), Opt(True, Id("low")), Opt(fa.and(fb.not()), Id("z")), Opt(fa.and(fb), Id("z"))))
+        expectedSinks ::= (sinkStmt1, List(Opt(True, Id("start")), Opt(True, Id("low")), Opt(fa, Id("z")))) //Opt(fa.and(fb.not()), Id("z")), Opt(fa.and(fb), Id("z"))))
         expectedSinks ::= (sinkStmt2, List(Opt(fa.and(fb.not()), Id("start")), Opt(fa.and(fb), Id("low"))))
 
         defaultTest("loop.c", expectedSinks) should be(true)
@@ -33,7 +33,7 @@ class ConditionalGraphTest extends InformationFlowTestHelper {
     @Test def ifTest2() = {
         val sinkStmt = ExprStatement(AssignExpr(Id("sink"),"=",Id("res")))
 
-        /*var expectedReaches : List[(FeatureExpr, List[Opt[Id]])] = List()
+        /*var expectedReaches : List[(Constraint, List[Opt[Id]])] = List()
 
         // sink1 : True, (sink = bound = 2 (true))
         expectedReaches ::= (True, List(Opt(True, Id("bound"))))

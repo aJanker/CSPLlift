@@ -2,12 +2,12 @@ package de.fosd.typechef.cspllift.commons
 
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
-import de.fosd.typechef.featureexpr.SingleFeatureExpr
-import spllift.Constraint
+import de.fosd.typechef.featureexpr.{FeatureExpr, SingleFeatureExpr}
+
 
 trait ConditionTools {
 
-    def isSatisfiableInConfiguration(cons : Constraint, configuration : SimpleConfiguration) : Boolean = cons.getFeatureExpr.evaluate(configuration.getTrueFeatures)
+    def isSatisfiableInConfiguration(cons : FeatureExpr, configuration : SimpleConfiguration) : Boolean = cons.evaluate(configuration.getTrueFeatures)
 
     /**
       * Returns a sorted list of all features in this AST, including Opt and Choice Nodes

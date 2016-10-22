@@ -6,13 +6,12 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
 import de.fosd.typechef.error.Position
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
-import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
-import spllift.Constraint
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -40,7 +39,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     /**
       * Retrieves the cfg contraint of a given node.
       */
-    def getConstraint(node: N): Constraint
+    def getCondition(node: N): FeatureExpr
 
     /**
       * Gets the context of a given node.
@@ -63,15 +62,13 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
       *
       * @param callSite the statment where the call occurred
       * @param callee   the target of the call
-      * @return the correctly annotated callee target.
+      * @return the correct points to flow constraint
       */
-    def getLiftedMethodOf(callSite: N, callee: M): M
+    def getPointsToCondition(callSite: N, callee: M): FeatureExpr
 }
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
   extends CInterproceduralCFG[CICFGStmt, CICFGFDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
-
-    Constraint.FACTORY = de.fosd.typechef.featureexpr.bdd.FExprBuilder.bddFactory
 
     private val cInterCFGNodes = new mutable.HashSet[CICFGStmt]()
 
@@ -81,7 +78,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         filterAllASTElems[FunctionDef](cInterCFGElementsCacheEnv.startTUnit) filter {
             fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase)
         } map {
-            fdef => CICFGFDef(Opt(getASTEnv(fdef).featureExpr(fdef), fdef), fdef.getPositionFrom)
+            fdef => CICFGFDef(Opt(getASTEnv(fdef).featureExpr(fdef), fdef))
         }
 
     override def getFeatureModel = fm
@@ -89,7 +86,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getOptions = options
 
     // undocumented function call to cifg from spllift -> gets current flow condition
-    override def getConstraint(node: CICFGStmt): Constraint = Constraint.make(node.getStmt.condition.asInstanceOf[BDDFeatureExpr])
+    override def getCondition(node: CICFGStmt): FeatureExpr = node.getStmt.condition
 
     override def getASTEnv(node: CICFGStmt): ASTEnv = getASTEnv(node.getStmt.entry)
 
@@ -115,13 +112,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
         }
 
-    override def getLiftedMethodOf(callSite: CICFGStmt, callee: CICFGFDef): CICFGFDef = {
+    override def getPointsToCondition(callSite: CICFGStmt, callee: CICFGFDef): FeatureExpr = {
         val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
 
         val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
         val calleeCond = pointsTo.getStmt.condition
 
-        pointsTo.copy(method = pointsTo.method.copy(condition = calleeCond.and(callCond)))
+        calleeCond.and(callCond)
     }
 
     /**
@@ -132,7 +129,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getMethodOf(node: CICFGStmt): CICFGFDef = {
         val env = getASTEnv(node)
         findPriorASTElem[FunctionDef](node.getStmt.entry, env) match {
-            case Some(f: FunctionDef) => CICFGFDef(Opt(env.featureExpr(f), f), f.getPositionFrom)
+            case Some(f: FunctionDef) => CICFGFDef(Opt(env.featureExpr(f), f))
             case _ => throw new NoSuchElementException("No prior function found for node: " + node)
         }
     }
@@ -241,7 +238,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         succs.asJava
     }
 
-    private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)), cICFGStmt.getPosition)
+    private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
 
 
     override def getPredsOf(cICFGStmt: CICFGStmt): util.List[CICFGStmt] = {
@@ -250,13 +247,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         preds.asJava
     }
 
-    private def getPredsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)), cICFGStmt.getPosition)
+    private def getPredsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
 
-    private def getCFGElements(elements : CFG, fallbackPosition : Position) : List[CICFGStmt] = {
+    private def getCFGElements(elements: CFG): List[CICFGStmt] = {
         elements.filter {
             case Opt(_, f: FunctionDef) => false
             case x => x.condition.isSatisfiable(fm)
-        }.map(element => CICFGConcreteStmt(element, replaceMacroFileLocation(element.entry.getPositionFrom, fallbackPosition)))
+        }.map(element => CICFGConcreteStmt(element))
     }
 
     private def replaceMacroFileLocation(position: Position, fallBack: Position): Position = if (position.getFile.endsWith(".h")) fallBack else position
@@ -309,13 +306,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
             return {
                 val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
-                List(CICFGFDef(pseudoCall, pseudoCall.entry.getPositionFrom))
+                List(CICFGFDef(pseudoCall))
             }
 
         def findCalleeInTunit(tunit: TranslationUnit) = {
             tunit.defs.flatMap {
                 case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(dstCond).isSatisfiable(getFeatureModel) =>
-                    Some(CICFGFDef(Opt(ft.and(dstCond), f), f.getPositionFrom))
+                    Some(CICFGFDef(Opt(ft.and(dstCond), f)))
                 case _ => None
             }
         }
@@ -345,7 +342,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => None
         }
 
-    private def getPresenceNode(node: AST): CICFGStmt = CICFGConcreteStmt(Opt(getASTEnv(node).featureExpr(node), node), node.getPositionFrom)
+    private def getPresenceNode(node: AST): CICFGStmt = CICFGConcreteStmt(Opt(getASTEnv(node).featureExpr(node), node))
 
     private def getFunctionPointerDestNames(pointer: Expr): List[Opt[String]] = {
         val pointerNode = getPresenceNode(pointer)

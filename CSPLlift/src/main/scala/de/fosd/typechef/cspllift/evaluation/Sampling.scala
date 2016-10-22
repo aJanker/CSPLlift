@@ -242,7 +242,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
     }
 
     /**
-      * Optimzed version of the completeConfiguration method. Uses FeatureExpr.getSatisfiableAssignment to need only one SAT call.
+      * Optimzed version of the completeConfiguration method. Uses Constraint.getSatisfiableAssignment to need only one SAT call.
       * @param expr input feature expression
       * @param list list of features
       * @param model input feature model
