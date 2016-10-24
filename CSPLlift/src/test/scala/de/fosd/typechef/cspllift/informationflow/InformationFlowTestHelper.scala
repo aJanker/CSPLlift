@@ -25,7 +25,7 @@ trait InformationFlowTestHelper extends CSPLliftTestHelper {
         lazy val sinks = expectedSinks.par.forall {
             case (expectedStmt, expectedSink) =>
                 allSinks.exists {
-                case (aStmt, aSink) if aStmt.entry.equals(expectedStmt) =>
+                case (aStmt, aSink) if aStmt.getStmt.equals(expectedStmt) =>
                     expectedSink.forall(currSink => {
                         aSink.exists(asEntry =>
                             asEntry._1.source.getType.getName.equals(currSink.entry) && asEntry._2.equivalentTo(currSink.condition))

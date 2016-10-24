@@ -2,12 +2,12 @@ package de.fosd.typechef.cspllift.analysis
 
 import java.io.{StringWriter, Writer}
 
-import de.fosd.typechef.conditional.{One, Opt}
-import de.fosd.typechef.cspllift.LiftedCFlowFact
+import de.fosd.typechef.conditional.One
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SinkOrSource, Source}
+import de.fosd.typechef.cspllift.{CICFGStmt, LiftedCFlowFact}
 import de.fosd.typechef.featureexpr.FeatureExpr
-import de.fosd.typechef.parser.c.{AST, EmptyStatement, ForStatement, PrettyPrinter}
+import de.fosd.typechef.parser.c.{EmptyStatement, ForStatement, PrettyPrinter}
 
 object Taint {
 
@@ -17,13 +17,13 @@ object Taint {
 
     def allSources(solverResult: List[LiftedCFlowFact[InformationFlowFact]]) = filter[Source](solverResult, s => true)
 
-    def prettyPrintSinks(sinks: Traversable[(Opt[AST], List[LiftedCFlowFact[Sink]])]): String = prettyPrintSinks(sinks, new StringWriter).toString
-    def prettyPrintSinks(sinks: Traversable[(Opt[AST], List[LiftedCFlowFact[Sink]])], writer: Writer): Writer =
+    def prettyPrintSinks(sinks: Traversable[(CICFGStmt, List[LiftedCFlowFact[Sink]])]): String = prettyPrintSinks(sinks, new StringWriter).toString
+    def prettyPrintSinks(sinks: Traversable[(CICFGStmt, List[LiftedCFlowFact[Sink]])], writer: Writer): Writer =
         sinks.foldLeft(writer) {
             (writer, sink) => {
-                sink._1.entry match {
-                    case f: ForStatement => writer.append("Sink at:\t" + PrettyPrinter.print(f.copy(s = One(EmptyStatement()))) + "\tin:\t" + sink._1.entry.getPositionFrom + "\n")
-                    case x => writer.append("Sink at:\t" + PrettyPrinter.print(x) + "\tin:\t" + sink._1.entry.getPositionFrom + "\n")
+                sink._1.getStmt.entry match {
+                    case f: ForStatement => writer.append("Sink at:\t" + PrettyPrinter.print(f.copy(s = One(EmptyStatement()))) + "\tin:\t" + sink._1.getStmt.entry.getPositionFrom + "\n")
+                    case x => writer.append("Sink at:\t" + PrettyPrinter.print(x) + "\tin:\t" + sink._1.getStmt.entry.getPositionFrom + "\n")
                 }
 
                 sink._2.foreach { ssink => writer.append("\tCFGcondition: " + ssink._2.toTextExpr + "\n" +
@@ -33,10 +33,10 @@ object Taint {
             }
         }
 
-    private def filter[F <: SinkOrSource](solverResult: List[(InformationFlowFact, FeatureExpr)], isMatch: (F) => Boolean)(implicit m: Manifest[F]): Traversable[(Opt[AST], List[LiftedCFlowFact[F]])] =
-        solverResult.foldLeft(Map[Opt[AST], List[LiftedCFlowFact[F]]]()) {
+    private def filter[F <: SinkOrSource](solverResult: List[(InformationFlowFact, FeatureExpr)], isMatch: (F) => Boolean)(implicit m: Manifest[F]): Traversable[(CICFGStmt, List[LiftedCFlowFact[F]])] =
+        solverResult.foldLeft(Map[CICFGStmt, List[LiftedCFlowFact[F]]]()) {
             case (map, solution@(s: F, c: FeatureExpr)) if isMatch(s) =>
-                val key = s.stmt
+                val key = s.cICFGStmt
                 // remove duplicate source sinks
                 val value = solution.asInstanceOf[LiftedCFlowFact[F]]
                 map + (key -> (value :: map.getOrElse(key, List())).distinct)

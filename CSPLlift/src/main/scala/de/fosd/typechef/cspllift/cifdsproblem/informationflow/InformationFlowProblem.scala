@@ -8,7 +8,7 @@ import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
 import de.fosd.typechef.cspllift.cifdsproblem.{CIFDSProblem, CZeroFact}
 import de.fosd.typechef.cspllift.commons.WarningsCache
-import de.fosd.typechef.cspllift.{CICFGFDef, CICFGStmt, CInterCFG}
+import de.fosd.typechef.cspllift.{CICFGConcreteStmt, CICFGFDef, CICFGStmt, CInterCFG}
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem._
@@ -60,7 +60,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
             // Note: we ignore the actual file of the declaration as it may be declared in a header file.
             // As variables declared in header files may be included across several files, this way prevents matching errors.
-            if (decls.nonEmpty) decls.map(decl => SourceDefinition(Variable(decl), x, SCOPE_GLOBAL, Some(decl)))
+            if (decls.nonEmpty) decls.map(decl => SourceDefinition(Variable(decl), CICFGConcreteStmt(x), SCOPE_GLOBAL))
             else None
         })
 
@@ -135,8 +135,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         lazy val field = source.getType.asInstanceOf[Struct].field
 
                         if (!currStatementIsAssignment) {
-                            if (field.isDefined && currStructFieldUses.exists(use => isFullFieldMatch(source, use))) GEN(copy :: SinkToUse(currOpt, currSourceDefinition) :: Nil) // use of struct.field
-                            else if (currUses.exists(id.equals)) GEN(copy :: SinkToUse(currOpt, currSourceDefinition) :: Nil) // plain struct use
+                            if (field.isDefined && currStructFieldUses.exists(use => isFullFieldMatch(source, use))) GEN(copy :: SinkToUse(curr, currSourceDefinition) :: Nil) // use of struct.field
+                            else if (currUses.exists(id.equals)) GEN(copy :: SinkToUse(curr, currSourceDefinition) :: Nil) // plain struct use
                             else super.computeTargets(copy)
                         } else {
                             // TODO Document each case
@@ -185,7 +185,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         lazy val varName = source.getType.getName
 
                         if (!currStatementIsAssignment) {
-                            if (currUses.contains(varName)) GEN(SinkToUse(currOpt, currSourceDefinition) :: copy :: Nil)
+                            if (currUses.contains(varName)) GEN(SinkToUse(curr, currSourceDefinition) :: copy :: Nil)
                             else super.computeTargets(copy)
                         } else {
                             val rightHandSide = {
@@ -199,11 +199,11 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 val sourcesOf =
                                     if (isOnlyUsedAsArrayAccess(currSourceDefinition.sourceType.getName, currUses, currASTEnv)) List()
                                     else sources.flatMap {
-                                        case s: Source => Some(SourceDefinitionOf(s.getType, currOpt, currSourceDefinition, s.getScope, Some(currOpt.entry)))
+                                        case s: Source => Some(SourceDefinitionOf(s.getType, curr, currSourceDefinition, s.getScope))
                                         case _ => None
                                     }
 
-                                val sinks = sources.map(genSource => SinkToAssignment(currOpt, currSourceDefinition, genSource.getType.getName))
+                                val sinks = sources.map(genSource => SinkToAssignment(curr, currSourceDefinition, genSource.getType.getName))
 
                                 GEN(sourcesOf ::: sinks)
                             }
@@ -284,8 +284,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                     callParamToDefParam._2.flatMap(dstPDef => {
                                         val assignee = dstPDef.entry.decl.getId
                                         val sources = singleVisitOnSourceTypes(assignee, destinationVarEnv.varEnv, genStructSource(SCOPE_LOCAL), genVarSource(SCOPE_LOCAL))
-                                        val sourcesOf = sources.map(cs => SourceDefinitionOf(cs.getType, cs.getStmt, currSourceDefinition, cs.getScope, cs.getPreviousStmt))
-                                        val sink = SinkToAssignment(currOpt, currSourceDefinition, assignee)
+                                        val sourcesOf = sources.map(cs => SourceDefinitionOf(cs.getType, cs.getCIFGStmt, currSourceDefinition, cs.getScope))
+                                        val sink = SinkToAssignment(callStmt, currSourceDefinition, assignee)
 
                                         sink :: sources ::: sourcesOf
                                     })
@@ -296,8 +296,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                         val sources = singleVisitOnSourceTypes(assignee, destinationVarEnv.varEnv, genStructSource(SCOPE_LOCAL), genVarSource(SCOPE_LOCAL)) // sources of parent
                                         // copy field source
                                         val fieldSources = sources.map(parentSource => parentSource.copy(sourceType = Struct(assignee, structField)))
-                                        val sourcesOf = fieldSources.map(cs => SourceDefinitionOf(cs.getType, cs.getStmt, currSourceDefinition, cs.getScope, cs.getPreviousStmt))
-                                        val sink = SinkToAssignment(currOpt, currSourceDefinition, assignee)
+                                        val sourcesOf = fieldSources.map(cs => SourceDefinitionOf(cs.getType, cs.getCIFGStmt, currSourceDefinition, cs.getScope))
+                                        val sink = SinkToAssignment(callStmt, currSourceDefinition, assignee)
 
                                         sink :: fieldSources ::: sourcesOf
                                     })
@@ -321,9 +321,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 callParamMatch._1.foldLeft(List[InformationFlowFact]())((genSrc, expr) =>
                                     callParamMatch._2.foldLeft(genSrc)((genSrc, pDef) => {
                                         val assignee = pDef.entry.decl.getId
-                                        val genSource = SourceDefinition(Variable(assignee), currOpt, SCOPE_LOCAL, Some(currOpt.entry))
-                                        val sourceOf = SourceDefinitionOf(Variable(assignee), currOpt, currSourceDefinition, SCOPE_LOCAL, Some(currOpt.entry))
-                                        val sink = SinkToAssignment(currOpt, currSourceDefinition, assignee)
+                                        val genSource = SourceDefinition(Variable(assignee), callStmt, SCOPE_LOCAL)
+                                        val sourceOf = SourceDefinitionOf(Variable(assignee), callStmt, currSourceDefinition, SCOPE_LOCAL)
+                                        val sink = SinkToAssignment(callStmt, currSourceDefinition, assignee)
                                         genSource :: sourceOf :: sink :: genSrc
                                     })))
 
@@ -421,9 +421,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                     case x if structName.equals(x) =>
                                         val assignee = assignment._1
                                         val scope = SCOPE_LOCAL // TODO Correct Scoping
-                                    val newSource = SourceDefinition(Struct(assignee, structField), fCallOpt, scope, Some(currOpt.entry))
-                                        val sourceOf = SourceDefinitionOf(Struct(assignee, structField), fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
-                                        val sink = SinkToAssignment(fCallOpt, currSourceDefinition, assignee)
+                                    val newSource = SourceDefinition(Struct(assignee, structField), callSite, scope)
+                                        val sourceOf = SourceDefinitionOf(Struct(assignee, structField), callSite, currSourceDefinition, scope)
+                                        val sink = SinkToAssignment(callSite, currSourceDefinition, assignee)
                                         List(newSource, sourceOf, sink)
                                     case _ => None
                                 }))
@@ -452,14 +452,14 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                                 val sources = sourceType.flatMap { st =>
                                     scopes.flatMap(scope => {
-                                        val newSource = SourceDefinition(st, fCallOpt, scope, Some(currOpt.entry))
-                                        val sourceOf = SourceDefinitionOf(st, fCallOpt, currSourceDefinition, scope, Some(currOpt.entry))
+                                        val newSource = SourceDefinition(st, callSite, scope)
+                                        val sourceOf = SourceDefinitionOf(st, callSite, currSourceDefinition, scope)
                                         newSource :: sourceOf :: Nil
                                     })
 
                                 }
 
-                                val sink = SinkToAssignment(fCallOpt, currSourceDefinition, assignee)
+                                val sink = SinkToAssignment(callSite, currSourceDefinition, assignee)
                                 sink :: sources
                             case _ => None
                         }))
@@ -561,18 +561,18 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         def getSinksAndSourcesOf(currSourceDefinition: SourceDefinition, sources: List[SourceDefinition]): List[InformationFlowFact] = {
             val sourcesOf = sources.flatMap {
-                case s: Source => Some(SourceDefinitionOf(s.getType, currOpt, currSourceDefinition, s.getScope, Some(currOpt.entry)))
+                case s: Source => Some(SourceDefinitionOf(s.getType, curr, currSourceDefinition, s.getScope))
                 case _ => None
             }
 
-            val sinks = sources.map(genSource => SinkToAssignment(currOpt, currSourceDefinition, genSource.getType.getName))
+            val sinks = sources.map(genSource => SinkToAssignment(curr, currSourceDefinition, genSource.getType.getName))
 
             sourcesOf ::: sinks
         }
 
-        protected def genVarSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Variable(define), currOpt, scope, Some(currOpt.entry)))
+        protected def genVarSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Variable(define), curr, scope))
 
-        protected def genStructSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Struct(define, None), currOpt, scope, Some(currOpt.entry)))
+        protected def genStructSource(scope: Int)(define: Id): List[SourceDefinition] = List(SourceDefinition(Struct(define, None), curr, scope))
 
         def genSourceForField(field: Id, parents: List[Id], scopes: List[Int]): List[SourceDefinition] = {
             val fieldSources = genFieldSource(field, parents)
@@ -582,7 +582,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
             val result = fieldSources.map(cFieldSource =>
                 parentSources.foldLeft(cFieldSource) {
-                    case (fieldSource, s: Source) => SourceDefinition(Struct(s.getType.getName, Some(fieldSource)), s.getStmt, s.getScope, s.getPreviousStmt)
+                    case (fieldSource, s: Source) => SourceDefinition(Struct(s.getType.getName, Some(fieldSource)), s.getCIFGStmt, s.getScope)
                     case (fieldSource, _) => fieldSource
                 })
 

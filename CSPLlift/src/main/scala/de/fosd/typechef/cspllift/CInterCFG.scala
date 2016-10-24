@@ -78,7 +78,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         filterAllASTElems[FunctionDef](cInterCFGElementsCacheEnv.startTUnit) filter {
             fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase)
         } map {
-            fdef => CICFGFDef(Opt(getASTEnv(fdef).featureExpr(fdef), fdef), fdef.getPositionFrom)
+            fdef => CICFGFDef(Opt(getASTEnv(fdef).featureExpr(fdef), fdef))
         }
 
     override def getFeatureModel = fm
@@ -129,7 +129,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     override def getMethodOf(node: CICFGStmt): CICFGFDef = {
         val env = getASTEnv(node)
         findPriorASTElem[FunctionDef](node.getStmt.entry, env) match {
-            case Some(f: FunctionDef) => CICFGFDef(Opt(env.featureExpr(f), f), f.getPositionFrom)
+            case Some(f: FunctionDef) => CICFGFDef(Opt(env.featureExpr(f), f))
             case _ => throw new NoSuchElementException("No prior function found for node: " + node)
         }
     }
@@ -238,7 +238,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         succs.asJava
     }
 
-    private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)), cICFGStmt.getPosition)
+    private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
 
 
     override def getPredsOf(cICFGStmt: CICFGStmt): util.List[CICFGStmt] = {
@@ -247,13 +247,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         preds.asJava
     }
 
-    private def getPredsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)), cICFGStmt.getPosition)
+    private def getPredsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
 
-    private def getCFGElements(elements : CFG, fallbackPosition : Position) : List[CICFGStmt] = {
+    private def getCFGElements(elements : CFG) : List[CICFGStmt] = {
         elements.filter {
             case Opt(_, f: FunctionDef) => false
             case x => x.condition.isSatisfiable(fm)
-        }.map(element => CICFGConcreteStmt(element, replaceMacroFileLocation(element.entry.getPositionFrom, fallbackPosition)))
+        }.map(element => CICFGConcreteStmt(element))
     }
 
     private def replaceMacroFileLocation(position: Position, fallBack: Position): Position = if (position.getFile.endsWith(".h")) fallBack else position
@@ -306,13 +306,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
             return {
                 val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
-                List(CICFGFDef(pseudoCall, pseudoCall.entry.getPositionFrom))
+                List(CICFGFDef(pseudoCall))
             }
 
         def findCalleeInTunit(tunit: TranslationUnit) = {
             tunit.defs.flatMap {
                 case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(dstCond).isSatisfiable(getFeatureModel) =>
-                    Some(CICFGFDef(Opt(ft.and(dstCond), f), f.getPositionFrom))
+                    Some(CICFGFDef(Opt(ft.and(dstCond), f)))
                 case _ => None
             }
         }
@@ -342,7 +342,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => None
         }
 
-    private def getPresenceNode(node: AST): CICFGStmt = CICFGConcreteStmt(Opt(getASTEnv(node).featureExpr(node), node), node.getPositionFrom)
+    private def getPresenceNode(node: AST): CICFGStmt = CICFGConcreteStmt(Opt(getASTEnv(node).featureExpr(node), node))
 
     private def getFunctionPointerDestNames(pointer: Expr): List[Opt[String]] = {
         val pointerNode = getPresenceNode(pointer)
