@@ -65,6 +65,8 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
       * @return the correct points to flow constraint
       */
     def getPointsToCondition(callSite: N, callee: M): FeatureExpr
+
+    def getFlowCondition(currStmt: N, succStmt: N) : FeatureExpr
 }
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
@@ -85,8 +87,18 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     override def getOptions = options
 
-    // undocumented function call to cifg from spllift -> gets current flow condition
     override def getCondition(node: CICFGStmt): FeatureExpr = node.getStmt.condition
+
+    override def getFlowCondition(currStmt: CICFGStmt, succStmt: CICFGStmt): FeatureExpr = succStmt.getStmt.condition.and(currStmt.getStmt.condition)
+
+    override def getPointsToCondition(callSite: CICFGStmt, callee: CICFGFDef): FeatureExpr = {
+        val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
+
+        val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
+        val calleeCond = pointsTo.getStmt.condition
+
+        calleeCond.and(callCond)
+    }
 
     override def getASTEnv(node: CICFGStmt): ASTEnv = getASTEnv(node.getStmt.entry)
 
@@ -112,15 +124,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
         }
 
-    override def getPointsToCondition(callSite: CICFGStmt, callee: CICFGFDef): FeatureExpr = {
-        val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
-
-        val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
-        val calleeCond = pointsTo.getStmt.condition
-
-        calleeCond.and(callCond)
-    }
-
     /**
       * Returns the method containing a node.
       *
@@ -144,8 +147,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def getCallersOf(m: CICFGFDef): util.Set[CICFGStmt] =
     throw new UnsupportedOperationException("HIT TODO FUNCTION!")
-
-    // TODO
 
     /**
       * Returns all statements to which a call could return.

@@ -15,6 +15,7 @@ case class Struct(name: Id, field: Option[Source]) extends SourceType(name)
 case class Variable(name: Id) extends SourceType(name)
 
 sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CICFGStmt, scope: Int) extends SinkOrSource(cICFGStmt) {
+
     def getScope = scope
 
     def getType : SourceType = sourceType
