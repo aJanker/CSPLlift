@@ -140,7 +140,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 
 	private boolean recordEdges;
 
-	private static CacheBuilder<Object, Object> getDefaultCacheBuilder(IDETabulationProblem tabulationProblem) {
+	private static CacheBuilder<Object, Object> getFlowFunctionsCache(IDETabulationProblem tabulationProblem) {
 		return tabulationProblem.cacheFlowFunctions() ? DEFAULT_CACHE_BUILDER : null;
 	}
 
@@ -149,7 +149,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 	 * The solver must then be started by calling {@link #solve()}.
 	 */
 	public IDESolver(IDETabulationProblem<N,D,M,V,I> tabulationProblem) {
-		this(tabulationProblem, getDefaultCacheBuilder(tabulationProblem), getDefaultCacheBuilder(tabulationProblem));
+		this(tabulationProblem, getFlowFunctionsCache(tabulationProblem), getFlowFunctionsCache(tabulationProblem));
 	}
 
 	/**
@@ -158,7 +158,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 	 * @param flowFunctionCacheBuilder A valid {@link CacheBuilder} or <code>null</code> if no caching is to be used for flow functions.
 	 * @param edgeFunctionCacheBuilder A valid {@link CacheBuilder} or <code>null</code> if no caching is to be used for edge functions.
 	 */
-	public IDESolver(IDETabulationProblem<N,D,M,V,I> tabulationProblem, @SuppressWarnings("rawtypes") CacheBuilder flowFunctionCacheBuilder, @SuppressWarnings("rawtypes") CacheBuilder edgeFunctionCacheBuilder) {
+	private IDESolver(IDETabulationProblem<N,D,M,V,I> tabulationProblem, @SuppressWarnings("rawtypes") CacheBuilder flowFunctionCacheBuilder, @SuppressWarnings("rawtypes") CacheBuilder edgeFunctionCacheBuilder) {
 		if(logger.isDebugEnabled()) {
 			if(flowFunctionCacheBuilder != null)
 				flowFunctionCacheBuilder = flowFunctionCacheBuilder.recordStats();

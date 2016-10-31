@@ -8,7 +8,7 @@ import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
 import de.fosd.typechef.cspllift.cifdsproblem.{CIFDSProblem, CZeroFact}
 import de.fosd.typechef.cspllift.commons.WarningsCache
-import de.fosd.typechef.cspllift.{CICFGConcreteStmt, CICFGFDef, CICFGStmt, CInterCFG}
+import de.fosd.typechef.cspllift.{CICFGFDef, CICFGStmt, CInterCFG}
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem._
@@ -44,7 +44,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
     private def globalsAsInitialSeeds(fDef: CICFGFDef): util.Set[InformationFlowFact] = GEN(globalsAsInitialSeedsL(fDef) :+ zeroValue())
 
     private def globalsAsInitialSeedsL(fDef: CICFGFDef): List[InformationFlowFact] = {
-        val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
+        /*val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
             // Ignore function and typedef definitions
             case Opt(_, f: FunctionDef) => true //
             case Opt(_, d: Declaration) =>
@@ -64,7 +64,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             else None
         })
 
-        globalInfoFlowFacts
+        globalInfoFlowFacts */
         List()
     }
 
