@@ -5,23 +5,43 @@ import java.io.{File, FileWriter}
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SourceDefinition}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{AST, TranslationUnit}
 
+import scala.collection.GenTraversable
+
 
 object TaintCheck {
 
-    def check(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+    private val taintedSource = "secret"
+
+    def checkAES(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+        val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)
+        val solution = check(cInterCFG)
+        val allSinks = InformationFlow.allSinks(solution)
+
+        val taintedSinks = getSinksFromTaintedSource(taintedSource, allSinks)
+        val sinksWithTaintedSource = getSinksWithTaintedSourceEntry(taintedSinks, taintedSource)
+
+        writeReachingGraph(taintedSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir, "_reach.flow.dot")
+        writeStmtFlowGraph(taintedSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir)
+        writeTaintFlowGraph(sinksWithTaintedSource, cInterCFG, opt.getInformationFlowGraphsOutputDir)
+
+        println("#static taint analysis with spllift - result")
+
+        println("\n#sinks")
+        println(InformationFlow.prettyPrintSinks(taintedSinks))
+    }
+
+    def checkAll(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
 
         val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)
 
-        val (_, (solution)) = StopWatch.measureUserTime("taint_lift", {
-            val problem = new InformationFlowProblem(cInterCFG)
-            CSPLlift.solve(problem, printWarnings = true)
-        })
+        val solution = check(cInterCFG)
 
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled)
             writeExplodedSuperCallGraph(opt)
@@ -42,23 +62,42 @@ object TaintCheck {
         println("#static taint analysis with spllift - finished")
     }
 
-    def checkSource(taintedSource: String, sinks: Traversable[StmtFlowFacts[Sink]]): Traversable[StmtFlowFacts[Sink]] = {
-        List()
+    def check(cInterCFG : CInterCFG) : List[LiftedCFlowFact[InformationFlowFact]] = {
+        val (_, solution) = StopWatch.measureUserTime("taintCheck", {
+            val problem = new InformationFlowProblem(cInterCFG)
+            CSPLlift.solve(problem)
+        })
+
+        solution
     }
 
-    def checkSink(taintedSink: String, sinks: Traversable[StmtFlowFacts[Sink]]): Traversable[StmtFlowFacts[Sink]] = {
-        List()
+    private def getSinksFromTaintedSource(taintedSource: String, sinks: GenTraversable[StmtFlowFacts[Sink]]): GenTraversable[StmtFlowFacts[Sink]] =
+        sinks.par.filter(_._2.exists(sink => containsName(sink._1, taintedSource)))
+
+    private def getSinksAtTaintedSink(taintedSink: String, sinks: GenTraversable[StmtFlowFacts[Sink]]): GenTraversable[StmtFlowFacts[Sink]] =  List()
+
+    private def getSinksFromTaintedSource(taintedSource: AST, sinks: GenTraversable[StmtFlowFacts[Sink]]): GenTraversable[StmtFlowFacts[Sink]] =
+        sinks.par.filter(_._2.exists(sink => containsAST(sink._1, taintedSource)))
+
+    private def getSinksAtTaintedSink(taintedSink: AST, sinks: GenTraversable[StmtFlowFacts[Sink]]): GenTraversable[StmtFlowFacts[Sink]] =
+        sinks.par.filter {
+            case (stmt, _) => stmt.getASTEntry.equals(taintedSink)
+        }
+
+    private def getSinksWithTaintedSourceEntry(taintedSinks: GenTraversable[(CICFGStmt, List[(Sink, FeatureExpr)])], taintedSource : String) =
+        taintedSinks.par.flatMap(_._2).filter(s => containsName(s._1, taintedSource))
+
+    private def containsName(sink : Sink, name : String) : Boolean = {
+        val sourceName = sink.getOriginId.name
+        sourceName.equalsIgnoreCase(name)
     }
 
-    def checkSource(taintedSource: AST, sinks: Traversable[StmtFlowFacts[Sink]]): Traversable[StmtFlowFacts[Sink]] = {
-        List()
+    private def containsAST(sink : Sink, ast : AST) : Boolean = {
+        val sourceAST= sink.getOriginSource.getCIFGStmt.getASTEntry
+        sourceAST.equals(ast)
     }
 
-    def checkSink(taintedSink: AST, sinks: Traversable[StmtFlowFacts[Sink]]): Traversable[StmtFlowFacts[Sink]] = {
-        List()
-    }
-
-    private def writeStmtFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
+    private def writeStmtFlowGraph(result: GenTraversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
         val sinks = result.toList.flatMap(_._2).filter(p => p._1.source match {
             case _ : SourceDefinition => true
             case _ => false
@@ -67,13 +106,15 @@ object TaintCheck {
         writeFlowGraph(sinks, cICFG, outputDir, "stmtFlow", fileExtension)
     }
 
-    private def writeInfoFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
+    private def writeTaintFlowGraph(result: GenTraversable[(Sink, FeatureExpr)], cICFG : CInterCFG, outputDir: String): Unit = writeFlowGraph(result.toList, cICFG, outputDir, "taint")
+
+    private def writeInfoFlowGraph(result: GenTraversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
         val sinks = result.toList.flatMap(_._2)
 
         writeFlowGraph(sinks, cICFG, outputDir, "infoFlow", fileExtension)
     }
 
-    private def writeReachingGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ".dot"): Unit = {
+    private def writeReachingGraph(result: GenTraversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ".dot"): Unit = {
         checkDir(outputDir)
 
         result.par.zipWithIndex.foreach {
@@ -96,7 +137,7 @@ object TaintCheck {
         }
     }
 
-    private def writeFlowGraph(sinks: List[(Sink, FeatureExpr)], cICFG: CInterCFG, outputDir: String, name: String, fileExtension: String): Unit = {
+    private def writeFlowGraph(sinks: List[(Sink, FeatureExpr)], cICFG: CInterCFG, outputDir: String, name: String = "", fileExtension: String = ".dot"): Unit = {
         checkDir(outputDir)
 
         val writer = new InformationFlowGraphWriter(new FileWriter(new File(outputDir + "/" + name + fileExtension)))

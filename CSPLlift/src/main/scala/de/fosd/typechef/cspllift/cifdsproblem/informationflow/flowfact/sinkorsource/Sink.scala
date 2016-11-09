@@ -32,6 +32,8 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
     }
 
     def getOriginSource : Source = getDefinition(source)
+
+    def getOriginId : Id = getOriginSource.getType.getName
 }
 
 case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {

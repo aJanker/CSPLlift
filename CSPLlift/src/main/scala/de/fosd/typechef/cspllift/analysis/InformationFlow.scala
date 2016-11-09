@@ -9,6 +9,8 @@ import de.fosd.typechef.cspllift.{CICFGStmt, LiftedCFlowFact, StmtFlowFacts}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{EmptyStatement, ForStatement, PrettyPrinter}
 
+import scala.collection.GenTraversable
+
 /**
   * Information-Flow Analysis Filter: retrieves interesting Information-Facts from the solver result set.
   */
@@ -32,8 +34,8 @@ object InformationFlow {
     /**
       * Pretty Printing of Sink Facts.
       */
-    def prettyPrintSinks(sinks: Traversable[StmtFlowFacts[Sink]]): String = prettyPrintSinks(sinks, new StringWriter).toString
-    def prettyPrintSinks(sinks: Traversable[StmtFlowFacts[Sink]], writer: Writer): Writer =
+    def prettyPrintSinks(sinks: GenTraversable[StmtFlowFacts[Sink]]): String = prettyPrintSinks(sinks, new StringWriter).toString
+    def prettyPrintSinks(sinks: GenTraversable[StmtFlowFacts[Sink]], writer: Writer): Writer =
         sinks.foldLeft(writer) {
             (writer, sink) => {
                 sink._1.getStmt.entry match {
