@@ -122,7 +122,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", tunit = prepareAST(tunit))
 
             val pos = new TokenPosition(file, 0, 0, 0)
-            val pseudoSystemFunctionCall = makePseudoSystemFunctionCall(Some(pos, pos))
+            val pseudoSystemFunctionCall = genPseudoSystemFunctionCall(Some(pos, pos))
 
             // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
             tunit =

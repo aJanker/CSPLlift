@@ -64,7 +64,7 @@ trait CFlowConstants extends ASTRewriting {
     lazy val SPLLIFT_CONSTANT_VALUE = "SPLLIFT_CONSTANT_VALUE"
     lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
 
-    def makePseudoSystemFunctionCall(range: Option[(Position, Position)]) : Opt[FunctionDef] = {
+    def genPseudoSystemFunctionCall(range: Option[(Position, Position)]) : Opt[FunctionDef] = {
         val call = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
         val addRange = everywherebu(query[Product] { case a: AST => if (!a.hasPosition) a.range = range})
 
