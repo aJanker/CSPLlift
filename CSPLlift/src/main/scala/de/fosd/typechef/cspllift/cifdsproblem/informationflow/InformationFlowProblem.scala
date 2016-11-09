@@ -135,8 +135,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         lazy val field = source.getType.asInstanceOf[Struct].field
 
                         if (!currStatementIsAssignment) {
-                            if (field.isDefined && currStructFieldUses.exists(use => isFullFieldMatch(source, use))) GEN(copy :: SinkToUse(curr, currSourceDefinition) :: Nil) // use of struct.field
-                            else if (currUses.exists(id.equals)) GEN(copy :: SinkToUse(curr, currSourceDefinition) :: Nil) // plain struct use
+                            if (field.isDefined && currStructFieldUses.exists(use => isFullFieldMatch(source, use))) GEN(copy :: SinkToUse(curr, source) :: Nil) // use of struct.field
+                            else if (currUses.exists(id.equals)) GEN(copy :: SinkToUse(curr, source) :: Nil) // plain struct use
                             else super.computeTargets(copy)
                         } else {
                             // TODO Document each case
@@ -185,7 +185,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                         lazy val varName = source.getType.getName
 
                         if (!currStatementIsAssignment) {
-                            if (currUses.contains(varName)) GEN(SinkToUse(curr, currSourceDefinition) :: copy :: Nil)
+                            if (currUses.contains(varName)) GEN(SinkToUse(curr, source) :: copy :: Nil)
                             else super.computeTargets(copy)
                         } else {
                             val rightHandSide = {
@@ -203,7 +203,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                         case _ => None
                                     }
 
-                                val sinks = sources.map(genSource => SinkToAssignment(curr, currSourceDefinition, genSource.getType.getName))
+                                val sinks = sources.map(genSource => SinkToAssignment(curr, source, genSource.getType.getName))
 
                                 GEN(sourcesOf ::: sinks)
                             }
@@ -285,7 +285,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                         val assignee = dstPDef.entry.decl.getId
                                         val sources = singleVisitOnSourceTypes(assignee, destinationVarEnv.varEnv, genStructSource(SCOPE_LOCAL), genVarSource(SCOPE_LOCAL))
                                         val sourcesOf = sources.map(cs => SourceDefinitionOf(cs.getType, cs.getCIFGStmt, currSourceDefinition, cs.getScope))
-                                        val sink = SinkToAssignment(callStmt, currSourceDefinition, assignee)
+                                        val sink = SinkToAssignment(callStmt, source, assignee)
 
                                         sink :: sources ::: sourcesOf
                                     })
@@ -297,7 +297,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                         // copy field source
                                         val fieldSources = sources.map(parentSource => parentSource.copy(sourceType = Struct(assignee, structField)))
                                         val sourcesOf = fieldSources.map(cs => SourceDefinitionOf(cs.getType, cs.getCIFGStmt, currSourceDefinition, cs.getScope))
-                                        val sink = SinkToAssignment(callStmt, currSourceDefinition, assignee)
+                                        val sink = SinkToAssignment(callStmt, source, assignee)
 
                                         sink :: fieldSources ::: sourcesOf
                                     })
@@ -323,7 +323,8 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                         val assignee = pDef.entry.decl.getId
                                         val genSource = SourceDefinition(Variable(assignee), callStmt, SCOPE_LOCAL)
                                         val sourceOf = SourceDefinitionOf(Variable(assignee), callStmt, currSourceDefinition, SCOPE_LOCAL)
-                                        val sink = SinkToAssignment(callStmt, currSourceDefinition, assignee)
+                                        val sink = SinkToAssignment(callStmt, source, assignee)
+                                        println(sink)
                                         genSource :: sourceOf :: sink :: genSrc
                                     })))
 
@@ -371,7 +372,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 def default(flowFact: InformationFlowFact) =
                     flowFact match {
-                        case s: Sink => KILL
+                        case s: Sink => GEN(s)
                         case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                         case _ => KILL
                     }
@@ -423,7 +424,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                         val scope = SCOPE_LOCAL // TODO Correct Scoping
                                     val newSource = SourceDefinition(Struct(assignee, structField), callSite, scope)
                                         val sourceOf = SourceDefinitionOf(Struct(assignee, structField), callSite, currSourceDefinition, scope)
-                                        val sink = SinkToAssignment(callSite, currSourceDefinition, assignee)
+                                        val sink = SinkToAssignment(callSite, source, assignee)
                                         List(newSource, sourceOf, sink)
                                     case _ => None
                                 }))
@@ -459,7 +460,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                                 }
 
-                                val sink = SinkToAssignment(callSite, currSourceDefinition, assignee)
+                                val sink = SinkToAssignment(callSite, source, assignee)
                                 sink :: sources
                             case _ => None
                         }))
@@ -643,7 +644,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
             flowFact match {
-                case s: Sink => KILL
+                // case s: Sink => KILL
                 case z: Zero => GEN(z)
                 case x => default(x)
             }

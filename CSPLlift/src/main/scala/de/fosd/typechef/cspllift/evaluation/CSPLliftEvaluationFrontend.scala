@@ -5,7 +5,6 @@ import java.io._
 import de.fosd.typechef.cspllift.analysis.{InformationFlow, InformationFlowGraphWriter, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.SinkToAssignment
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
@@ -163,11 +162,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
-        val interestingFacts = coverageFacts.map(x => (x._1.filter(fact => fact._1.isInterestingFact), x._2))
-        val interestingFacts2 = interestingFacts.map(x => (x._1.filter(entry => entry._1 match {
-            case s: SinkToAssignment => s.assignee.name.equalsIgnoreCase("fuck")
-            case _ => false
-        }), x._2))
+        // val interestingFacts = coverageFacts.map(x => (x._1.filter(fact => fact._1.isInterestingFact), x._2))
+
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
         // println(interestingFacts)

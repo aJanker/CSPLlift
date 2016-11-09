@@ -3,16 +3,18 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorso
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.CICFGStmt
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblemOperations
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 
-sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) {
+sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowProblemOperations {
 
     override def isInterestingFact: Boolean = true
 
     override def toText: String = {
-        val from = "\t\tFrom:\t" + source.getType.getName + " at: " + source.getType.getName.getPositionFrom
+        val originSource = getOriginSource
+        val from = "\t\tFrom:\t" + originSource.getType.getName + " at: " + originSource.getType.getName.getPositionFrom
         val stmt = "\t\tSourcestatement:\t" + PrettyPrinter.print(source.getCIFGStmt.getStmt.entry)
         val stmt2 = "\t\tSinkstatement:\t" + PrettyPrinter.print(this.cICFGStmt.getStmt.entry) + this.cICFGStmt.getStmt.entry.getPositionFrom
         from + "\n" + stmt + "\n" + stmt2
@@ -28,6 +30,8 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
 
         source.isEquivalentTo(otherSink.source, configuration) && eqStmt
     }
+
+    def getOriginSource : Source = getDefinition(source)
 }
 
 case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {

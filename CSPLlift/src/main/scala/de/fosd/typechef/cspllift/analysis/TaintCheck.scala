@@ -5,7 +5,7 @@ import java.io.{File, FileWriter}
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.Sink
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SourceDefinition}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
@@ -28,7 +28,9 @@ object TaintCheck {
 
         val allSinks = InformationFlow.allSinks(solution)
 
-        writeReachingGraph(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir, "_flow.dot")
+        writeReachingGraph(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir, "_reach.flow.dot")
+        writeStmtFlowGraph(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir)
+        writeInfoFlowGraph(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir)
 
         println("#static taint analysis with spllift - result")
 
@@ -56,13 +58,27 @@ object TaintCheck {
         List()
     }
 
-    private def writeFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ""): Unit = {
+    private def writeStmtFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
+        checkDir(outputDir)
 
+        val sinks = result.toList.flatMap(_._2).filter(p => p._1.source match {
+            case _ : SourceDefinition => true
+            case _ => false
+        })
+
+        writeFlowGraph(sinks, cICFG, outputDir, "stmtFlow", fileExtension)
     }
 
-    private def writeReachingGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ""): Unit = {
-        val dir = new File(outputDir)
-        if (!dir.exists()) dir.mkdirs()
+    private def writeInfoFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
+        checkDir(outputDir)
+
+        val sinks = result.toList.flatMap(_._2)
+
+        writeFlowGraph(sinks, cICFG, outputDir, "infoFlow", fileExtension)
+    }
+
+    private def writeReachingGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ".dot"): Unit = {
+        checkDir(outputDir)
 
         result.par.zipWithIndex.foreach {
             case (sinks, i) =>
@@ -71,17 +87,35 @@ object TaintCheck {
 
                 // write nodes first
                 val sourceNodes = sinks._2.flatMap(sink => {
-                    val stmts = List(sink._1.cICFGStmt, sink._1.source.getCIFGStmt)
+                    val stmts = List(sink._1.cICFGStmt, sink._1.getOriginSource.getCIFGStmt)
                     stmts.map(getNode(_, cICFG))
                 }).distinct
                 sourceNodes.foreach(writer.writeNode)
 
-                val edges = sinks._2.map(sink => getEdge(sink._1.source.getCIFGStmt, sink._1.cICFGStmt, sink._2, cICFG)).distinct
+                val edges = sinks._2.map(sink => getEdge(sink._1.getOriginSource.getCIFGStmt, sink._1.cICFGStmt, sink._2, cICFG)).distinct
                 edges.foreach(writer.writeEdge)
 
                 writer.writeFooter()
                 writer.close()
         }
+    }
+
+    private def writeFlowGraph(sinks: List[(Sink, FeatureExpr)], cICFG: CInterCFG, outputDir: String, name: String, fileExtension: String): Unit = {
+        val writer = new InformationFlowGraphWriter(new FileWriter(new File(outputDir + "/" + name + fileExtension)))
+        writer.writeHeader()
+
+        // write nodes first
+        val sourceNodes = sinks.flatMap(sink => {
+            val stmts = List(sink._1.cICFGStmt, sink._1.source.getCIFGStmt)
+            stmts.map(getNode(_, cICFG))
+        }).distinct
+        sourceNodes.foreach(writer.writeNode)
+
+        val edges = sinks.map(sink => getEdge(sink._1.getOriginSource.getCIFGStmt, sink._1.cICFGStmt, sink._2, cICFG)).distinct
+        edges.foreach(writer.writeEdge)
+
+        writer.writeFooter()
+        writer.close()
     }
 
     /**
@@ -109,5 +143,11 @@ object TaintCheck {
         SuperCallGraph.write(new InformationFlowGraphWriter(new FileWriter(graphDir + "/callGraph.dot")))
 
         SuperCallGraph.clear()
+    }
+
+    private def checkDir(outputDir: String): Boolean = {
+        val dir = new File(outputDir)
+        if (!dir.exists()) dir.mkdirs()
+        else dir.isDirectory
     }
 }
