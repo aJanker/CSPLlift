@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift.evaluation
 
 import java.io._
 
-import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
+import de.fosd.typechef.cspllift.analysis.{InformationFlow, InformationFlowGraphWriter, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.SinkToAssignment
@@ -123,9 +123,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         println("### results for lifiting ")
         val interestingSamplingFacts_lift = liftedFacts.filter(_._1.isInterestingFact)
 
-        val allLiftSinks = Taint.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
+        val allLiftSinks = InformationFlow.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-        println(Taint.prettyPrintSinks(allLiftSinks))
+        println(InformationFlow.prettyPrintSinks(allLiftSinks))
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
@@ -154,9 +154,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             println("### results for " + config)
             val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
 
-            val allSinks = Taint.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
+            val allSinks = InformationFlow.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-            println(Taint.prettyPrintSinks(allSinks))
+            println(InformationFlow.prettyPrintSinks(allSinks))
 
             (solution, config, wallTime)
         })
@@ -198,8 +198,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
             unmatchedCoverageFacts.foreach(uc => {
                 println("Configuration:\t" + uc._2)
-                val all = Taint.allSinks(uc._1.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
-                println(Taint.prettyPrintSinks(all))
+                val all = InformationFlow.allSinks(uc._1.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
+                println(InformationFlow.prettyPrintSinks(all))
                 /*uc._1.foreach(uc2 => {
                     println("Error:\n" + uc2._1)
                     println

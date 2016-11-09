@@ -2,7 +2,7 @@ package de.fosd.typechef.cspllift
 
 import java.io.{File, FileWriter}
 
-import de.fosd.typechef.cspllift.analysis.{InformationFlowGraphWriter, SuperCallGraph, Taint}
+import de.fosd.typechef.cspllift.analysis.{InformationFlow, InformationFlowGraphWriter, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow._
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.WarningsCache
@@ -35,12 +35,12 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled)
             writeExplodedSuperCallGraph(opt)
 
-        val allSinks = Taint.allSinks(solution)
+        val allSinks = InformationFlow.allSinks(solution)
 
         println("#static taint analysis with spllift - result")
 
         println("\n#sinks")
-        println(Taint.prettyPrintSinks(allSinks))
+        println(InformationFlow.prettyPrintSinks(allSinks))
 
         println("\n#used tunits number:")
         println(cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size + "\n")

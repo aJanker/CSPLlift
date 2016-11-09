@@ -8,8 +8,8 @@ import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.cspllift.{CInterCFG, IFDSProblem}
 import de.fosd.typechef.error.Position
+import de.fosd.typechef.featureexpr.FeatureExprFactory
 import de.fosd.typechef.featureexpr.bdd.True
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 
 import scala.collection.JavaConverters._
@@ -23,13 +23,6 @@ abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProble
       * interface should therefore cache the return value!
       */
     override def interproceduralCFG: CInterCFG = cICFG
-
-    // TODO Comment and explain in Thesis
-    override def zeroValue(): D with CZeroFact
-}
-
-trait CZeroFact {
-    val flowCondition: FeatureExpr
 }
 
 trait CFlowFact extends Cloneable with Product{

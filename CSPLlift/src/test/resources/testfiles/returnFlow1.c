@@ -26,7 +26,7 @@ int main() {
     y = foo(x);
 #endif
 
-
+    int merge;
     sink = y; // Sink of secret @ B&C&E
     return 0;
 }

@@ -4,9 +4,9 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
+import de.fosd.typechef.cspllift.cifdsproblem.CIFDSProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
-import de.fosd.typechef.cspllift.cifdsproblem.{CIFDSProblem, CZeroFact}
 import de.fosd.typechef.cspllift.commons.WarningsCache
 import de.fosd.typechef.cspllift.{CICFGFDef, CICFGStmt, CInterCFG}
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
@@ -81,7 +81,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       */
     private val zeroVal = Zero()
 
-    override def zeroValue(): InformationFlowFact with CZeroFact = zeroVal
+    override def zeroValue(): InformationFlowFact = zeroVal
 
     /**
       * Returns a set of flow functions. Those functions are used to compute data-flow facts
@@ -244,7 +244,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     }
 
                 def getZeroFactWithFlowCondition(zero: Zero): Zero = {
-                    SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition.and(zero.flowCondition)))
+                    SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition))
                     // zero.copy(flowCondition = flowCondition.and(zero.flowCondition))
                     zero
                 }
@@ -371,7 +371,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 def default(flowFact: InformationFlowFact) =
                     flowFact match {
-                        case s: Sink => GEN(s)
+                        case s: Sink => KILL
                         case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                         case _ => KILL
                     }
@@ -643,6 +643,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
             flowFact match {
+                case s: Sink => KILL
                 case z: Zero => GEN(z)
                 case x => default(x)
             }

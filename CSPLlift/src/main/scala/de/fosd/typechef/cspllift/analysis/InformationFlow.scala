@@ -9,7 +9,7 @@ import de.fosd.typechef.cspllift.{CICFGStmt, LiftedCFlowFact}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{EmptyStatement, ForStatement, PrettyPrinter}
 
-object Taint {
+object InformationFlow {
 
     def allSinks(solverResult: List[LiftedCFlowFact[InformationFlowFact]]) = filter[Sink](solverResult, r => true)
 
