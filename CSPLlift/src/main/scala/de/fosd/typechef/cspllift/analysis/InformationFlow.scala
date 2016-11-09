@@ -5,7 +5,7 @@ import java.io.{StringWriter, Writer}
 import de.fosd.typechef.conditional.One
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SinkOrSource, Source}
-import de.fosd.typechef.cspllift.{CICFGStmt, LiftedCFlowFact}
+import de.fosd.typechef.cspllift.{CICFGStmt, LiftedCFlowFact, StmtFlowFacts}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{EmptyStatement, ForStatement, PrettyPrinter}
 
@@ -17,8 +17,8 @@ object InformationFlow {
 
     def allSources(solverResult: List[LiftedCFlowFact[InformationFlowFact]]) = filter[Source](solverResult, s => true)
 
-    def prettyPrintSinks(sinks: Traversable[(CICFGStmt, List[LiftedCFlowFact[Sink]])]): String = prettyPrintSinks(sinks, new StringWriter).toString
-    def prettyPrintSinks(sinks: Traversable[(CICFGStmt, List[LiftedCFlowFact[Sink]])], writer: Writer): Writer =
+    def prettyPrintSinks(sinks: Traversable[StmtFlowFacts[Sink]]): String = prettyPrintSinks(sinks, new StringWriter).toString
+    def prettyPrintSinks(sinks: Traversable[StmtFlowFacts[Sink]], writer: Writer): Writer =
         sinks.foldLeft(writer) {
             (writer, sink) => {
                 sink._1.getStmt.entry match {
@@ -33,7 +33,7 @@ object InformationFlow {
             }
         }
 
-    private def filter[F <: SinkOrSource](solverResult: List[(InformationFlowFact, FeatureExpr)], isMatch: (F) => Boolean)(implicit m: Manifest[F]): Traversable[(CICFGStmt, List[LiftedCFlowFact[F]])] =
+    private def filter[F <: SinkOrSource](solverResult: List[(InformationFlowFact, FeatureExpr)], isMatch: (F) => Boolean)(implicit m: Manifest[F]): Traversable[StmtFlowFacts[F]] =
         solverResult.foldLeft(Map[CICFGStmt, List[LiftedCFlowFact[F]]]()) {
             case (map, solution@(s: F, c: FeatureExpr)) if isMatch(s) =>
                 val key = s.cICFGStmt
