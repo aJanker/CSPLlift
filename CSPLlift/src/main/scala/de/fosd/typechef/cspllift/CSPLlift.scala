@@ -11,7 +11,6 @@ import de.fosd.typechef.parser.c._
 import spllift.SPLIFDSSolver
 
 class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) {
-
     def analyze(opt: CSPLliftOptions) = {
 
         val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
@@ -19,8 +18,6 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         if (opt.liftTaintAnalysis)
             TaintCheck.checkAES(ast, fm, opt, cInterCFGConfiguration)
     }
-
-
 }
 
 object CSPLlift {

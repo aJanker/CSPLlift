@@ -17,7 +17,7 @@ import scala.collection.GenTraversable
 
 object TaintCheck {
 
-    private val taintedSource = "secret"
+    private val taintedSource = "key" // TODO External Parameter
 
     def checkAES(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
         val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)

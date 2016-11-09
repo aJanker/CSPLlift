@@ -72,12 +72,11 @@ int main() {
     #endif
 
     int value2000 = 2;
+
 #ifdef D
     value2000 = secret;
 #endif
     int sink = cipher_do(c, secret);
-
-    //int sink2 = cipher1(secret);
 
     printf("%i\n", sink);
 
