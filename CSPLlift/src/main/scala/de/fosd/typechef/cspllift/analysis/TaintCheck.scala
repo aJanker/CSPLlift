@@ -59,8 +59,6 @@ object TaintCheck {
     }
 
     private def writeStmtFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
-        checkDir(outputDir)
-
         val sinks = result.toList.flatMap(_._2).filter(p => p._1.source match {
             case _ : SourceDefinition => true
             case _ => false
@@ -70,8 +68,6 @@ object TaintCheck {
     }
 
     private def writeInfoFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, name : String = "", fileExtension: String = ".dot"): Unit = {
-        checkDir(outputDir)
-
         val sinks = result.toList.flatMap(_._2)
 
         writeFlowGraph(sinks, cICFG, outputDir, "infoFlow", fileExtension)
@@ -101,6 +97,8 @@ object TaintCheck {
     }
 
     private def writeFlowGraph(sinks: List[(Sink, FeatureExpr)], cICFG: CInterCFG, outputDir: String, name: String, fileExtension: String): Unit = {
+        checkDir(outputDir)
+
         val writer = new InformationFlowGraphWriter(new FileWriter(new File(outputDir + "/" + name + fileExtension)))
         writer.writeHeader()
 

@@ -9,14 +9,29 @@ import de.fosd.typechef.cspllift.{CICFGStmt, LiftedCFlowFact, StmtFlowFacts}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{EmptyStatement, ForStatement, PrettyPrinter}
 
+/**
+  * Information-Flow Analysis Filter: retrieves interesting Information-Facts from the solver result set.
+  */
 object InformationFlow {
 
+    /**
+      * Retrieves all found sinks from the solver result
+      */
     def allSinks(solverResult: List[LiftedCFlowFact[InformationFlowFact]]) = filter[Sink](solverResult, r => true)
 
+    /**
+      * Retrieves all found sinks from the solver result which fulfill a defined property.
+      */
     def findSinks(solverResult: List[LiftedCFlowFact[InformationFlowFact]], isSink: Sink => Boolean) = filter[Sink](solverResult, isSink)
 
+    /**
+      * Retrieves all found source facts from the solver result
+      */
     def allSources(solverResult: List[LiftedCFlowFact[InformationFlowFact]]) = filter[Source](solverResult, s => true)
 
+    /**
+      * Pretty Printing of Sink Facts.
+      */
     def prettyPrintSinks(sinks: Traversable[StmtFlowFacts[Sink]]): String = prettyPrintSinks(sinks, new StringWriter).toString
     def prettyPrintSinks(sinks: Traversable[StmtFlowFacts[Sink]], writer: Writer): Writer =
         sinks.foldLeft(writer) {
@@ -26,9 +41,7 @@ object InformationFlow {
                     case x => writer.append("Sink at:\t" + PrettyPrinter.print(x) + "\tin:\t" + sink._1.getStmt.entry.getPositionFrom + "\n")
                 }
 
-                sink._2.foreach { ssink => writer.append("\tCFGcondition: " + ssink._2.toTextExpr + "\n" +
-                  /*"\tCFGcondition (simplified): " + ssink._2.simplify() + "\n" + */
-                  ssink._1.toText + "\n") }
+                sink._2.foreach { ssink => writer.append("\tCFGcondition: " + ssink._2.toTextExpr + "\n" + ssink._1.toText + "\n") }
                 writer.append("\n")
             }
         }
