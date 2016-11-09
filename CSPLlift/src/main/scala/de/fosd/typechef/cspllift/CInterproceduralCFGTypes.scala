@@ -10,7 +10,7 @@ sealed abstract class CICFGStmt(stmt: Opt[AST]) extends Product {
 
     /**
       * The equality operation for AST elements does not consider the position within the Translation Unit.
-      * However for the IDE-Solver SOOT this behaviour is false: as it distinguishes between cfg nodes with the
+      * However for the IDE-Solver Heros this behaviour is false: as it distinguishes between cfg nodes with the
       * equals operator. However, two different return() statements would return true in the AST implementation of
       * TypeChef. Therefore we are wrapping these elements for Heros.
       */

@@ -8,7 +8,7 @@ import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowPro
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.Sink
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
-import de.fosd.typechef.featureexpr.FeatureModel
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{AST, TranslationUnit}
 
 
@@ -28,7 +28,7 @@ object TaintCheck {
 
         val allSinks = InformationFlow.allSinks(solution)
 
-        writeResultGraphs(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir, "_flow.dot")
+        writeReachingGraph(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir, "_flow.dot")
 
         println("#static taint analysis with spllift - result")
 
@@ -56,7 +56,11 @@ object TaintCheck {
         List()
     }
 
-    private def writeResultGraphs(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ""): Unit = {
+    private def writeFlowGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ""): Unit = {
+
+    }
+
+    private def writeReachingGraph(result: Traversable[StmtFlowFacts[Sink]], cICFG : CInterCFG, outputDir: String, fileExtension: String = ""): Unit = {
         val dir = new File(outputDir)
         if (!dir.exists()) dir.mkdirs()
 
@@ -72,7 +76,7 @@ object TaintCheck {
                 }).distinct
                 sourceNodes.foreach(writer.writeNode)
 
-                val edges = sinks._2.map(sink => getEdge(sink._1.source.getCIFGStmt, sink._1.cICFGStmt, cICFG)).distinct
+                val edges = sinks._2.map(sink => getEdge(sink._1.source.getCIFGStmt, sink._1.cICFGStmt, sink._2, cICFG)).distinct
                 edges.foreach(writer.writeEdge)
 
                 writer.writeFooter()
@@ -91,8 +95,10 @@ object TaintCheck {
         }
     }
 
-    private def getEdge(f: CICFGStmt, t: CICFGStmt, icfg: CInterCFG): Edge[AST] =
-        Edge(getNode(f, icfg), getNode(t, icfg), f.getCondition.and(t.getCondition))
+    private def getEdge(f: CICFGStmt, t: CICFGStmt, icfg: CInterCFG): Edge[AST] = getEdge(f, t, f.getCondition.and(t.getCondition), icfg)
+
+    private def getEdge(f: CICFGStmt, t: CICFGStmt, flowCondition : FeatureExpr, icfg: CInterCFG): Edge[AST] =
+        Edge(getNode(f, icfg), getNode(t, icfg), flowCondition)
 
     private def writeExplodedSuperCallGraph(opt: CSPLliftOptions) : Unit = {
         val graphDir = opt.getInformationFlowGraphsOutputDir
