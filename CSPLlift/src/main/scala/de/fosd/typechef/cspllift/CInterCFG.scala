@@ -194,9 +194,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def isStartPoint(stmt: CICFGStmt): Boolean = {
         val preds = pred(stmt.getStmt.entry, getASTEnv(stmt))
-        if (preds.isEmpty) false
-        else
-            preds.head match {
+        if (preds.isEmpty) true
+        else preds.exists {
                 case Opt(_, f: FunctionDef) => true // check for variability
                 case _ => false
             }
