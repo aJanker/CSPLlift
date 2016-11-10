@@ -10,7 +10,9 @@ import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper {
 
-    // def markForKill() = kill = true
+    //override def equals(obj: scala.Any): Boolean = true
+
+    override def hashCode(): Int = 1
 
     override def isInterestingFact: Boolean = true
 
