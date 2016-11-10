@@ -110,20 +110,30 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 def default(flowFact: InformationFlowFact) = GEN(flowFact)
 
                 new InfoFlowFunction(curr, succ, default) {
+                    var counter = 0
                     override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
-                        flowFact match {
-                            case s: Source => s.getType match {
-                                case _: Variable => computeVariable(s)
-                                case _: Struct => computeStruct(s)
-                                case _ => super.computeTargets(s)
+                        {
+                            counter += 1
+                            if (counter > 100000) {
+                                println
+                                println(curr)
+                                println(succ)
+                                println
                             }
-                            case z: Zero if currAssignments.nonEmpty || currStructFieldAssigns.nonEmpty =>
-                                // gen source for all new assignments
-                                GEN(z :: assignmentSources)
-                            case z: Zero if currDefines.nonEmpty =>
-                                // newly introduced variable or struct
-                                GEN(z :: defineSources)
-                            case x => super.computeTargets(x)
+                            flowFact match {
+                                case s: Source => s.getType match {
+                                    case _: Variable => computeVariable(s)
+                                    case _: Struct => computeStruct(s)
+                                    case _ => super.computeTargets(s)
+                                }
+                                case z: Zero if currAssignments.nonEmpty || currStructFieldAssigns.nonEmpty =>
+                                    // gen source for all new assignments
+                                    GEN(z :: assignmentSources)
+                                case z: Zero if currDefines.nonEmpty =>
+                                    // newly introduced variable or struct
+                                    GEN(z :: defineSources)
+                                case x => super.computeTargets(x)
+                            }
                         }
 
 
