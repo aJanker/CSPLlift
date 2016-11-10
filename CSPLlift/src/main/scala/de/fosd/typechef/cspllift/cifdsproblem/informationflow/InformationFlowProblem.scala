@@ -22,6 +22,16 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
     private var filesWithSeeds: Set[String] = Set()
 
+    private var computedSinks: scala.collection.mutable.Map[Sink, CICFGStmt] = scala.collection.mutable.Map[Sink, CICFGStmt]()
+
+    private def computeSink(s : Sink, stmt : CICFGStmt) : util.Set[InformationFlowFact] = {
+        if (computedSinks.contains(s)) KILL
+        else {
+            computedSinks + (s -> stmt)
+            GEN(s)
+        }
+    }
+
     /**
       * Returns initial seeds to be used for the analysis. This is a mapping of statements to initial analysis facts.
       * We consider global variables as initial sources.
@@ -113,13 +123,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     var counter = 0
                     override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
                         {
-                            counter += 1
-                            if (counter > 100000) {
-                                println
-                                println(curr)
-                                println(succ)
-                                println
-                            }
                             flowFact match {
                                 case s: Source => s.getType match {
                                     case _: Variable => computeVariable(s)
@@ -264,7 +267,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 case _: Struct => computeStruct(s)
                                 case _ => super.computeTargets(s)
                             }
-                            case s : Sink => KILL
+                            case s : Sink => computeSink(s, callStmt)
                             case z: Zero if !initialSeedsExists(destinationMethod.method.entry) =>
                                 // Introduce Global Variables from linked file
                                 filesWithSeeds = filesWithSeeds + destinationMethod.method.entry.getFile.getOrElse("")
@@ -377,7 +380,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 def default(flowFact: InformationFlowFact) =
                     flowFact match {
-                        case s: Sink => GEN(s)
+                        case s: Sink => computeSink(s, exitStmt)
                         case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                         case _ => KILL
                     }
@@ -509,7 +512,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 }
                                 case _ => super.computeTargets(flowFact)
                             }
-                            case _  : Sink => GEN(flowFact)
+                            case s : Sink => computeSink(s, callSite)
                             case _ => super.computeTargets(flowFact)
                         }
                 }
@@ -648,7 +651,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
             flowFact match {
-                case s: Sink => GEN(s)
+                case s: Sink => computeSink(s, curr)
                 case z: Zero => GEN(z)
                 case x => default(x)
             }

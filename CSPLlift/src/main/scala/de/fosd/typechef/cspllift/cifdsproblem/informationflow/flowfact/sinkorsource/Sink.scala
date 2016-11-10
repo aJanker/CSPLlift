@@ -33,14 +33,6 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
         source.isEquivalentTo(otherSink.source, configuration) && eqStmt
     }
 
-   /* override def equals(that: scala.Any): Boolean = {
-        if (!this.canEqual(that)) return false
-
-        val other = that.asInstanceOf[Sink]
-
-        other.cICFGStmt.equals(this.cICFGStmt) && other.source.equals(source)
-    } */
-
     def getOriginSource : Source = getDefinition(source)
 
     def getOriginId : Id = getOriginSource.getType.getName

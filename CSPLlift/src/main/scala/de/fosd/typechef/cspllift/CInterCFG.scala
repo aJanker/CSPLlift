@@ -72,7 +72,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
   extends CInterproceduralCFG[CICFGStmt, CICFGFDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
-    private val cInterCFGNodes = new mutable.HashSet[CICFGStmt]()
+    val cInterCFGNodes = new mutable.HashSet[CICFGStmt]()
 
     override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
