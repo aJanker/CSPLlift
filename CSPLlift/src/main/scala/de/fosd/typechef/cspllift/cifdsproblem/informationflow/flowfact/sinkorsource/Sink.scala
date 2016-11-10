@@ -3,12 +3,14 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorso
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.CICFGStmt
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblemOperations
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowHelper
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 
-sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowProblemOperations {
+sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source, var kill : Boolean = false) extends SinkOrSource(cICFGStmt) with InformationFlowHelper {
+
+    def markForKill() = kill = true
 
     override def isInterestingFact: Boolean = true
 
@@ -34,7 +36,9 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
     override def equals(that: scala.Any): Boolean = {
         if (!this.canEqual(that)) return false
 
-        super.equals(that)
+        val other = that.asInstanceOf[Sink]
+
+        other.cICFGStmt.equals(this.cICFGStmt) && other.source.equals(source)
     }
 
     def getOriginSource : Source = getDefinition(source)
