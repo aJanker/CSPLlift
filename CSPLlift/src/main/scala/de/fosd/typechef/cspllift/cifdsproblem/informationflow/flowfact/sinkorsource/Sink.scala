@@ -31,9 +31,16 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
         source.isEquivalentTo(otherSink.source, configuration) && eqStmt
     }
 
+    override def equals(that: scala.Any): Boolean = {
+        if (!this.canEqual(that)) return false
+
+        super.equals(that)
+    }
+
     def getOriginSource : Source = getDefinition(source)
 
     def getOriginId : Id = getOriginSource.getType.getName
+
 }
 
 case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {
@@ -46,6 +53,8 @@ case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val sour
 
         assignee.equals(otherSink.assignee) && super.isEquivalentTo(other, configuration)
     }
+
+    override def canEqual(that: Any): Boolean = that.isInstanceOf[SinkToAssignment]
 }
 
 case class SinkToUse(override val cICFGStmt: CICFGStmt, override val source: Source) extends Sink(cICFGStmt, source) {
@@ -54,4 +63,6 @@ case class SinkToUse(override val cICFGStmt: CICFGStmt, override val source: Sou
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[SinkToUse]) false
         else super.isEquivalentTo(other, configuration)
+
+    override def canEqual(that: Any): Boolean = that.isInstanceOf[SinkToUse]
 }
