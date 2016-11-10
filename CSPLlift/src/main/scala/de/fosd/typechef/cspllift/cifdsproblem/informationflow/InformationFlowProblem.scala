@@ -638,7 +638,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
             flowFact match {
-                case s: Sink => if (interproceduralCFG.isStartPoint(curr)) GEN(s) else KILL
+                case s: Sink => GEN(s)
                 case z: Zero => GEN(z)
                 case x => default(x)
             }
