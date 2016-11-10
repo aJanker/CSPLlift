@@ -18,7 +18,7 @@ import scala.collection.JavaConverters._
 
 class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlowFact](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {
 
-    private val computedSinks: scala.collection.mutable.Map[Sink, CICFGStmt] = scala.collection.mutable.Map[Sink, CICFGStmt]()
+    private val computedSinks: scala.collection.mutable.Map[Sink, List[CICFGStmt]] = scala.collection.mutable.Map[Sink, CICFGStmt]()
     /**
       * This must be a data-flow fact of type {@link D}, but must <i>not</i>
       * be part of the domain of data-flow facts. Typically this will be a
@@ -503,11 +503,15 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
     private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = {
         def add() = {
-            computedSinks + (s -> stmt)
+            computedSinks + (s -> (stmt :: computedSinks.getOrElse(s, List())))
             GEN(s)
         }
 
-        if (computedSinks.contains(s)) KILL
+        if (computedSinks.contains(s)) {
+            val stmts = computedSinks.getOrElse(s, List())
+            if (stmts.exists(_.getCondition.equivalentTo(stmt.getCondition))) KILL
+            else add()
+        }
         else add()
     }
 
