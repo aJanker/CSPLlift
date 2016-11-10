@@ -5,6 +5,7 @@ import java.util
 import java.util.zip.GZIPOutputStream
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.cspllift.CICFGFDef
 import de.fosd.typechef.customization.crewrite.AssignDeclDefUse
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, _}
@@ -71,6 +72,7 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
         (group.reverse :: groups).reverse
     }
 
+    def getFDefParameters(fDef: CICFGFDef): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.method)
     def getFDefParameters(fDef: Opt[FunctionDef]): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.entry)
     def getFDefParameters(fDef: FunctionDef): List[Opt[ParameterDeclarationD]] =
         fDef.declarator.extensions.flatMap {
@@ -82,6 +84,7 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
             case _ => None
         }
 
+    def getPointerFDefParamNames(fDef: CICFGFDef): List[Opt[Id]] = getPointerFDefParamNames(fDef.method)
     def getPointerFDefParamNames(fDef: Opt[FunctionDef]): List[Opt[Id]] = getPointerFDefParamNames(fDef.entry)
     def getPointerFDefParamNames(fDef: FunctionDef): List[Opt[Id]] = {
         def andAll(a: FeatureExpr, b: Opt[_]): FeatureExpr = a.and(b.condition)

@@ -18,7 +18,9 @@ import scala.collection.JavaConverters._
 
 class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlowFact](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {
 
-    private val computedSinks: scala.collection.mutable.Map[Sink, List[CICFGStmt]] = scala.collection.mutable.Map[Sink, List[CICFGStmt]]()
+    private var computedSinks: scala.collection.mutable.Map[Sink, List[CICFGStmt]] = scala.collection.mutable.Map[Sink, List[CICFGStmt]]()
+    private var killCount: scala.collection.mutable.Map[Sink, Int] = scala.collection.mutable.Map[Sink, Int]()
+    private var killCount2: scala.collection.mutable.Map[CICFGStmt, Int] = scala.collection.mutable.Map[CICFGStmt, Int]()
     /**
       * This must be a data-flow fact of type {@link D}, but must <i>not</i>
       * be part of the domain of data-flow facts. Typically this will be a
@@ -503,13 +505,27 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
     private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = {
         def add() = {
-            computedSinks + (s -> (stmt :: computedSinks.getOrElse(s, List())))
+            computedSinks += (s -> (stmt :: computedSinks.getOrElse(s, List())))
             GEN(s)
         }
 
+        killCount2 += (stmt -> (1 + killCount2.getOrElse(stmt, 0)))
+
+        /*if (killCount2.get(stmt).get > 10) {
+            println(stmt)
+        } */
+
         if (computedSinks.contains(s)) {
             val stmts = computedSinks.getOrElse(s, List())
-            if (stmts.exists(_.getCondition.equivalentTo(stmt.getCondition))) KILL
+            if (stmts.exists(_.getCondition.equivalentTo(stmt.getCondition))) {
+                killCount2 += (stmt -> (1 + killCount2.getOrElse(stmt, 0)))
+                killCount += (s -> (1 + killCount.getOrElse(s, 0)))
+                if (killCount.get(s).get > 10) {
+                    println(s)
+                }
+
+                KILL
+            }
             else add()
         }
         else add()
