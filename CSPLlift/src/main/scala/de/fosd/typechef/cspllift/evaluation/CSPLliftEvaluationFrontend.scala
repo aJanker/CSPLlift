@@ -196,17 +196,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                 println("Configuration:\t" + uc._2)
                 val all = InformationFlow.allSinks(uc._1.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
                 println(InformationFlow.prettyPrintSinks(all))
-                /*uc._1.foreach(uc2 => {
-                    println("Error:\n" + uc2._1)
-                    println
-                    println(uc2._1.toText)
-                }) */
-
                 println("###\n")
             })
         } else println("\n### All condition coverage results were covered by the lifted approach!")
-
-        // println(coverageFacts)
 
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }

@@ -18,7 +18,7 @@ import scala.collection.JavaConverters._
 
 class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlowFact](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {
 
-    private val computedSinks: scala.collection.mutable.Map[Sink, List[CICFGStmt]] = scala.collection.mutable.Map[Sink, CICFGStmt]()
+    private val computedSinks: scala.collection.mutable.Map[Sink, List[CICFGStmt]] = scala.collection.mutable.Map[Sink, List[CICFGStmt]]()
     /**
       * This must be a data-flow fact of type {@link D}, but must <i>not</i>
       * be part of the domain of data-flow facts. Typically this will be a
