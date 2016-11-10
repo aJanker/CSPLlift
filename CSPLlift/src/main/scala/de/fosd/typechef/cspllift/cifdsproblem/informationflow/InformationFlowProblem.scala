@@ -367,7 +367,10 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 def default(flowFact: InformationFlowFact) =
                     flowFact match {
-                        case s: Sink => GEN(s)
+                        case s: Sink => {
+                            s.markForKill()
+                            GEN(s)
+                        }
                         case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                         case _ => KILL
                     }
@@ -639,10 +642,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
         override def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact] =
             flowFact match {
                 case s : Sink if s.kill => KILL
-                case s: Sink => {
-                    s.markForKill()
-                    GEN(s)
-                }
+                case s: Sink => GEN(s)
                 case z: Zero => GEN(z)
                 case x => default(x)
             }
