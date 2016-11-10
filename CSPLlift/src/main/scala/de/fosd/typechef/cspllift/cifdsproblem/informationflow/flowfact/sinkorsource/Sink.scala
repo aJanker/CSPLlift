@@ -8,9 +8,9 @@ import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 
-sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source, var kill : Boolean = false) extends SinkOrSource(cICFGStmt) with InformationFlowHelper {
+sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper {
 
-    def markForKill() = kill = true
+    // def markForKill() = kill = true
 
     override def isInterestingFact: Boolean = true
 
@@ -33,13 +33,13 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
         source.isEquivalentTo(otherSink.source, configuration) && eqStmt
     }
 
-    override def equals(that: scala.Any): Boolean = {
+   /* override def equals(that: scala.Any): Boolean = {
         if (!this.canEqual(that)) return false
 
         val other = that.asInstanceOf[Sink]
 
         other.cICFGStmt.equals(this.cICFGStmt) && other.source.equals(source)
-    }
+    } */
 
     def getOriginSource : Source = getDefinition(source)
 
