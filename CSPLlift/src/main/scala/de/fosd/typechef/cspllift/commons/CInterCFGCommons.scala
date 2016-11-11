@@ -1,6 +1,6 @@
 package de.fosd.typechef.cspllift.commons
 
-import java.io.{FileOutputStream, PrintWriter}
+import java.io.{File, FileOutputStream, PrintWriter}
 import java.util
 import java.util.zip.GZIPOutputStream
 
@@ -29,12 +29,13 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
     def getPlainFileName(ast: AST, default: String = "NOFILENAME_AST"): String = getPlainFileNameS(ast.getFile.getOrElse(default))
 
     def getPlainFileNameS(str: String, default: String = "NOFILENAME"): String = {
-        val regex = """^(([^/]+/)*)(([^/.]+)\..+)""".r
         val filePrefix = "file "
-        str match {
-            case regex(m1, m2, m3, m4) => if (m4.startsWith(filePrefix)) m4.substring(filePrefix.length) else m4
-            case _ => default
-        }
+        val prefixFree = if (str.startsWith(filePrefix)) str.substring(filePrefix.length) else str
+        val index = prefixFree.lastIndexOf(File.separatorChar)
+        val fName = prefixFree.substring(index + 1)
+        val extensionIndex = fName.lastIndexOf('.')
+        val res = fName.substring(0, extensionIndex)
+        res
     }
 
     /*

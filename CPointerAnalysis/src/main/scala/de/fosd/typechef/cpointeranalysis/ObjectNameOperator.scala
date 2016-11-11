@@ -1,5 +1,6 @@
 package de.fosd.typechef.cpointeranalysis
 
+import java.io.File
 import java.util.regex.Pattern
 
 import de.fosd.typechef.parser.c.AST
@@ -54,12 +55,13 @@ trait PointerContext extends Serializable {
     def extractFilename(ast: AST, default: String = "NOFILENAME"): String = extractFilenameS(ast.getFile.getOrElse(default))
 
     def extractFilenameS(str: String, default: String = "NOFILENAME"): String = {
-        val regex = """^(([^/]+/)*)(([^/.]+)\..+)""".r
         val filePrefix = "file "
-        str match {
-            case regex(m1, m2, m3, m4) => if (m4.startsWith(filePrefix)) m4.substring(filePrefix.length) else m4
-            case _ => default
-        }
+        val prefixFree = if (str.startsWith(filePrefix)) str.substring(filePrefix.length) else str
+        val index = prefixFree.lastIndexOf(File.separatorChar)
+        val fName = prefixFree.substring(index + 1)
+        val extensionIndex = fName.lastIndexOf('.')
+        val res = fName.substring(0, extensionIndex)
+        res
     }
 }
 
