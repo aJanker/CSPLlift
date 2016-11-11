@@ -307,7 +307,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 def default(flowFact: InformationFlowFact) =
                     flowFact match {
-                        case s: Sink => computeSink(s, exitStmt)
                         case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
                         case _ => KILL
                     }
@@ -330,6 +329,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 new InfoFlowFunction(exitStmt, callSite, default) {
                     override def computeFlowFact(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
                         val result = flowFact match {
+                            case s: Sink => GEN(s)
                             case s: Source => s.getType match {
                                 case _: Variable => computeVariable(s)
                                 case _: Struct => computeStruct(s)
@@ -500,7 +500,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       */
     override def flowFunctions(): FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] = cachedFlowFunctions
 
-    private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = GEN(s)
+    private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = KILL
 
     private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
         val destinationMethodFile = destinationMethod.getFile.getOrElse("")
