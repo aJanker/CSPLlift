@@ -94,7 +94,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit = super.prepareAST(tunit)
 
         tunit = removeStmtVariability(tunit, fm)
-        // tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
+        tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
         // tunit = addReturnStmtsForNonReturnExits(tunit, fm)
 
@@ -192,18 +192,19 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     def isNameKnown(name: Opt[String]): Boolean =
         cModuleInterface match {
-            case None => false
             case Some(interface) => interface.isNameKnown(name.entry)
+            case _ => false
         }
 
     def getNameLocations(name: Opt[String]): Option[List[String]] =
         cModuleInterface match {
-            case None => None
             case Some(interface) =>
                 interface.getPositions(name.entry) match {
                     case None => None
                     case Some(pos) => Some(pos.map(_.getFile))
                 }
+            case _ => None
+
         }
 
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {

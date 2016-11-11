@@ -196,7 +196,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 case _: Struct => computeStruct(s)
                                 case _ => super.defaultComputeFlowFact(s)
                             }
-                            //case s: Sink => GEN(s)
                             case z: Zero if !initialSeedsExists(destinationMethod.method.entry) =>
                                 // Introduce Global Variables from linked file
                                 filesWithSeeds = filesWithSeeds + destinationMethod.method.entry.getFile.getOrElse("")

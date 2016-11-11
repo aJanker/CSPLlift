@@ -31,7 +31,7 @@ trait InformationFlowConfiguration extends SolverConfiguration with InformationF
       *
       * @see #zeroValue()
       */
-    override def autoAddZero(): Boolean =  false
+    override def autoAddZero(): Boolean =  true
 
     /**
       * Returns true if the solver should record the intermediate flow edges
