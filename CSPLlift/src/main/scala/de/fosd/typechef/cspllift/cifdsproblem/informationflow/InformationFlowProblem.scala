@@ -510,8 +510,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
     }
 
     private abstract class InfoFlowFunction(curr: CICFGStmt, succ: CICFGStmt, default: InformationFlowFact => util.Set[InformationFlowFact]) extends FlowFunction[InformationFlowFact] {
-        private var generatedSinks: scala.collection.mutable.Set[Sink] = scala.collection.mutable.Set()
-
         lazy val currStmt = curr.getStmt
         lazy val succStmt = succ.getStmt
 
