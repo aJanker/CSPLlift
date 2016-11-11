@@ -194,6 +194,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
             unmatchedCoverageFacts.foreach(uc => {
                 println("Configuration:\t" + uc._2)
+                println(configs.indexOf(uc._2))
                 val all = InformationFlow.allSinks(uc._1.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
                 println(InformationFlow.prettyPrintSinks(all))
                 println("###\n")
