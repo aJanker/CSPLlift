@@ -99,7 +99,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         // tunit = addReturnStmtsForNonReturnExits(tunit, fm)
 
         if (options.getConfiguration.isDefined)
-            tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
+            tunit = ProductDerivation.deriveProduct(ProductDerivation.deriveProduct(tunit, options.getTrueSet.get), options.getTrueSet.get)
 
         checkPositionInformation(tunit)
 
