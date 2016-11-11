@@ -63,7 +63,7 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Feature
                 }
 
                 private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGStmt src, CICFGStmt successor, FeatureExpr pointsToflowCondition) {
-                    FeatureExpr cfgCondition = icfg.getFlowCondition(src, successor);
+                    FeatureExpr cfgCondition = icfg.getFlowCondition(src, src); // TODO: Test corner cases
 
                     if (pointsToflowCondition != null)
                         cfgCondition = cfgCondition.and(pointsToflowCondition);

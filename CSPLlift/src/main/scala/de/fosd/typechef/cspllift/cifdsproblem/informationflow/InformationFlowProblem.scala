@@ -50,7 +50,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                     var counter = 0
 
                     override def computeFlowFact(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
-                        flowFact match {
+                        val result = flowFact match {
                             case s: Source => s.getType match {
                                 case _: Variable => computeVariable(s)
                                 case _: Struct => computeStruct(s)
@@ -64,6 +64,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 GEN(z :: defineSources)
                             case x => super.defaultComputeFlowFact(x)
                         }
+                        result
                     }
 
 
@@ -329,7 +330,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 new InfoFlowFunction(exitStmt, callSite, default) {
                     override def computeFlowFact(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
                         val result = flowFact match {
-                            case s: Sink => GEN(s)
+                            case s: Sink => computeSink(s, exitStmt)
                             case s: Source => s.getType match {
                                 case _: Variable => computeVariable(s)
                                 case _: Struct => computeStruct(s)
@@ -500,7 +501,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       */
     override def flowFunctions(): FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] = cachedFlowFunctions
 
-    private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = KILL
+    private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = GEN(s)
 
     private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
         val destinationMethodFile = destinationMethod.getFile.getOrElse("")
@@ -640,7 +641,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
         protected def defaultComputeFlowFact(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
             flowFact match {
-                case s: Sink => GEN(s)
+                case s: Sink => computeSink(s, curr)
                 case z: Zero => GEN(z)
                 case x => default(x)
             }
