@@ -17,7 +17,7 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
     override def toText: String = {
         val originSource = getOriginSource
         val from = "\t\tFrom:\t" + originSource.getType.getName + " at: " + originSource.getType.getName.getPositionFrom
-        val stmt = "\t\tSourcestatement:\t" + PrettyPrinter.print(source.getCIFGStmt.getStmt.entry)
+        val stmt = "\t\tSourcestatement:\t" + PrettyPrinter.print(originSource.getCIFGStmt.getStmt.entry)
         val stmt2 = "\t\tSinkstatement:\t" + PrettyPrinter.print(this.cICFGStmt.getStmt.entry) + this.cICFGStmt.getStmt.entry.getPositionFrom
         from + "\n" + stmt + "\n" + stmt2
     }
