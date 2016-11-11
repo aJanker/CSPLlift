@@ -29,12 +29,15 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
     def getPlainFileName(ast: AST, default: String = "NOFILENAME_AST"): String = getPlainFileNameS(ast.getFile.getOrElse(default))
 
     def getPlainFileNameS(str: String, default: String = "NOFILENAME"): String = {
+        if (str.equalsIgnoreCase(default)) return default
+
         val filePrefix = "file "
         val prefixFree = if (str.startsWith(filePrefix)) str.substring(filePrefix.length) else str
         val index = prefixFree.lastIndexOf(File.separatorChar)
-        val fName = prefixFree.substring(index + 1)
+        val fName = if (index != -1) prefixFree.substring(index + 1) else prefixFree
         val extensionIndex = fName.lastIndexOf('.')
-        val res = fName.substring(0, extensionIndex)
+        val res = if (extensionIndex != -1) fName.substring(0, extensionIndex) else fName
+
         res
     }
 
