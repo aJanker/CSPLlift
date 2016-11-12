@@ -347,7 +347,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 				//for each result node of the call-flow function
 				for(D d3: res) {
 					//create initial self-loop
-					propagate(d3, sP, d3, EdgeIdentity.<V>v(), n, false); //line 15
+					propagate(d3, sP, d3, f, n, false); //line 15
 	
 					//register the fact that <sp,d3> has an incoming edge from <n,d2>
 					Set<Cell<N, D, EdgeFunction<V>>> endSumm;
@@ -930,7 +930,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 			int sectionSize = (int) Math.floor(values.length / numThreads) + numThreads;
 			for(int i = sectionSize * num; i < Math.min(sectionSize * (num+1),values.length); i++) {
 				N n = values[i];
-				for(N sP: icfg.getStartPointsOf(icfg.getMethodOf(n))) {					
+				for(N sP: initialSeeds.keySet()) {
 					Set<Cell<D, D, EdgeFunction<V>>> lookupByTarget;
 					lookupByTarget = jumpFn.lookupByTarget(n);
 					for(Cell<D, D, EdgeFunction<V>> sourceValTargetValAndFunction : lookupByTarget) {
@@ -938,7 +938,11 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 						D d = sourceValTargetValAndFunction.getColumnKey();
 						EdgeFunction<V> fPrime = sourceValTargetValAndFunction.getValue();
 						synchronized (val) {
-							setVal(n,d,valueLattice.join(val(n,d),fPrime.computeTarget(val(sP,dPrime))));
+							V start = val(sP,zeroValue);
+							V compute = fPrime.computeTarget(start);
+							V in = val(n,d);
+							V join = valueLattice.join(in,compute);
+							setVal(n,d,join);
 						}
 						flowFunctionApplicationCount++;
 					}
