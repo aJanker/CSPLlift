@@ -20,6 +20,9 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
+import de.fosd.typechef.cspllift.CICFGFDef;
+import de.fosd.typechef.cspllift.CICFGStmt;
+import de.fosd.typechef.cspllift.CInterCFG;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import org.slf4j.Logger;
@@ -335,6 +338,11 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 		//for each possible callee
 		Collection<M> callees = icfg.getCalleesOfCallAt(n);
 		for(M sCalledProcN: callees) { //still line 14
+			if (icfg instanceof CInterCFG && n instanceof CICFGStmt && sCalledProcN instanceof CICFGFDef) {
+				@SuppressWarnings("unchecked")
+				EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getFlowEdgeFunction((CICFGStmt) n, (CICFGFDef) sCalledProcN);
+				f = f.composeWith(f3);
+			}
 			
 			//compute the call-flow function
 			FlowFunction<D> function = flowFunctions.getCallFlowFunction(n, sCalledProcN);
@@ -348,7 +356,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 				for(D d3: res) {
 					//create initial self-loop
 					propagate(d3, sP, d3, f, n, false); //line 15
-	
+
 					//register the fact that <sp,d3> has an incoming edge from <n,d2>
 					Set<Cell<N, D, EdgeFunction<V>>> endSumm;
 					synchronized (incoming) {
@@ -934,15 +942,11 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 					Set<Cell<D, D, EdgeFunction<V>>> lookupByTarget;
 					lookupByTarget = jumpFn.lookupByTarget(n);
 					for(Cell<D, D, EdgeFunction<V>> sourceValTargetValAndFunction : lookupByTarget) {
-						D dPrime = sourceValTargetValAndFunction.getRowKey();
+						D dPrime = zeroValue; //sourceValTargetValAndFunction.getRowKey();
 						D d = sourceValTargetValAndFunction.getColumnKey();
 						EdgeFunction<V> fPrime = sourceValTargetValAndFunction.getValue();
 						synchronized (val) {
-							V start = val(sP,zeroValue);
-							V compute = fPrime.computeTarget(start);
-							V in = val(n,d);
-							V join = valueLattice.join(in,compute);
-							setVal(n,d,join);
+                            setVal(n,d,valueLattice.join(val(n,d),fPrime.computeTarget(val(sP,dPrime))));
 						}
 						flowFunctionApplicationCount++;
 					}

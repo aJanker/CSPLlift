@@ -12,6 +12,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
+import spllift.SPLFeatureFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -57,22 +58,39 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     def getTS(node: N): CTypeSystemFrontend with CTypeCache with CDeclUse
 
     /**
-      * Gets the correctly annotated (lifted) call edge between a call site and its corresponding target callee.
+      * Gets the correctly annotated (lifted) call edge condition between a call site and its corresponding target callee.
       * With the use of this method, SPLlift is able to resolve the constraint of an call and call-to-return edge.
       *
-      * @param callSite the statment where the call occurred
+      * @param callSite the statement where the call occurred
       * @param callee   the target of the call
       * @return the correct points to flow constraint
       */
     def getPointsToCondition(callSite: N, callee: M): FeatureExpr
 
-    def getFlowCondition(currStmt: N, succStmt: N) : FeatureExpr
+    /**
+      * Gets the correctly annotated (lifted) call edge function between a call site and its corresponding target callee.
+      * With the use of this method, SPLlift is able to resolve the constraint of an call and call-to-return edge.
+      *
+      * @param callSite the statement where the call occurred
+      * @param callee   the target of the call
+      * @return the correct points to flow edge
+      */
+    def getFlowEdgeFunction(callSite: N, callee: M) : SPLFeatureFunction
+
+    /**
+      * Gets the full flow condition between a source node and its successor node.
+      *
+      * @param srcStmt the source statement
+      * @param succStmt  the successor statement
+      * @return the correct flow constraint
+      */
+    def getFlowCondition(srcStmt: N, succStmt: N): FeatureExpr
 }
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
   extends CInterproceduralCFG[CICFGStmt, CICFGFDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
-    val cInterCFGNodes = new mutable.HashSet[CICFGStmt]()
+    private val cInterCFGNodes = new mutable.HashSet[CICFGStmt]()
 
     override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
 
@@ -89,13 +107,15 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     override def getCondition(node: CICFGStmt): FeatureExpr = node.getStmt.condition
 
-    override def getFlowCondition(currStmt: CICFGStmt, succStmt: CICFGStmt): FeatureExpr = succStmt.getStmt.condition.and(currStmt.getStmt.condition)
+    override def getFlowCondition(currStmt: CICFGStmt, succStmt: CICFGStmt): FeatureExpr = succStmt.getCondition.and(currStmt.getCondition)
+
+    override def getFlowEdgeFunction(currStmt: CICFGStmt, callee: CICFGFDef) : SPLFeatureFunction = new SPLFeatureFunction(getPointsToCondition(currStmt, callee), getFeatureModel, false)
 
     override def getPointsToCondition(callSite: CICFGStmt, callee: CICFGFDef): FeatureExpr = {
         val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
 
         val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
-        val calleeCond = pointsTo.getStmt.condition
+        val calleeCond = pointsTo.getCondition
 
         calleeCond.and(callCond)
     }
@@ -161,7 +181,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     /**
       * Returns all callee methods for a given call.
       */
-    override def getCalleesOfCallAt(call: CICFGStmt): util.Set[CICFGFDef] = asJavaIdentitySet(getCalleesOfCallAtS(call).map(getOriginalOptCalleeNode))
+    override def getCalleesOfCallAt(call: CICFGStmt): util.Set[CICFGFDef] = {
+        val satCallees = getCalleesOfCallAtS(call).map(getOriginalOptCalleeNode).filter(callee => getPointsToCondition(call, callee).and(call.getCondition).isSatisfiable())
+        asJavaIdentitySet(satCallees)
+    }
 
     /**
       * Every callee found by the function getCalleesOfCallAtS has the presence condition of its flow condition but not of its original presence condition within the ast.
@@ -196,9 +219,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val preds = pred(stmt.getStmt.entry, getASTEnv(stmt))
         if (preds.isEmpty) true
         else preds.exists {
-                case Opt(_, f: FunctionDef) => true // check for variability
-                case _ => false
-            }
+            case Opt(_, f: FunctionDef) => true // check for variability
+            case _ => false
+        }
     }
 
     /**
@@ -233,9 +256,15 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns the successor nodes.
       */
     override def getSuccsOf(cICFGStmt: CICFGStmt): util.List[CICFGStmt] = {
-        val succs = getSuccsOfS(cICFGStmt)
-        cInterCFGNodes.++=(succs)
-        succs.asJava
+        val succsWithUniquePointsToCallee = getSuccsOfS(cICFGStmt).flatMap {
+            case succStmt if isCallStmt(succStmt)  =>
+                val callees = getCalleesOfCallAtS(succStmt)
+                if (callees.size > 1) callees.map(callee => CICFGConcreteStmt(succStmt.getStmt.copy(condition = getFlowCondition(succStmt, callee).and(succStmt.getCondition))))
+                else Some(succStmt)
+            case s => Some(s)
+        }
+        cInterCFGNodes.++=(succsWithUniquePointsToCallee)
+        succsWithUniquePointsToCallee.asJava
     }
 
     private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
@@ -249,7 +278,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private def getPredsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
 
-    private def getCFGElements(elements : CFG) : List[CICFGStmt] = {
+    private def getCFGElements(elements: CFG): List[CICFGStmt] = {
         elements.filter {
             case Opt(_, f: FunctionDef) => false
             case x => x.condition.isSatisfiable(fm)
