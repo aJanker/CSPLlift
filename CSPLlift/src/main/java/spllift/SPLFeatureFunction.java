@@ -7,13 +7,13 @@ import heros.EdgeFunction;
 import heros.edgefunc.AllTop;
 import heros.edgefunc.EdgeIdentity;
 
-class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
+public class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
 
     private final FeatureExpr condition;
     private final FeatureModel fm;
     private final boolean useFM;
 
-    SPLFeatureFunction(final FeatureExpr condition, final FeatureModel fModel, final boolean useFMInEdgeComputations) {
+    public SPLFeatureFunction(final FeatureExpr condition, final FeatureModel fModel, final boolean useFMInEdgeComputations) {
         if (condition == null) throw new RuntimeException();
         this.condition = condition;
         this.fm = fModel;
