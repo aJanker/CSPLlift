@@ -21,7 +21,9 @@ class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
     }
 
     public FeatureExpr computeTarget(FeatureExpr source) {
-        return isValidInFM(this.and(source));
+        if (source.isSatisfiable())
+            return isValidInFM(this.and(source));
+        else return this.condition;
     }
 
     public EdgeFunction<FeatureExpr> composeWith(EdgeFunction<FeatureExpr> secondFunction) {
