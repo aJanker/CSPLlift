@@ -44,7 +44,7 @@ trait InformationFlowConfiguration extends SolverConfiguration with InformationF
     /**
       * If true, the solver will cache flow functions and edge functions.
       */
-    override def cacheFlowFunctions(): Boolean = true
+    override def cacheFlowFunctions(): Boolean = false
 
 }
 

@@ -501,7 +501,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       */
     override def flowFunctions(): FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] = cachedFlowFunctions
 
-    private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = KILL
+    private def computeSink(s: Sink, stmt: CICFGStmt): util.Set[InformationFlowFact] = GEN(s)
 
     private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
         val destinationMethodFile = destinationMethod.getFile.getOrElse("")
