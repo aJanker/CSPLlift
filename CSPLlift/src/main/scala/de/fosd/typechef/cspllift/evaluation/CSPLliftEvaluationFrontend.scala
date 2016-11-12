@@ -79,6 +79,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         // 4. Compare
+        println("### Started Result Compare...")
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
 
         println("\n### Tested " + configs.size + " unique variants for code coverage.")
@@ -161,6 +162,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         })
 
         // 5. Compare
+        println("### Started Result Compare...")
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
         // val interestingFacts = coverageFacts.map(x => (x._1.filter(fact => fact._1.isInterestingFact), x._2))
 
