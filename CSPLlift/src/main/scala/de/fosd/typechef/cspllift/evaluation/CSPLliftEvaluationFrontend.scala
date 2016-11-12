@@ -149,12 +149,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
             if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
 
-            println("### results for " + config)
+            /*println("### results for " + config)
             val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
 
             val allSinks = InformationFlow.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-            // println(InformationFlow.prettyPrintSinks(allSinks))
+            println(InformationFlow.prettyPrintSinks(allSinks)) */
 
             (solution, config, wallTime)
         })
