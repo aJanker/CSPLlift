@@ -203,6 +203,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val interestingLiftedFacts = liftedFacts.filter(_._1.isInterestingFact)
         val interestingSamplingFacts = samplingResults.map(res => (res._1.filter(_._1.isInterestingFact), res._2))
 
+        println("### Comparing " + interestingLiftedFacts.size + " lifted facts with a total amount of product facts: " + samplingResults.foldLeft(0){_ + _._1.size})
+
         var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
 
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
