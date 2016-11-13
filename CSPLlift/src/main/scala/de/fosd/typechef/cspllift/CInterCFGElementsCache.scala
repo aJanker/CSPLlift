@@ -90,6 +90,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     val startTUnit = addToCache(initialTUnit)
 
     override def prepareAST[T <: Product](t: T): T = {
+        println("\t#Rewriting...")
         var tunit = t.asInstanceOf[TranslationUnit]
         tunit = super.prepareAST(tunit)
 
@@ -112,10 +113,9 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             println("#empty tunit. did not add to cache")
             return _tunit
         }
-        println("#preparation tasks for newly loaded translation unit started... ")
+        println("#upfront computation of newly loaded translation unit started... ")
 
         var tunit: TranslationUnit = _tunit
-
 
         val file = _tunit.defs.last.entry.getFile.get
 
@@ -138,17 +138,18 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             val env = CASTEnv.createASTEnv(tunit)
             val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
 
-            println("#Typecheck")
+            println("\t#Typechecking...")
             StopWatch.measureUserTime(options.getStopWatchPrefix + "typecheck", {
+                if (options.silentTypeCheck) ts.makeSilent()
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
             updateCaches(tunit, file, env, ts, pseudoSystemFunctionCall)
-            println("#Calculating Pointer Equivalence Realations...")
+            println("\t#Calculating Pointer Equivalence Realations...")
             calculatePointerEquivalenceRelations
         })
 
-        println("#preparation tasks for newly loaded translation unit finished in " + time + "ms")
+        println("#upfront computation of newly loaded translation unit finished in " + time + "ms")
 
         tunit
     }

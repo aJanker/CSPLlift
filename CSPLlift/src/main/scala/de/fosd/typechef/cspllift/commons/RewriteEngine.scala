@@ -246,6 +246,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
                 case CPointer(t) => aTypeToASTTypeSpecifier(t, condition)
                 case CStruct(name, isUnion) => List(Opt(condition, StructOrUnionSpecifier(isUnion, Some(Id(name)), None, List(), List())))
                 case CVoid() | CZero() => List(Opt(condition, VoidSpecifier()))
+                case CUnknown(_) => List(Opt(condition, VoidSpecifier()))
                 case missed =>
                     scala.Console.err.println("No atype definiton found for " + missed + "!")
                     List(Opt(condition, VoidSpecifier()))
