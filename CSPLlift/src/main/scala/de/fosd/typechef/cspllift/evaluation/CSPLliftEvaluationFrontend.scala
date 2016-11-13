@@ -22,7 +22,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
       * Their implementation is correct as well our evaluation of these functions was true,
       * however they generate over 250000 single facts which causes to slow down all other evaluation tasks.
       */
-    private val hashingFiles: List[String] = List("md5", "md4", "md2", "sha1", "sha256", "sha512", "bignum")
+    private val ignoredFiles: List[String] = List("md5", "md4", "md2", "sha1", "sha256", "sha512", "bignum")
 
     def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
@@ -207,12 +207,36 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
 
+    private def compareResults[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingFacts: List[LiftedCFlowFact[D]], config : SimpleConfiguration) = {
+        def isIgnoredFile(f: LiftedCFlowFact[D]): Boolean =
+            f match {
+                case (s: Sink, _) =>
+                    val fName = getPlainFileNameS(s.cICFGStmt.getStmt.entry.getPositionTo.getFile)
+                    !ignoredFiles.contains(fName)
+                case _ => false
+            }
+
+        val interestingLiftedFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile).filter(_._2.evaluate(config.getTrueFeatures)).toList
+        val interestingSamplingFacts = samplingFacts.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile).toList
+
+        var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
+        interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
+
+        interestingSamplingFacts.par.filterNot(sampleFact => interestingLiftedFacts.foldLeft(false)((found, liftedFact) =>
+            if (liftedFact._1.isEquivalentTo(sampleFact._1, config)) {
+                // is match, increase vaa match counter
+                matchedLiftedFacts += (liftedFact -> (matchedLiftedFacts.getOrElse(liftedFact, 0) + 1))
+                true
+            } else found
+        )).toList
+    }
+
     private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]) = {
         def isHashingFile(f: LiftedCFlowFact[D]): Boolean =
             f match {
                 case (s: Sink, _) =>
                     val fName = getPlainFileNameS(s.cICFGStmt.getStmt.entry.getPositionTo.getFile)
-                    !hashingFiles.contains(fName)
+                    !ignoredFiles.contains(fName)
                 case _ => false
             }
 
@@ -227,7 +251,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
         def unmatchedFacts(samplingFacts: List[(D, FeatureExpr)], liftedFacts: List[(D, FeatureExpr)], config: SimpleConfiguration): List[(D, FeatureExpr)] = {
-            samplingFacts.par.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
+            val matchingLiftedFacts = liftedFacts.par.filter(_._2.evaluate(config.getTrueFeatures)).toList
+            samplingFacts.par.filterNot(fact => matchingLiftedFacts.foldLeft(false)((found, oFact) =>
                 if (oFact._1.isEquivalentTo(fact._1, config)) {
                     // is match, increase vaa match counter
                     matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
