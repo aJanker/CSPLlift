@@ -250,8 +250,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
         def unmatchedFacts(samplingFacts: List[(D, FeatureExpr)], liftedFacts: List[(D, FeatureExpr)], config: SimpleConfiguration): List[(D, FeatureExpr)] = {
-            val matchingLiftedFacts = liftedFacts.par.filter(_._2.evaluate(config.getTrueFeatures)).toList
-            samplingFacts.par.filterNot(fact => matchingLiftedFacts.foldLeft(false)((found, oFact) =>
+            // val matchingLiftedFacts = liftedFacts.par.filter(_._2.evaluate(config.getTrueFeatures)).toList
+            samplingFacts.par.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
                 if (oFact._1.isEquivalentTo(fact._1, config)) {
                     // is match, increase vaa match counter
                     matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
