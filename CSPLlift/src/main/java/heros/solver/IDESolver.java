@@ -333,17 +333,14 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 
 		final D d2 = edge.factAtTarget();
 		EdgeFunction<V> f = jumpFunction(edge);
+		final EdgeFunction<V> f_org = f;
 		Collection<N> returnSiteNs = icfg.getReturnSitesOfCallAt(n);
 		
 		//for each possible callee
 		Collection<M> callees = icfg.getCalleesOfCallAt(n);
 		for(M sCalledProcN: callees) { //still line 14
-			if (icfg instanceof CInterCFG && n instanceof CICFGStmt && sCalledProcN instanceof CICFGFDef) {
-				@SuppressWarnings("unchecked")
-				EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getFlowEdgeFunction((CICFGStmt) n, (CICFGFDef) sCalledProcN);
-				f = f.composeWith(f3);
-			}
-			
+			f = getConditionalFlowEdgeFunction(n, sCalledProcN, f_org);
+
 			//compute the call-flow function
 			FlowFunction<D> function = flowFunctions.getCallFlowFunction(n, sCalledProcN);
 			flowFunctionConstructionCount++;
@@ -404,9 +401,27 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 			saveEdges(n, returnSiteN, d2, returnFacts, false);
 			for(D d3: returnFacts) {
 				EdgeFunction<V> edgeFnE = edgeFunctions.getCallToReturnEdgeFunction(n, d2, returnSiteN, d3);
-				propagate(d1, returnSiteN, d3, f.composeWith(edgeFnE), n, false);
+				propagate(d1, returnSiteN, d3, f_org.composeWith(edgeFnE), n, false);
 			}
 		}
+	}
+
+	/**
+	 * Custom function for lifting IFDS problems on configurable software systems.
+	 * This function determines by querying the icfg the correct edge constraint for call and return-flows.
+	 *
+	 * @param call call site of the call
+	 * @param callee target site of the call
+	 * @param f original flow edge
+	 * @return correct flow edge
+	 */
+	private EdgeFunction<V> getConditionalFlowEdgeFunction(N call, M callee, EdgeFunction<V> f) {
+		if (icfg instanceof CInterCFG && call instanceof CICFGStmt && callee instanceof CICFGFDef) {
+            @SuppressWarnings("unchecked")
+            EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getFlowEdgeFunction((CICFGStmt) call, (CICFGFDef) callee);
+            f = f.composeWith(f3);
+        }
+		return f;
 	}
 
 	/**
