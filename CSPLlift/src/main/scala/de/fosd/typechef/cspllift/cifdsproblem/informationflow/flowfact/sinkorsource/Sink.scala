@@ -10,7 +10,7 @@ import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper {
 
-    override def isInterestingFact: Boolean = true
+    override def isEvaluationFact: Boolean = true
 
     override def toText: String = {
         val originSource = getOriginSource

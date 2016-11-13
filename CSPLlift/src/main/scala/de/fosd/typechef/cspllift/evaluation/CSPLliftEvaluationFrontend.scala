@@ -176,7 +176,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (unmatchedLiftedFacts.nonEmpty) {
             println("\n### Following results were not covered by the condition coverage approach: ")
             println("Size:\t" + unmatchedLiftedFacts.size)
-            println(liftedFacts.count(_._1.isInterestingFact))
+            println(liftedFacts.count(_._1.isEvaluationFact))
 
             var conditions: List[FeatureExpr] = List()
 
@@ -217,8 +217,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             }
 
 
-        val interestingLiftedFacts = liftedFacts.par.filter(_._1.isInterestingFact).filter(isHashingFile).toList
-        val interestingSamplingFacts = samplingResults.par.flatMap(res => res._1.filter(_._1.isInterestingFact)).filter(isHashingFile).toList
+        val interestingLiftedFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isHashingFile).toList
+        val interestingSamplingFacts = samplingResults.par.flatMap(res => res._1.filter(_._1.isEvaluationFact)).filter(isHashingFile).toList
 
         println("### Comparing " + interestingLiftedFacts.size + " lifted facts with a total amount of product facts: " + interestingSamplingFacts.size)
 
@@ -238,7 +238,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         val unmatchedSamplingFacts = samplingResults.flatMap(samplingResult => {
             val (samplingFacts, config) = samplingResult
-            val interestingSamplingFacts = samplingFacts.par.filter(_._1.isInterestingFact).filter(isHashingFile).toList
+            val interestingSamplingFacts = samplingFacts.par.filter(_._1.isEvaluationFact).filter(isHashingFile).toList
             val satisfiableLiftedFacts = interestingLiftedFacts.filter(fact => isSatisfiableInConfiguration(fact._2, config))
 
             val unmatched = unmatchedFacts(interestingSamplingFacts, satisfiableLiftedFacts, config)

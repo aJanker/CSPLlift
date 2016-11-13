@@ -31,7 +31,7 @@ trait CFlowFact extends Cloneable with Product{
 
     def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean
 
-    def isInterestingFact: Boolean
+    def isEvaluationFact: Boolean
 
     def toText: String
 
