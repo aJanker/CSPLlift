@@ -31,7 +31,7 @@ object CSPLlift {
         val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new SPLIFDSSolver(problem, fm, false)})
         StopWatch.measureWallTime("wall_lift_solve", {solver.solve()})
 
-        if (true && WarningsCache.size() != 0) {
+        if (printWarnings && WarningsCache.size() != 0) {
             println("#ISSUED Warnings:")
             println(WarningsCache)
             println("#TOTAL Warnings:\t" +  WarningsCache.issuedWarnings())
