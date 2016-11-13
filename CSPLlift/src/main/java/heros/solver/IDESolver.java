@@ -641,6 +641,9 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 	protected void propagate(D sourceVal, N target, D targetVal, EdgeFunction<V> f,
 		/* deliberately exposed to clients */ N relatedCallSite,
 		/* deliberately exposed to clients */ boolean isUnbalancedReturn) {
+		if(f.equalTo(allTop))
+			return;
+
 		EdgeFunction<V> jumpFnE;
 		EdgeFunction<V> fPrime;
 		boolean newFunction;
