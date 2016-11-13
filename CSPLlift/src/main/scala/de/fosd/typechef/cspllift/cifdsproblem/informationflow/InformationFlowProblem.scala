@@ -440,7 +440,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                 }
                                 case _ => super.defaultComputeFlowFact(flowFact)
                             }
-                            case s: Sink => computeSink(s, callSite)
+                            case s: Sink => GEN(s)
                             case _ => super.defaultComputeFlowFact(flowFact)
                         }
                 }
