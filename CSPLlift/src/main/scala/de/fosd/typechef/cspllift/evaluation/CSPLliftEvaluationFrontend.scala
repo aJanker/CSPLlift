@@ -2,19 +2,22 @@ package de.fosd.typechef.cspllift.evaluation
 
 import java.io._
 
+import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.analysis.{InformationFlow, InformationFlowGraphWriter, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.Sink
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
-import de.fosd.typechef.cspllift.{CInterCFG, CSPLlift, DefaultCInterCFGConfiguration, _}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
 
 class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
+
+    private val hashingFiles: List[String] = List("md5", "md4", "md2", "sha1", "sha256", "sha512")
 
     def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
@@ -200,7 +203,16 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     }
 
     private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]) = {
-        val interestingLiftedFacts = liftedFacts.filter(_._1.isInterestingFact)
+        def isHashingFile(f: LiftedCFlowFact[D]): Boolean =
+            f match {
+                case (s: Sink, _) =>
+                    val fName = getPlainFileNameS(s.cICFGStmt.getStmt.entry.getPositionTo.getFile)
+                    !hashingFiles.contains(fName)
+                case _ => false
+            }
+
+
+        val interestingLiftedFacts = liftedFacts.par.filter(_._1.isInterestingFact).filter(isHashingFile).toList
         val interestingSamplingFacts = samplingResults.map(res => (res._1.filter(_._1.isInterestingFact), res._2))
 
         println("### Comparing " + interestingLiftedFacts.size + " lifted facts with a total amount of product facts: " + samplingResults.foldLeft(0){_ + _._1.size})
@@ -209,7 +221,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
-        def unmatchedFacts(samplingFacts: List[(D, FeatureExpr)], liftedFacts: List[(D, FeatureExpr)], config: SimpleConfiguration): List[(D, FeatureExpr)] =
+        def unmatchedFacts(samplingFacts: List[(D, FeatureExpr)], liftedFacts: List[(D, FeatureExpr)], config: SimpleConfiguration): List[(D, FeatureExpr)] = {
             samplingFacts.par.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
                 if (oFact._1.isEquivalentTo(fact._1, config)) {
                     // is match, increase vaa match counter
@@ -217,10 +229,11 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                     true
                 } else found
             )).toList
+        }
 
         val unmatchedSamplingFacts = samplingResults.flatMap(samplingResult => {
             val (samplingFacts, config) = samplingResult
-            val interestingSamplingFacts = samplingFacts.filter(_._1.isInterestingFact)
+            val interestingSamplingFacts = samplingFacts.par.filter(_._1.isInterestingFact).filter(isHashingFile).toList
             val satisfiableLiftedFacts = interestingLiftedFacts.filter(fact => isSatisfiableInConfiguration(fact._2, config))
 
             val unmatched = unmatchedFacts(interestingSamplingFacts, satisfiableLiftedFacts, config)
