@@ -10,8 +10,6 @@ import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper {
 
-   // override def hashCode(): Int = 1
-
     override def isInterestingFact: Boolean = true
 
     override def toText: String = {
@@ -36,7 +34,6 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
     def getOriginSource : Source = getDefinition(source)
 
     def getOriginId : Id = getOriginSource.getType.getName
-
 }
 
 case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {

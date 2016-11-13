@@ -89,69 +89,77 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     val startTUnit = addToCache(initialTUnit)
 
+    /**
+      * Enforcing the compatibility of the used ast representation with the IFDS/IDE framework.
+      */
     override def prepareAST[T <: Product](t: T): T = {
         println("\t#Rewriting...")
-        var tunit = t.asInstanceOf[TranslationUnit]
-        tunit = super.prepareAST(tunit)
+        var tUnit = t.asInstanceOf[TranslationUnit]
+        tUnit = super.prepareAST(tUnit)
 
-        tunit = removeStmtVariability(tunit, fm)
-        tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
-        tunit = rewriteNestedFunctionCalls(tunit, fm)
-        tunit = enforceSingleFunctionEntryPoint(tunit)
-        tunit = addReturnStmtsForNonReturnExits(tunit, fm)
+        // Rewrite undisciplined variability
+        tUnit = removeUndisciplinedVariability(tUnit, fm)
+        // Rewrite combined call and return statements
+        tUnit = rewriteFunctionCallsInReturnStmts(tUnit, fm)
+        // Rewrite nested function calls
+        tUnit = rewriteNestedFunctionCalls(tUnit, fm)
+        // Enforce single function entry point
+        tUnit = enforceSingleFunctionEntryPoint(tUnit)
+        // Enforce exit in void over return stmt
+        tUnit = addReturnStmtsForNonReturnExits(tUnit, fm)
 
         if (options.getConfiguration.isDefined)
-            tunit = ProductDerivation.deriveProduct(ProductDerivation.deriveProduct(tunit, options.getTrueSet.get), options.getTrueSet.get)
+            tUnit = ProductDerivation.deriveProduct(ProductDerivation.deriveProduct(tUnit, options.getTrueSet.get), options.getTrueSet.get)
 
-        checkPositionInformation(tunit)
+        checkPositionInformation(tUnit)
 
-        tunit.asInstanceOf[T]
+        tUnit.asInstanceOf[T]
     }
 
-    private def addToCache(_tunit: TranslationUnit): TranslationUnit = {
-        if (_tunit.defs.isEmpty) {
+    private def addToCache(tUnit: TranslationUnit): TranslationUnit = {
+        if (tUnit.defs.isEmpty) {
             println("#empty tunit. did not add to cache")
-            return _tunit
+            return tUnit
         }
         println("#upfront computation of newly loaded translation unit started... ")
 
-        var tunit: TranslationUnit = _tunit
+        var _tUnit: TranslationUnit = tUnit
 
-        val file = _tunit.defs.last.entry.getFile.get
+        val file = tUnit.defs.last.entry.getFile.get
 
         val (time, _) = StopWatch.measureWallTime(options.getStopWatchPrefix + "tunit_completePreparation", {
-            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", tunit = prepareAST(tunit))
+            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", _tUnit = prepareAST(_tUnit))
 
             val pos = new TokenPosition(file, 0, 0, 0)
             val pseudoSystemFunctionCall = genPseudoSystemFunctionCall(Some(pos, pos))
 
             // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
-            tunit =
+            _tUnit =
               if (options.pseudoVisitingSystemLibFunctions) {
-                  val copy = tunit.copy(defs = pseudoSystemFunctionCall :: tunit.defs)
-                  copy.range = tunit.range
-                  copy
-              } else tunit
+                  val _tUnitPseudo = _tUnit.copy(defs = pseudoSystemFunctionCall :: _tUnit.defs)
+                  _tUnitPseudo.range = _tUnit.range
+                  _tUnitPseudo
+              } else _tUnit
 
-            checkPositionInformation(tunit)
+            checkPositionInformation(_tUnit)
 
-            val env = CASTEnv.createASTEnv(tunit)
-            val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
+            val ts = new CTypeSystemFrontend(_tUnit, fm) with CTypeCache with CDeclUse
+            if (options.silentTypeCheck) ts.makeSilent()
 
             println("\t#Typechecking...")
             StopWatch.measureUserTime(options.getStopWatchPrefix + "typecheck", {
-                if (options.silentTypeCheck) ts.makeSilent()
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
-            updateCaches(tunit, file, env, ts, pseudoSystemFunctionCall)
+            val env = CASTEnv.createASTEnv(_tUnit)
+            updateCaches(_tUnit, file, env, ts, pseudoSystemFunctionCall)
             println("\t#Calculating Pointer Equivalence Realations...")
             calculatePointerEquivalenceRelations
         })
 
         println("#upfront computation of newly loaded translation unit finished in " + time + "ms")
 
-        tunit
+        _tUnit
     }
 
     private def updateCaches(tunit: TranslationUnit, file: String, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse, pseudoSystemFunctionCall: Opt[FunctionDef]) = {

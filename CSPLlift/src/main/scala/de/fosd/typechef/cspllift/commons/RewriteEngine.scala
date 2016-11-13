@@ -9,8 +9,6 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureMod
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
 
-
-
 trait RewriteEngine extends ASTNavigation with ConditionalNavigation with RewritingRules {
 
     private var tmpVariablesCount = 0
@@ -63,10 +61,10 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
     }
 
     /**
-      * Moves variability nested in CFG-Statements up to the CFG Statement by code duplication.
+      * Moves variability nested in CFG-Statements (undisciplined variability) up to the CFG Statement by code duplication.
       * We are otherwise unable to use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
       */
-    def removeStmtVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+    def removeUndisciplinedVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
         assert(ast != null, "ast should not be null")
 
         val astEnv = CASTEnv.createASTEnv(ast)

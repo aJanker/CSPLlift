@@ -17,6 +17,11 @@ import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
 
 class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
 
+    /**
+      * For performance reasons we do not compare in our setup for mbedTLS the results for the following hash function implementations.
+      * Their implementation is correct as well our evaluation of these functions was true,
+      * however they generate over 250000 single facts which causes to slow down all other evaluation tasks.
+      */
     private val hashingFiles: List[String] = List("md5", "md4", "md2", "sha1", "sha256", "sha512")
 
     def evaluate(opt: CSPLliftOptions): Boolean = {
