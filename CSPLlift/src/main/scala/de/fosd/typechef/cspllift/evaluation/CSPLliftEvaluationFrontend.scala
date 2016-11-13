@@ -69,7 +69,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             val (config, i) = x
             val run = "coverage_" + i
 
-            println("### starting run:\t" + i + " of " + configs.size)
+            println("### starting run:\t" + (i + 1) + " of " + configs.size)
             println(config)
 
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
@@ -143,7 +143,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             val (config, i) = x
             val run = "singleConf_" + i
 
-            println("### starting run:\t" + i + " of " + configs.size)
+            println("### starting run:\t" + (i + 1) + " of " + configs.size)
             println(config)
 
             val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
