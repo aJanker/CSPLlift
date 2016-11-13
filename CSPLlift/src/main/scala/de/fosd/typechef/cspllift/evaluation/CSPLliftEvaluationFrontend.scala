@@ -236,18 +236,17 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             f match {
                 case (s: Sink, _) =>
                     val fName = getPlainFileNameS(s.cICFGStmt.getStmt.entry.getPositionTo.getFile)
-                    !ignoredFiles.contains(fName)
+                    !ignoredFiles.exists(_.equalsIgnoreCase(fName))
                 case _ => false
             }
 
 
         val interestingLiftedFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isHashingFile).toList
-        val interestingSamplingFacts = samplingResults.par.flatMap(res => res._1.filter(_._1.isEvaluationFact)).filter(isHashingFile).toList
+        /* val interestingSamplingFacts = samplingResults.par.flatMap(res => res._1.filter(_._1.isEvaluationFact)).filter(isHashingFile).toList
 
-        println("### Comparing " + interestingLiftedFacts.size + " lifted facts with a total amount of product facts: " + interestingSamplingFacts.size)
+        println("### Comparing " + interestingLiftedFacts.size + " lifted facts with a total amount of product facts: " + interestingSamplingFacts.size) */
 
         var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
-
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
         def unmatchedFacts(samplingFacts: List[(D, FeatureExpr)], liftedFacts: List[(D, FeatureExpr)], config: SimpleConfiguration): List[(D, FeatureExpr)] = {
@@ -264,15 +263,15 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val unmatchedSamplingFacts = samplingResults.flatMap(samplingResult => {
             val (samplingFacts, config) = samplingResult
             val interestingSamplingFacts = samplingFacts.par.filter(_._1.isEvaluationFact).filter(isHashingFile).toList
-            val satisfiableLiftedFacts = interestingLiftedFacts.filter(fact => isSatisfiableInConfiguration(fact._2, config))
+            // val satisfiableLiftedFacts = interestingLiftedFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
 
-            val unmatched = unmatchedFacts(interestingSamplingFacts, satisfiableLiftedFacts, config)
+            val unmatched = unmatchedFacts(interestingSamplingFacts, interestingLiftedFacts, config)
 
             if (unmatched.isEmpty) None
             else Some((unmatched, config))
         })
 
-        val unmatchedLiftedFacts = matchedLiftedFacts.toList.collect { case ((x, 0)) => x }
+        val unmatchedLiftedFacts = matchedLiftedFacts.par.collect { case ((x, 0)) => x }.toList
 
         (unmatchedLiftedFacts.distinct, unmatchedSamplingFacts)
     }
