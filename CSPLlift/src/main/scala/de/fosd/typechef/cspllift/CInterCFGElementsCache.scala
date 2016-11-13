@@ -96,6 +96,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunit = removeStmtVariability(tunit, fm)
         tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
         tunit = rewriteNestedFunctionCalls(tunit, fm)
+        tunit = enforceSingleFunctionEntryPoint(tunit)
         // tunit = addReturnStmtsForNonReturnExits(tunit, fm)
 
         if (options.getConfiguration.isDefined)
@@ -210,9 +211,10 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {
         val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
         val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
-        println("#loading:\t" + filename)
+        val dbgName = filename //filename.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
+        println("#loading:\t" + dbgName)
 
-        val (source, _) = filename.splitAt(filename.lastIndexOf(fileExtension))
+        val (source, _) = dbgName.splitAt(dbgName.lastIndexOf(fileExtension))
         val inputStream = new ObjectInputStream(new GZIPInputStream(new FileInputStream(source + ".ast"))) {
             override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
         }

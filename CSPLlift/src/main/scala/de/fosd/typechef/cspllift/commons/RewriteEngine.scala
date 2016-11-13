@@ -16,6 +16,26 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
     private var tmpVariablesCount = 0
 
     /**
+      * Rewrites all innerstatements of a function definition to enforce
+      * a single entry point for analysis with IFDS/IDE.
+      */
+    def enforceSingleFunctionEntryPoint[T <: Product](ast: T): T = {
+        val astEnv = CASTEnv.createASTEnv(ast)
+        filterAllASTElems[FunctionDef](ast).foldLeft(ast)((a, fDef) => {
+            lazy val cond = astEnv.featureExpr(fDef)
+            val compoundStmt = fDef.stmt
+
+            if (compoundStmt.innerStatements.isEmpty) a
+            else {
+                val stmt = Opt(cond, EmptyStatement())
+                stmt.entry.range = fDef.range
+                val compoundStmtWithSingleEntryPoint = compoundStmt.copy(innerStatements = stmt :: compoundStmt.innerStatements)
+                replace(a, compoundStmt, compoundStmtWithSingleEntryPoint)
+            }
+        })
+    }
+
+    /**
       * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
       */
     def addReturnStmtsForNonReturnExits[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
