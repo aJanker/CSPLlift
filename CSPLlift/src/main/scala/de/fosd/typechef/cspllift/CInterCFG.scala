@@ -256,19 +256,12 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns the successor nodes.
       */
     override def getSuccsOf(cICFGStmt: CICFGStmt): util.List[CICFGStmt] = {
-        val succsWithUniquePointsToCallee = getSuccsOfS(cICFGStmt).flatMap {
-            case succStmt if isCallStmt(succStmt)  =>
-                val callees = getCalleesOfCallAtS(succStmt)
-                if (callees.size > 1) callees.map(callee => CICFGConcreteStmt(succStmt.getStmt.copy(condition = getFlowCondition(succStmt, callee).and(succStmt.getCondition))))
-                else Some(succStmt)
-            case s => Some(s)
-        }
-        cInterCFGNodes.++=(succsWithUniquePointsToCallee)
-        succsWithUniquePointsToCallee.asJava
+        val succs = getSuccsOfS(cICFGStmt)
+        cInterCFGNodes.++=(succs)
+        succs.asJava
     }
 
     private def getSuccsOfS(cICFGStmt: CICFGStmt): List[CICFGStmt] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
-
 
     override def getPredsOf(cICFGStmt: CICFGStmt): util.List[CICFGStmt] = {
         val preds = getPredsOfS(cICFGStmt)
@@ -282,7 +275,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         elements.filter {
             case Opt(_, f: FunctionDef) => false
             case x => x.condition.isSatisfiable(fm)
-        }.map(element => CICFGConcreteStmt(element))
+        }.map(CICFGConcreteStmt)
     }
 
     private def replaceMacroFileLocation(position: Position, fallBack: Position): Position = if (position.getFile.endsWith(".h")) fallBack else position
