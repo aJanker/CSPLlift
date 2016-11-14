@@ -15,6 +15,8 @@ import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit}
 
+import scala.collection.concurrent.TrieMap
+
 class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
 
     /**
@@ -71,35 +73,38 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         liftedEvalFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
         val res = configs.zipWithIndex.flatMap {
-            case (config, i) =>
-                val run : String = if (strategy.equalsIgnoreCase("")) strategy + "_" + i else i.toString
-
-                println("### starting run:\t" + (i + 1) + " of " + configs.size)
-                println(config)
-
-                val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
-                val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
-
-                if (opt.writeVariants) writeVariants(icfg, opt, strategy, Some(i), Some(config))
-                if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, strategy, Some(run))
-
-                val sampleEvalFacts = solution.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile)
-                val satLiftedEvalFacts = liftedEvalFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
-
-                val unmatchedSampleEvalFacts = sampleEvalFacts.filterNot(fact => satLiftedEvalFacts.foldLeft(false)((found, oFact) =>
-                    if (oFact._1.isEquivalentTo(fact._1, config)) {
-                        // is match, increase vaa match counter
-                        matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
-                        true
-                    } else found
-                )).toList
-
-                if (unmatchedSampleEvalFacts.nonEmpty) Some((unmatchedSampleEvalFacts, config))
-                else None
+            case (config, i) => singleCompareRun(configs, strategy, isIgnoredFile _, ifdsProblem, opt, matchedLiftedFacts, liftedEvalFacts, config, i)
         }
 
         val unmatchedLiftedFacts = matchedLiftedFacts.par.collect { case ((x, 0)) => x }.toList
         (unmatchedLiftedFacts.distinct, res)
+    }
+
+    private def singleCompareRun[T <: CIFDSProblem[D], D <: CFlowFact](configs: List[SimpleConfiguration], strategy: String, isIgnoredFile: ((D, FeatureExpr)) => Boolean, ifdsProblem: Class[T], opt: CSPLliftOptions, matchedLiftedFacts: TrieMap[(D, FeatureExpr), Int], liftedEvalFacts: List[(D, FeatureExpr)], config: SimpleConfiguration, i: Int): Iterable[(List[(D, FeatureExpr)], SimpleConfiguration)] = {
+        val run: String = if (strategy.equalsIgnoreCase("")) strategy + "_" + i else i.toString
+
+        println("### starting run:\t" + (i + 1) + " of " + configs.size)
+        println(config)
+
+        val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
+        val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
+
+        if (opt.writeVariants) writeVariants(icfg, opt, strategy, Some(i), Some(config))
+        if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, strategy, Some(run))
+
+        val sampleEvalFacts = solution.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile)
+        val satLiftedEvalFacts = liftedEvalFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
+
+        val unmatchedSampleEvalFacts = sampleEvalFacts.filterNot(fact => satLiftedEvalFacts.foldLeft(false)((found, oFact) =>
+            if (oFact._1.isEquivalentTo(fact._1, config)) {
+                // is match, increase vaa match counter
+                matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
+                true
+            } else found
+        )).toList
+
+        if (unmatchedSampleEvalFacts.nonEmpty) Some((unmatchedSampleEvalFacts, config))
+        else None
     }
 
     private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Boolean = {
