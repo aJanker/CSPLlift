@@ -102,7 +102,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             } else found
         )).toList
 
-        icfg.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
+        // icfg.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
 
         if (unmatchedSampleEvalFacts.nonEmpty) Some((unmatchedSampleEvalFacts, config))
         else None
@@ -169,7 +169,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         println(InformationFlow.prettyPrintSinks(allLiftSinks))
 
-        icfg.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
+        // icfg.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
@@ -254,7 +254,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                     !ignoredFiles.exists(_.equalsIgnoreCase(fName))
                 case _ => false
             }
-
 
         val interestingLiftedFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isHashingFile).toList
         var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
