@@ -331,10 +331,13 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 List(CICFGFDef(pseudoCall))
             }
 
+        val eval = options.getConfiguration.isDefined
+
         def findCalleeInTunit(tunit: TranslationUnit) = {
             tunit.defs.flatMap {
-                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && ft.and(dstCond).isSatisfiable(getFeatureModel) =>
-                    Some(CICFGFDef(Opt(ft.and(dstCond), f)))
+                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && (eval || ft.and(dstCond).isSatisfiable(getFeatureModel)) =>
+                    val cond = if (eval) FeatureExprFactory.True else ft.and(dstCond)
+                    Some(CICFGFDef(Opt(cond, f)))
                 case _ => None
             }
         }
