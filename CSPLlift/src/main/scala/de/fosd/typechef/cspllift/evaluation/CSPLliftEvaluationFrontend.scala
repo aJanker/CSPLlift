@@ -102,6 +102,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             } else found
         )).toList
 
+        icfg.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
+
         if (unmatchedSampleEvalFacts.nonEmpty) Some((unmatchedSampleEvalFacts, config))
         else None
     }
@@ -166,6 +168,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val allLiftSinks = InformationFlow.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
         println(InformationFlow.prettyPrintSinks(allLiftSinks))
+
+        icfg.cInterCFGElementsCacheEnv.cFunctionPointerEQRelation.showPointerEquivalenceClasses()
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
