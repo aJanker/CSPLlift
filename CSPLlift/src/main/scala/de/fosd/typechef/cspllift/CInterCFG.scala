@@ -4,7 +4,7 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite._
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, WarningsCache}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, SolverNotifications}
 import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
@@ -206,7 +206,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             }
 
         if (callees.isEmpty)
-            WarningsCache.add("No function destinations found for:\t" + call)
+            SolverNotifications.add("No function destinations found for:\t" + call)
 
         callees
     }
@@ -237,7 +237,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         val destNames = getFunctionPointerDestNames(pointer)
 
         if (destNames.isEmpty)
-            WarningsCache.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
+            SolverNotifications.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
 
         destNames.nonEmpty
     }
@@ -343,7 +343,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             val bruteForceResult = cInterCFGElementsCacheEnv.getAllKnownTUnits.par.flatMap(findCalleeInTunit).toList
 
             if (bruteForceResult.isEmpty)
-                WarningsCache.add("No function definiton found for " + name + " with brute force!")
+                SolverNotifications.add("No function definiton found for " + name + " with brute force!")
 
             bruteForceResult
         }

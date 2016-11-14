@@ -8,7 +8,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, WarningsCache}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, SolverNotifications}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -258,7 +258,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 case PointerDerefExpr(p) => genObjectName(p)
                 case p: PostfixExpr => PrettyPrinter.print(p)
                 case x =>
-                    WarningsCache.add("No equivalence class lookup query rule for:\t" + x)
+                    SolverNotifications.add("No equivalence class lookup query rule for:\t" + x)
                     PrettyPrinter.print(x)
             }
 
@@ -271,7 +271,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         val eqRelation = cFunctionPointerEQRelation.find(eqQuery)
 
         if (eqRelation.isEmpty)
-            WarningsCache.add("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
+            SolverNotifications.add("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
         eqRelation
     }
