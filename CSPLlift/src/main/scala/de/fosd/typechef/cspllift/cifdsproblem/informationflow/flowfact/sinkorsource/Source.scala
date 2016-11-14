@@ -41,8 +41,6 @@ sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CIC
 
     def getCIFGStmt = cICFGStmt
 
-    override def get: Source = this
-
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
         if (!canEqual(other)) return false
 

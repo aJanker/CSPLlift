@@ -34,8 +34,6 @@ trait CFlowFact extends Cloneable with Product{
     def isEvaluationFact: Boolean
 
     def toText: String
-
-    def get: CFlowFact
 }
 
 trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {

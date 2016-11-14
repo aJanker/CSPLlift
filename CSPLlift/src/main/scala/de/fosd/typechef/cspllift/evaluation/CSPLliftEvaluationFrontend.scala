@@ -20,9 +20,8 @@ import scala.collection.concurrent.TrieMap
 class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
 
     /**
-      * For performance reasons we do not compare in our setup for mbedTLS the results for the following hash function implementations.
-      * Their implementation is correct as well our evaluation of these functions was true,
-      * however they generate over 250000 single facts which causes to slow down all other evaluation tasks.
+      * For performance reasons we do not compare in our setup for mbedTLS the intrafile results for the following hash function implementations
+      * at every file. We observed that these files generate a huge amount of costy facts for comparision, causing out-of-memory errors.
       */
     private val ignoredFiles: List[String] = List("md5", "md4", "md2", "sha1", "sha256", "sha512", "bignum")
 
@@ -163,10 +162,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
 
-        /*println("### results for lifiting ")
+        println("### results for lifiting ")
         val allLiftSinks = InformationFlow.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-        println(InformationFlow.prettyPrintSinks(allLiftSinks)) */
+        println(InformationFlow.prettyPrintSinks(allLiftSinks))
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {

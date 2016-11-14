@@ -10,6 +10,12 @@ import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper with CFlowConstants {
 
+    /**
+      * Sinks are always interesting facts for our evaluation strategy, however rewriting introduces some variant specific flows only.
+      * We ignore flows for intermediate variables now as they differ for each variant.
+      * Nevertheless, no interesting original flow is ignored, as we only ignore the tmp-variable flow itself,
+      * but not the reaching information flow from the origin.
+      */
     override def isEvaluationFact: Boolean = !getOriginId.name.startsWith(SPLLIFT_REWRITE_PREFIX)
 
     override def toText: String = {
@@ -44,8 +50,13 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
 }
 
 case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {
-    override def get: CFlowFact = SinkToAssignment(cICFGStmt, source.get, assignee)
 
+    /**
+      * Sinks are always interesting facts for our evaluation strategy, however rewriting introduces some variant specific flows only.
+      * We ignore flows for intermediate variables now as they differ for each variant.
+      * Nevertheless, no interesting original flow is ignored, as we only ignore the tmp-variable flow itself,
+      * but not the reaching information flow from the origin.
+      */
     override def isEvaluationFact: Boolean = !assignee.name.startsWith(SPLLIFT_REWRITE_PREFIX) && super.isEvaluationFact
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
@@ -60,8 +71,6 @@ case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val sour
 }
 
 case class SinkToUse(override val cICFGStmt: CICFGStmt, override val source: Source) extends Sink(cICFGStmt, source) {
-    override def get: CFlowFact = SinkToUse(cICFGStmt, source.get)
-
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[SinkToUse]) false
         else super.isEquivalentTo(other, configuration)

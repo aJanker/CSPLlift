@@ -32,7 +32,7 @@ trait InformationFlowHelper extends CInterCFGCommons {
                 case _ => false
             } else s match {
                 case s: Source => s.getType match {
-                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field.get, parents.tail)
+                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field, parents.tail)
                     case _ => false
                 }
                 case _ => false
@@ -49,7 +49,7 @@ trait InformationFlowHelper extends CInterCFGCommons {
             if (parents.isEmpty) fieldAssignment._1.equals(s.getType.getName)
             else s match {
                 case s: Source => s.getType match {
-                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field.get, parents.tail)
+                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field, parents.tail)
                     case _ => false
                 }
                 case _ => false

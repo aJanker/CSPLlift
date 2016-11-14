@@ -20,6 +20,6 @@ package object cspllift {
     type StmtFlowFacts[D <: CFlowFact] = (CICFGStmt, List[LiftedCFlowFact[D]])
 
     // Looks messy, but required for a clean conversion from java collections to scala collections...
-    def liftedFlowFactsAsScala[D <: CFlowFact](javaFacts: util.List[util.Map[D, FeatureExpr]]): List[LiftedCFlowFact[D]] = javaFacts.asScala.flatMap(_.asScala).map {case (fact, constraint) => (fact.get, constraint)}.toList.distinct.asInstanceOf[List[LiftedCFlowFact[D]]]
+    def liftedFlowFactsAsScala[D <: CFlowFact](javaFacts: util.List[util.Map[D, FeatureExpr]]): List[LiftedCFlowFact[D]] = javaFacts.asScala.flatMap(_.asScala).map {case (fact, constraint) => (fact, constraint)}.toList.distinct.asInstanceOf[List[LiftedCFlowFact[D]]]
 
 }

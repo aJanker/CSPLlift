@@ -9,8 +9,6 @@ trait InformationFlowFact extends CFlowFact  {
     override def isEvaluationFact: Boolean = false
 
     override def toText: String = toString
-
-    override def get: CFlowFact = this
 }
 
 
