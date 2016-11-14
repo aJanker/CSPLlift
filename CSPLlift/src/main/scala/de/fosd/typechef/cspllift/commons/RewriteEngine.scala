@@ -118,7 +118,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
         ts.checkASTSilent
 
         def extractExprFromReturnStatement(r: Opt[ReturnStatement]): List[Opt[Statement]] = {
-            val (tmpName, tmpDeclaration) = makeTmpDeclarationFromExpr(Opt(r.condition, r.entry.expr.get), ts)
+            val (tmpName, tmpDeclaration) = genTmpDeclarationFromExpr(Opt(r.condition, r.entry.expr.get), ts)
             List(tmpDeclaration, r.copy(entry = r.entry.copy(expr = Some(Id(tmpName)))))
         }
 
@@ -192,7 +192,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
 
         def rewriteSingleNestedFCall(x: (FunctionCall, List[Opt[Statement]]), curr: Opt[Expr]): (FunctionCall, List[Opt[Statement]]) = {
             val (f, newDecls) = x
-            val (name, declaration) = makeTmpDeclarationFromExpr(curr, ts)
+            val (name, declaration) = genTmpDeclarationFromExpr(curr, ts)
             val replacedExpr = Id(name)
             val newCall = replace(f, curr.entry, replacedExpr)
 
@@ -216,7 +216,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
     }
 
 
-    private def makeTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
+    private def genTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
         val tmpSpecifiers = getExprTypeSpecifiers(expr, ts)
         val tmpName = namePrefix + tmpVariablesCount
         val tmpNameDeclarator = AtomicNamedDeclarator(List(), Id(tmpName), List())

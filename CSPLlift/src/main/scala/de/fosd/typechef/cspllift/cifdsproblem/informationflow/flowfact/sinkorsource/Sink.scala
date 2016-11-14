@@ -2,15 +2,15 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorso
 
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.CICFGStmt
-import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowHelper
+import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowFact}
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
 
 
-sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper {
+sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper with CFlowConstants {
 
-    override def isEvaluationFact: Boolean = true
+    override def isEvaluationFact: Boolean = !getOriginId.name.startsWith(SPLLIFT_REWRITE_PREFIX)
 
     override def toText: String = {
         val originSource = getOriginSource
