@@ -169,10 +169,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
 
-        println("### results for lifiting ")
+        /*println("### results for lifiting ")
         val allLiftSinks = InformationFlow.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-        println(InformationFlow.prettyPrintSinks(allLiftSinks))
+        println(InformationFlow.prettyPrintSinks(allLiftSinks)) */
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
@@ -198,12 +198,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
             if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
 
-            println("### results for " + config)
+           /* println("### results for " + config)
             val interestingSamplingFacts = solution.filter(_._1.isEvaluationFact)
 
             val allSinks = InformationFlow.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-            println(InformationFlow.prettyPrintSinks(allSinks))
+            println(InformationFlow.prettyPrintSinks(allSinks)) */
 
             (solution, config, wallTime)
         })
