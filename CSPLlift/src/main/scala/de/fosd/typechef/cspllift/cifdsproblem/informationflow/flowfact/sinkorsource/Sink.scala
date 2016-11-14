@@ -46,6 +46,8 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
 case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {
     override def get: CFlowFact = SinkToAssignment(cICFGStmt, source.get, assignee)
 
+    override def isEvaluationFact: Boolean = !assignee.name.startsWith(SPLLIFT_REWRITE_PREFIX) && super.isEvaluationFact
+
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
         if (!other.isInstanceOf[SinkToAssignment]) return false
 
