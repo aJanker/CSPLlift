@@ -55,7 +55,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         successful
     }
 
-    private def compare[D <: CFlowFact, T <: CIFDSProblem[D]](cSPLlift: (java.lang.Class[T], CSPLliftOptions), configs: List[SimpleConfiguration], liftedFacts: List[LiftedCFlowFact[D]], strategy: String = "") = {
+    private def runAndCompare[D <: CFlowFact, T <: CIFDSProblem[D]](cSPLlift: (java.lang.Class[T], CSPLliftOptions), configs: List[SimpleConfiguration], liftedFacts: List[LiftedCFlowFact[D]], strategy: String = "") = {
         def isIgnoredFile(f: LiftedCFlowFact[D]): Boolean =
             f match {
                 case (s: Sink, _) =>
@@ -63,15 +63,16 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                     !ignoredFiles.contains(fName)
                 case _ => false
             }
+
         val (ifdsProblem, opt) = cSPLlift
         var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
         val liftedEvalFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile).toList
 
         liftedEvalFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
-        configs.zipWithIndex.map {
+        val res = configs.zipWithIndex.flatMap {
             case (config, i) =>
-                val run = strategy + i
+                val run : String = if (strategy.equalsIgnoreCase("")) strategy + "_" + i else i.toString
 
                 println("### starting run:\t" + (i + 1) + " of " + configs.size)
                 println(config)
@@ -83,8 +84,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                 if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, strategy, Some(run))
 
                 val sampleEvalFacts = solution.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile)
+                val satLiftedEvalFacts = liftedEvalFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
 
-                val unmatchedSampleEvalFacts = sampleEvalFacts.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
+                val unmatchedSampleEvalFacts = sampleEvalFacts.filterNot(fact => satLiftedEvalFacts.foldLeft(false)((found, oFact) =>
                     if (oFact._1.isEquivalentTo(fact._1, config)) {
                         // is match, increase vaa match counter
                         matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
@@ -92,8 +94,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                     } else found
                 )).toList
 
-                (unmatchedSampleEvalFacts, config)
+                if (unmatchedSampleEvalFacts.nonEmpty) Some((unmatchedSampleEvalFacts, config))
+                else None
         }
+
+        val unmatchedLiftedFacts = matchedLiftedFacts.par.collect { case ((x, 0)) => x }.toList
+        (unmatchedLiftedFacts.distinct, res)
     }
 
     private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Boolean = {
@@ -111,25 +117,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val configs = sampling.codeConfigurationCoverage()
 
         // 3. Run Analysis for every generated config
-        val coverageFacts = configs.zipWithIndex.map(x => {
-            val (config, i) = x
-            val run = "coverage_" + i
-
-            println("### starting run:\t" + (i + 1) + " of " + configs.size)
-            println(config)
-
-            val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
-            val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
-
-            if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
-            if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
-
-            (solution, config, wallTime)
-        })
-
         // 4. Compare
-        println("### Started Result Compare...")
-        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = runAndCompare((ifdsProblem, opt), configs, liftedFacts, method)
 
         println("\n### Tested " + configs.size + " unique variants for code coverage.")
         configs.foreach(println)
@@ -184,7 +173,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.conditionConfigurationCoverage(cfgConditions.asInstanceOf[Set[FeatureExpr]])
 
-        // 4. Run Analysis for every generated config
+        /*// 4. Run Analysis for every generated config
         val coverageFacts = configs.zipWithIndex.map(x => {
             val (config, i) = x
             val run = "singleConf_" + i
@@ -210,7 +199,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 5. Compare
         println("### Started Result Compare...")
-        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2)))
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = compareLiftedWithSampling(liftedFacts, coverageFacts.map(x => (x._1, x._2))) */
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = runAndCompare((ifdsProblem, opt), configs, liftedFacts, method)
 
         println("\n### Tested " + configs.size + " unique variants for condition coverage.")
 
