@@ -28,10 +28,10 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
         lazy val stmtProduct = ProductDerivation.deriveProduct(cICFGStmt.getStmt.entry, configuration.getTrueFeatures)
         lazy val eqStmt = stmtProduct.equals(otherSink.cICFGStmt.getStmt.entry)
 
-        val originStmtProduc = ProductDerivation.deriveProduct(getDefinition(source).getCIFGStmt.getStmt.entry, configuration.getTrueFeatures)
-        val eqOriginStmt = originStmtProduc.equals(getDefinition(otherSink.source).getCIFGStmt.getStmt.entry)
+        lazy val originStmtProduc = ProductDerivation.deriveProduct(getDefinition(source).getCIFGStmt.getStmt.entry, configuration.getTrueFeatures)
+        lazy val eqOriginStmt = originStmtProduc.equals(getDefinition(otherSink.source).getCIFGStmt.getStmt.entry)
 
-        eqOriginStmt && eqStmt
+        getDefinition(otherSink.source).getCIFGStmt.getASTEntry.range.equals(getDefinition(source).getCIFGStmt.getASTEntry.range) && otherSink.cICFGStmt.getASTEntry.range.equals(cICFGStmt.getASTEntry.range)
     }
 
     def getOriginSource : Source = getDefinition(source)

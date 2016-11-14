@@ -55,6 +55,47 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         successful
     }
 
+    private def compare[D <: CFlowFact, T <: CIFDSProblem[D]](cSPLlift: (java.lang.Class[T], CSPLliftOptions), configs: List[SimpleConfiguration], liftedFacts: List[LiftedCFlowFact[D]], strategy: String = "") = {
+        def isIgnoredFile(f: LiftedCFlowFact[D]): Boolean =
+            f match {
+                case (s: Sink, _) =>
+                    val fName = getPlainFileNameS(s.cICFGStmt.getStmt.entry.getPositionTo.getFile)
+                    !ignoredFiles.contains(fName)
+                case _ => false
+            }
+        val (ifdsProblem, opt) = cSPLlift
+        var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
+        val liftedEvalFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile).toList
+
+        liftedEvalFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
+
+        configs.zipWithIndex.map {
+            case (config, i) =>
+                val run = strategy + i
+
+                println("### starting run:\t" + (i + 1) + " of " + configs.size)
+                println(config)
+
+                val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(config, opt.getCLinkingInterfacePath, run)
+                val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
+
+                if (opt.writeVariants) writeVariants(icfg, opt, strategy, Some(i), Some(config))
+                if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, strategy, Some(run))
+
+                val sampleEvalFacts = solution.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile)
+
+                val unmatchedSampleEvalFacts = sampleEvalFacts.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
+                    if (oFact._1.isEquivalentTo(fact._1, config)) {
+                        // is match, increase vaa match counter
+                        matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
+                        true
+                    } else found
+                )).toList
+
+                (unmatchedSampleEvalFacts, config)
+        }
+    }
+
     private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Boolean = {
         val method: String = "codeCoverage"
 
@@ -128,10 +169,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
 
-        /*println("### results for lifiting ")
+        println("### results for lifiting ")
         val allLiftSinks = InformationFlow.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-        println(InformationFlow.prettyPrintSinks(allLiftSinks)) */
+        println(InformationFlow.prettyPrintSinks(allLiftSinks))
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
@@ -157,12 +198,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             if (opt.writeVariants) writeVariants(icfg, opt, method, Some(i), Some(config))
             if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method, Some(run))
 
-            /*println("### results for " + config)
-            val interestingSamplingFacts = solution.filter(_._1.isInterestingFact)
+            println("### results for " + config)
+            val interestingSamplingFacts = solution.filter(_._1.isEvaluationFact)
 
             val allSinks = InformationFlow.allSinks(interestingSamplingFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
 
-            println(InformationFlow.prettyPrintSinks(allSinks)) */
+            println(InformationFlow.prettyPrintSinks(allSinks))
 
             (solution, config, wallTime)
         })
@@ -207,30 +248,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
 
-    private def compareResults[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingFacts: List[LiftedCFlowFact[D]], config : SimpleConfiguration) = {
-        def isIgnoredFile(f: LiftedCFlowFact[D]): Boolean =
-            f match {
-                case (s: Sink, _) =>
-                    val fName = getPlainFileNameS(s.cICFGStmt.getStmt.entry.getPositionTo.getFile)
-                    !ignoredFiles.contains(fName)
-                case _ => false
-            }
-
-        val interestingLiftedFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile).filter(_._2.evaluate(config.getTrueFeatures)).toList
-        val interestingSamplingFacts = samplingFacts.par.filter(_._1.isEvaluationFact).filter(isIgnoredFile).toList
-
-        var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
-        interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
-
-        interestingSamplingFacts.par.filterNot(sampleFact => interestingLiftedFacts.foldLeft(false)((found, liftedFact) =>
-            if (liftedFact._1.isEquivalentTo(sampleFact._1, config)) {
-                // is match, increase vaa match counter
-                matchedLiftedFacts += (liftedFact -> (matchedLiftedFacts.getOrElse(liftedFact, 0) + 1))
-                true
-            } else found
-        )).toList
-    }
-
     private def compareLiftedWithSampling[D <: CFlowFact](liftedFacts: List[LiftedCFlowFact[D]], samplingResults: List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]): (List[LiftedCFlowFact[D]], List[(List[LiftedCFlowFact[D]], SimpleConfiguration)]) = {
         def isHashingFile(f: LiftedCFlowFact[D]): Boolean =
             f match {
@@ -242,16 +259,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
 
         val interestingLiftedFacts = liftedFacts.par.filter(_._1.isEvaluationFact).filter(isHashingFile).toList
-        /* val interestingSamplingFacts = samplingResults.par.flatMap(res => res._1.filter(_._1.isEvaluationFact)).filter(isHashingFile).toList
-
-        println("### Comparing " + interestingLiftedFacts.size + " lifted facts with a total amount of product facts: " + interestingSamplingFacts.size) */
-
         var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
         interestingLiftedFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
         def unmatchedFacts(samplingFacts: List[(D, FeatureExpr)], liftedFacts: List[(D, FeatureExpr)], config: SimpleConfiguration): List[(D, FeatureExpr)] = {
-            // val matchingLiftedFacts = liftedFacts.par.filter(_._2.evaluate(config.getTrueFeatures)).toList
-            samplingFacts.par.filterNot(fact => liftedFacts.foldLeft(false)((found, oFact) =>
+            val matchingLiftedFacts = liftedFacts.par.filter(_._2.evaluate(config.getTrueFeatures)).toList
+            samplingFacts.par.filterNot(fact => matchingLiftedFacts.foldLeft(false)((found, oFact) =>
                 if (oFact._1.isEquivalentTo(fact._1, config)) {
                     // is match, increase vaa match counter
                     matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
@@ -263,7 +276,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val unmatchedSamplingFacts = samplingResults.flatMap(samplingResult => {
             val (samplingFacts, config) = samplingResult
             val interestingSamplingFacts = samplingFacts.par.filter(_._1.isEvaluationFact).filter(isHashingFile).toList
-            // val satisfiableLiftedFacts = interestingLiftedFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
+            val satisfiableLiftedFacts = interestingLiftedFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
 
             val unmatched = unmatchedFacts(interestingSamplingFacts, interestingLiftedFacts, config)
 
