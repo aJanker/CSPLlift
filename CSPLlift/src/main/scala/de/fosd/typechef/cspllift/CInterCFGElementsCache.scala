@@ -273,6 +273,6 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         if (eqRelation.isEmpty)
             SolverNotifications.add("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
-        None
+        eqRelation
     }
 }
