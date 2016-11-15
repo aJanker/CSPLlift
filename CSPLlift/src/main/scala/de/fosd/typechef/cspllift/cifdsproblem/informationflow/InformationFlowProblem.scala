@@ -7,16 +7,18 @@ import de.fosd.typechef.cspllift.analysis.{Edge, Node, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.CIFDSProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
-import de.fosd.typechef.cspllift.commons.SolverNotifications
 import de.fosd.typechef.cspllift.{CICFGFDef, CICFGStmt, CInterCFG}
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem._
 import heros.{FlowFunction, FlowFunctions}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 
 class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlowFact](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperations {
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     /**
       * This must be a data-flow fact of type {@link D}, but must <i>not</i>
@@ -321,7 +323,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
 
                 exitStmt.getStmt.entry match {
                     case ReturnStatement(_) =>
-                    case _ => SolverNotifications.add("Exiting " + calleeMethod.method.entry.getName + " without return statement.")
+                    case _ => if (logger.isDebugEnabled) logger.debug("Exiting " + calleeMethod.method.entry.getName + " without return statement.")
                 }
 
                 def assignsReturnVariablesTo(callStmt: AST, returnStatement: AST): List[(Id, List[Id])] = assignsVariables(callStmt).flatMap(assign => if (assign._2.exists(isPartOfTerm(_, fCall))) Some((assign._1, uses(returnStatement))) else None)
@@ -724,7 +726,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
             else if ((callPs.size != defPs.size) && defParamIsVoidSpecifier) List()
             else {
                 if (callPs.size != defPs.size)
-                    SolverNotifications.add("Call and function parameter sizes does not match for: " + currOpt
+                    if (logger.isDebugEnabled) logger.debug("Call and function parameter sizes does not match for: " + currOpt
                       + "\n" + callPs.toString + "\n" + defPs.toString)
 
                 callPs zip defPs

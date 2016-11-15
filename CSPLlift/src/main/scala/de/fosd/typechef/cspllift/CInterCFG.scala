@@ -4,7 +4,7 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite._
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, SolverNotifications}
+import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
@@ -12,6 +12,7 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
+import org.slf4j.{Logger, LoggerFactory}
 import spllift.SPLFeatureFunction
 
 import scala.collection.JavaConverters._
@@ -89,6 +90,8 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
 
 class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
   extends CInterproceduralCFG[CICFGStmt, CICFGFDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     private val cInterCFGNodes = new mutable.HashSet[CICFGStmt]()
 
@@ -205,8 +208,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
                 case _ => None
             }
 
-        if (callees.isEmpty)
-            SolverNotifications.add("No function destinations found for:\t" + call)
+        if (callees.isEmpty && logger.isDebugEnabled) logger.debug("No function destinations found for:\t" + call)
 
         callees
     }
@@ -236,8 +238,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     private def hasDestination(pointer: Expr): Boolean = {
         val destNames = getFunctionPointerDestNames(pointer)
 
-        if (destNames.isEmpty)
-            SolverNotifications.add("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
+        if (destNames.isEmpty && logger.isDebugEnabled) logger.debug("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
 
         destNames.nonEmpty
     }
@@ -345,8 +346,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         def findCalleeWithBruteForce() = {
             val bruteForceResult = cInterCFGElementsCacheEnv.getAllKnownTUnits.par.flatMap(findCalleeInTunit).toList
 
-            if (bruteForceResult.isEmpty)
-                SolverNotifications.add("No function definiton found for " + name + " with brute force!")
+            if (bruteForceResult.isEmpty && logger.isDebugEnabled) logger.debug("No function definiton found for " + name + " with brute force!")
 
             bruteForceResult
         }

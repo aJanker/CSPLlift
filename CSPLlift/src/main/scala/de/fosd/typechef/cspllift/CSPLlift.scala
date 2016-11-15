@@ -2,7 +2,6 @@ package de.fosd.typechef.cspllift
 
 import de.fosd.typechef.cspllift.analysis.{SuperCallGraph, TaintCheck}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
-import de.fosd.typechef.cspllift.commons.SolverNotifications
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -27,18 +26,10 @@ object CSPLlift {
 
     def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[LiftedCFlowFact[D]] = {
         SuperCallGraph.clear()
-        SolverNotifications.clear()
 
         val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new SPLIFDSSolver(problem, fm, false)})
         StopWatch.measureWallTime("wall_lift_solve", {solver.solve()})
 
-        if (printWarnings && SolverNotifications.size() != 0) {
-            println("#ISSUED Warnings:")
-            println(SolverNotifications)
-            println("#TOTAL Warnings:\t" +  SolverNotifications.issuedNotifications())
-        }
-
-        SolverNotifications.clear()
         liftedFlowFactsAsScala(solver.getAllResults)
     }
 }

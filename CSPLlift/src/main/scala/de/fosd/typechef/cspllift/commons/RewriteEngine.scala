@@ -8,8 +8,11 @@ import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
+import org.slf4j.{Logger, LoggerFactory}
 
 trait RewriteEngine extends ASTNavigation with ConditionalNavigation with RewritingRules {
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     private var tmpVariablesCount = 0
 
@@ -246,7 +249,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
                 case CVoid() | CZero() => List(Opt(condition, VoidSpecifier()))
                 case CUnknown(_) => List(Opt(condition, VoidSpecifier()))
                 case missed =>
-                    scala.Console.err.println("No atype definiton found for " + missed + "!")
+                    if (logger.isDebugEnabled) logger.debug("No atype definition found for " + missed + "!")
                     List(Opt(condition, VoidSpecifier()))
             }
 

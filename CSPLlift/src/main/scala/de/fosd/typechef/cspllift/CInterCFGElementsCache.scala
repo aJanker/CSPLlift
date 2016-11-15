@@ -8,13 +8,14 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, SolverNotifications}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConversions._
 
@@ -72,6 +73,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
     private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
@@ -220,7 +223,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {
         val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
         val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
-        val dbgName = filename //filename.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
+        val dbgName = filename.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
         println("#loading:\t" + dbgName)
 
         val (source, _) = dbgName.splitAt(dbgName.lastIndexOf(fileExtension))
@@ -258,7 +261,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 case PointerDerefExpr(p) => genObjectName(p)
                 case p: PostfixExpr => PrettyPrinter.print(p)
                 case x =>
-                    SolverNotifications.add("No equivalence class lookup query rule for:\t" + x)
+                    if (logger.isDebugEnabled) logger.debug("No equivalence class lookup query rule for:\t" + x)
                     PrettyPrinter.print(x)
             }
 
@@ -270,9 +273,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         val eqQuery = buildEquivalenceClassLookupQuery(pointer.entry, currFuncName)
         val eqRelation = cFunctionPointerEQRelation.find(eqQuery)
 
-        if (eqRelation.isEmpty)
-            SolverNotifications.add("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
+        if (eqRelation.isEmpty && logger.isDebugEnabled) logger.debug("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
-        eqRelation
+        if (options.getConfiguration.nonEmpty) None else eqRelation
     }
 }
