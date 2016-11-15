@@ -275,6 +275,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
         if (eqRelation.isEmpty && logger.isDebugEnabled) logger.debug("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
-        if (options.getConfiguration.nonEmpty) None else eqRelation
+        if (options.computePointer) eqRelation else None
+
+
     }
 }
