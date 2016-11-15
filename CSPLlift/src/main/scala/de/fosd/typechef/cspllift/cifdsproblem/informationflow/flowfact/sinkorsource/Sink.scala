@@ -5,7 +5,7 @@ import de.fosd.typechef.cspllift.CICFGStmt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowHelper
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowFact}
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
-import de.fosd.typechef.parser.c.{Id, PrettyPrinter}
+import de.fosd.typechef.parser.c.Id
 
 
 sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper with CFlowConstants {
@@ -21,8 +21,8 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
     override def toText: String = {
         val originSource = getOriginSource
         val from = "\t\tFrom:\t" + originSource.getType.getName + " at: " + originSource.getType.getName.getPositionFrom
-        val stmt = "\t\tSourcestatement:\t" + PrettyPrinter.print(originSource.getCIFGStmt.getStmt.entry)
-        val stmt2 = "\t\tSinkstatement:\t" + PrettyPrinter.print(this.cICFGStmt.getStmt.entry) + this.cICFGStmt.getStmt.entry.getPositionFrom
+        val stmt = "\t\tSourcestatement:\t" + originSource.getCIFGStmt.toText
+        val stmt2 = "\t\tSinkstatement:\t" + this.cICFGStmt.toText + " at: " + this.cICFGStmt.getStmt.entry.getPositionFrom
         from + "\n" + stmt + "\n" + stmt2
     }
 

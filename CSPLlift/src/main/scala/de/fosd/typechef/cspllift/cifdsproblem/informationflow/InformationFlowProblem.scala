@@ -192,7 +192,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 new CallFlowFunction(callStmt, destinationMethod, default) {
                     override def computeFlowFact(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
                         val result = flowFact match {
-                            case s: Sink => KILL
+                            case s: Sink => GEN(s)
                             case s: Source => s.getType match {
                                 case _: Variable => computeVariable(s)
                                 case _: Struct => computeStruct(s)
@@ -332,7 +332,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 new InfoFlowFunction(exitStmt, callSite, default) {
                     override def computeFlowFact(flowFact: InformationFlowFact): util.Set[InformationFlowFact] = {
                         val result = flowFact match {
-                            case s: Sink => computeSink(s, exitStmt) // Avoid sink propagation to call -> only propagation down requiered
+                            case s: Sink => GEN(s) // Avoid sink propagation to call -> only propagation down requiered
                             case s: Source => s.getType match {
                                 case _: Variable => computeVariable(s)
                                 case _: Struct => computeStruct(s)

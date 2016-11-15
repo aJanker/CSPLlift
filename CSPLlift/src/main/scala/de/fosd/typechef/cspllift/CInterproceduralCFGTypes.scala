@@ -1,12 +1,18 @@
 package de.fosd.typechef.cspllift
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.parser.c.{AST, FunctionDef}
+import de.fosd.typechef.parser.c._
 
 sealed abstract class CICFGStmt(stmt: Opt[AST]) extends Product {
     def getStmt = stmt
     def getCondition = getStmt.condition
     def getASTEntry = getStmt.entry
+
+    def hasPosition = getASTEntry.hasPosition
+
+    def getPosition = getASTEntry.range
+
+    def toText: String
 
     /**
       * The equality operation for AST elements does not consider the position within the Translation Unit.
@@ -15,29 +21,39 @@ sealed abstract class CICFGStmt(stmt: Opt[AST]) extends Product {
       * TypeChef. Therefore we are wrapping these elements for Heros.
       */
     override def equals(x: Any) = x match {
-        case c: CICFGStmt => (c.getCondition eq getCondition) && equalsASTElement(c.getASTEntry)
+        case c: CICFGStmt => (c.getCondition eq getCondition) && equalsASTElement(c)
         case _ => false
     }
 
     override def canEqual(that: Any): Boolean = that.isInstanceOf[CICFGStmt]
 
-    private def equalsASTElement(that: AST) : Boolean = {
-        val ast = getASTEntry
+    private def equalsASTElement(that: CICFGStmt): Boolean = {
         val eqPosition =
-            if (ast.hasPosition && that.hasPosition) ast.range.equals(that.range)
+            if (hasPosition && that.hasPosition) getPosition.equals(that.getPosition)
             else true
-        eqPosition && ast.equals(that)
+        lazy val eqAST = getASTEntry.equals(that.getASTEntry)
+
+        eqPosition && eqAST
     }
 
     override def hashCode(): Int = {
         val positionHashCode =
-            if (getASTEntry.hasPosition) getASTEntry.range.hashCode()
+            if (hasPosition) getPosition.get.hashCode()
             else 0
         this.getStmt.hashCode() + positionHashCode
     }
 }
 
-case class CICFGConcreteStmt(stmt: Opt[AST]) extends CICFGStmt(stmt)
+case class CICFGConcreteStmt(stmt: Opt[AST]) extends CICFGStmt(stmt) {
+    override def toText: String =
+        stmt match {
+            case Opt(condition, s: Statement) => PrettyPrinter.print(CompoundStatement(List(Opt(condition, s))))
+            case Opt(condition, e: Expr) => PrettyPrinter.print(CompoundStatement(List(Opt(condition, ExprStatement(e)))))
+            case _ => PrettyPrinter.print(stmt.entry)
+        }
+}
 
-case class CICFGFDef(method: Opt[FunctionDef]) extends CICFGStmt(method)
+case class CICFGFDef(method: Opt[FunctionDef]) extends CICFGStmt(method) {
+    override def toText: String = PrettyPrinter.print(TranslationUnit(List(method)))
+}
 
