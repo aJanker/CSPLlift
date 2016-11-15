@@ -158,7 +158,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val method: String = "conditionCoverage"
 
         // 1. Step -> Run VAA first in order to detect all affected features
-        val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
+        val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(opt.getCLinkingInterfacePath)
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
 
         if (opt.writeVariants) writeVariants(icfg, opt, method)
