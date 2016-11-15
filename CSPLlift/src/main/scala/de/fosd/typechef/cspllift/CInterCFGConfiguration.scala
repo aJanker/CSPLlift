@@ -17,7 +17,7 @@ trait CInterCFGConfiguration {
 
     def getStopWatchPrefix: String
 
-    def getGraphEntryFunctionNames: List[String] = List("main")
+    def getGraphEntryFunctionNames: List[String] = List("main", "mbedtls_rsa_self_test")
 
     /*
      * If enabled, no warnings for discovered type errors are shown.

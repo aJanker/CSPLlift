@@ -23,7 +23,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
       * For performance reasons we do not compare in our setup for mbedTLS the intrafile results for the following hash function implementations
       * at every file. We observed that these files generate a huge amount of costy facts for comparision, causing out-of-memory errors.
       */
-    private val ignoredFiles: List[String] = List("md5", "md4", "md2", "sha1", "sha256", "sha512", "bignum")
+    private val ignoredFiles: List[String] = List()
 
     def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
