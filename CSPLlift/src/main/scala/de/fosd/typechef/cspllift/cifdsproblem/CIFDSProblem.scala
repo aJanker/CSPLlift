@@ -8,8 +8,8 @@ import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.cspllift.{CInterCFG, IFDSProblem}
 import de.fosd.typechef.error.Position
+import de.fosd.typechef.featureexpr.FeatureExprFactory
 import de.fosd.typechef.featureexpr.bdd.True
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import de.fosd.typechef.parser.c._
 
 import scala.collection.JavaConverters._
@@ -23,13 +23,6 @@ abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProble
       * interface should therefore cache the return value!
       */
     override def interproceduralCFG: CInterCFG = cICFG
-
-    // TODO Comment and explain in Thesis
-    override def zeroValue(): D with CZeroFact
-}
-
-trait CZeroFact {
-    val flowCondition: FeatureExpr
 }
 
 trait CFlowFact extends Cloneable with Product{
@@ -38,11 +31,9 @@ trait CFlowFact extends Cloneable with Product{
 
     def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean
 
-    def isInterestingFact: Boolean
+    def isEvaluationFact: Boolean
 
     def toText: String
-
-    def get: CFlowFact
 }
 
 trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {
@@ -71,7 +62,9 @@ trait CFlowConstants extends ASTRewriting {
     lazy val SPLLIFT_CONSTANT_VALUE = "SPLLIFT_CONSTANT_VALUE"
     lazy val SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME = "PSEUDO_SYSTEM_FUNCTION_CALL"
 
-    def makePseudoSystemFunctionCall(range: Option[(Position, Position)]) : Opt[FunctionDef] = {
+    lazy val SPLLIFT_REWRITE_PREFIX = "__SPLLIFT_TMP"
+
+    def genPseudoSystemFunctionCall(range: Option[(Position, Position)]) : Opt[FunctionDef] = {
         val call = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
         val addRange = everywherebu(query[Product] { case a: AST => if (!a.hasPosition) a.range = range})
 

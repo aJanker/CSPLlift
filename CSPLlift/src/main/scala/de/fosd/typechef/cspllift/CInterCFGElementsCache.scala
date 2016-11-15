@@ -8,13 +8,14 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cpointeranalysis._
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
-import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules, WarningsCache}
+import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConversions._
 
@@ -73,6 +74,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def this(initialTUnit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration) =
         this(initialTUnit, fm, options.getModuleInterfacePath, options)
 
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
+
     private val envToTUnit: util.IdentityHashMap[ASTEnv, TranslationUnit] = new util.IdentityHashMap()
     private val envToTS: util.IdentityHashMap[ASTEnv, CTypeSystemFrontend with CTypeCache with CDeclUse] = new util.IdentityHashMap()
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
@@ -89,67 +92,77 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     val startTUnit = addToCache(initialTUnit)
 
+    /**
+      * Enforcing the compatibility of the used ast representation with the IFDS/IDE framework.
+      */
     override def prepareAST[T <: Product](t: T): T = {
-        var tunit = t.asInstanceOf[TranslationUnit]
-        tunit = super.prepareAST(tunit)
+        println("\t#Rewriting...")
+        var tUnit = t.asInstanceOf[TranslationUnit]
+        tUnit = super.prepareAST(tUnit)
 
-        tunit = removeStmtVariability(tunit, fm)
-        // tunit = rewriteFunctionCallsInReturnStmts(tunit, fm)
-        tunit = rewriteNestedFunctionCalls(tunit, fm)
-        // tunit = addReturnStmtsForNonReturnExits(tunit, fm)
+        // Rewrite undisciplined variability
+        tUnit = removeUndisciplinedVariability(tUnit, fm)
+        // Rewrite combined call and return statements
+        tUnit = rewriteFunctionCallsInReturnStmts(tUnit, fm)
+        // Rewrite nested function calls
+        tUnit = rewriteNestedFunctionCalls(tUnit, fm)
+        // Enforce single function entry point
+        tUnit = enforceSingleFunctionEntryPoint(tUnit)
+        // Enforce exit in void over return stmt
+        tUnit = addReturnStmtsForNonReturnExits(tUnit, fm)
 
         if (options.getConfiguration.isDefined)
-            tunit = ProductDerivation.deriveProduct(tunit, options.getTrueSet.get)
+            tUnit = ProductDerivation.deriveProduct(ProductDerivation.deriveProduct(tUnit, options.getTrueSet.get), options.getTrueSet.get)
 
-        checkPositionInformation(tunit)
+        checkPositionInformation(tUnit)
 
-        tunit.asInstanceOf[T]
+        tUnit.asInstanceOf[T]
     }
 
-    private def addToCache(_tunit: TranslationUnit): TranslationUnit = {
-        if (_tunit.defs.isEmpty) {
+    private def addToCache(tUnit: TranslationUnit): TranslationUnit = {
+        if (tUnit.defs.isEmpty) {
             println("#empty tunit. did not add to cache")
-            return _tunit
+            return tUnit
         }
-        println("#preparation tasks for newly loaded translation unit started... ")
+        println("#upfront computation of newly loaded translation unit started... ")
 
-        var tunit: TranslationUnit = _tunit
+        var _tUnit: TranslationUnit = tUnit
 
-
-        val file = _tunit.defs.last.entry.getFile.get
+        val file = tUnit.defs.last.entry.getFile.get
 
         val (time, _) = StopWatch.measureWallTime(options.getStopWatchPrefix + "tunit_completePreparation", {
-            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", tunit = prepareAST(tunit))
+            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", _tUnit = prepareAST(_tUnit))
 
             val pos = new TokenPosition(file, 0, 0, 0)
-            val pseudoSystemFunctionCall = makePseudoSystemFunctionCall(Some(pos, pos))
+            val pseudoSystemFunctionCall = genPseudoSystemFunctionCall(Some(pos, pos))
 
             // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
-            tunit =
+            _tUnit =
               if (options.pseudoVisitingSystemLibFunctions) {
-                  val copy = tunit.copy(defs = pseudoSystemFunctionCall :: tunit.defs)
-                  copy.range = tunit.range
-                  copy
-              } else tunit
+                  val _tUnitPseudo = _tUnit.copy(defs = pseudoSystemFunctionCall :: _tUnit.defs)
+                  _tUnitPseudo.range = _tUnit.range
+                  _tUnitPseudo
+              } else _tUnit
 
-            checkPositionInformation(tunit)
+            checkPositionInformation(_tUnit)
 
-            val env = CASTEnv.createASTEnv(tunit)
-            val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
+            val ts = new CTypeSystemFrontend(_tUnit, fm) with CTypeCache with CDeclUse
+            if (options.silentTypeCheck) ts.makeSilent()
 
-            println("#Typecheck")
+            println("\t#Typechecking...")
             StopWatch.measureUserTime(options.getStopWatchPrefix + "typecheck", {
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
-            updateCaches(tunit, file, env, ts, pseudoSystemFunctionCall)
-            println("#Calculating Pointer Equivalence Realations...")
+            val env = CASTEnv.createASTEnv(_tUnit)
+            updateCaches(_tUnit, file, env, ts, pseudoSystemFunctionCall)
+            println("\t#Calculating Pointer Equivalence Realations...")
             calculatePointerEquivalenceRelations
         })
 
-        println("#preparation tasks for newly loaded translation unit finished in " + time + "ms")
+        println("#upfront computation of newly loaded translation unit finished in " + time + "ms")
 
-        tunit
+        _tUnit
     }
 
     private def updateCaches(tunit: TranslationUnit, file: String, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse, pseudoSystemFunctionCall: Opt[FunctionDef]) = {
@@ -192,26 +205,28 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
     def isNameKnown(name: Opt[String]): Boolean =
         cModuleInterface match {
-            case None => false
             case Some(interface) => interface.isNameKnown(name.entry)
+            case _ => false
         }
 
     def getNameLocations(name: Opt[String]): Option[List[String]] =
         cModuleInterface match {
-            case None => None
             case Some(interface) =>
                 interface.getPositions(name.entry) match {
                     case None => None
                     case Some(pos) => Some(pos.map(_.getFile))
                 }
+            case _ => None
+
         }
 
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {
         val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
         val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
-        println("#loading:\t" + filename)
+        val dbgName = filename //.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
+        println("#loading:\t" + dbgName)
 
-        val (source, _) = filename.splitAt(filename.lastIndexOf(fileExtension))
+        val (source, _) = dbgName.splitAt(dbgName.lastIndexOf(fileExtension))
         val inputStream = new ObjectInputStream(new GZIPInputStream(new FileInputStream(source + ".ast"))) {
             override protected def resolveClass(desc: ObjectStreamClass) = super.resolveClass(desc)
         }
@@ -246,7 +261,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 case PointerDerefExpr(p) => genObjectName(p)
                 case p: PostfixExpr => PrettyPrinter.print(p)
                 case x =>
-                    WarningsCache.add("No equivalence class lookup query rule for:\t" + x)
+                    if (logger.isDebugEnabled) logger.debug("No equivalence class lookup query rule for:\t" + x)
                     PrettyPrinter.print(x)
             }
 
@@ -258,9 +273,10 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         val eqQuery = buildEquivalenceClassLookupQuery(pointer.entry, currFuncName)
         val eqRelation = cFunctionPointerEQRelation.find(eqQuery)
 
-        if (eqRelation.isEmpty)
-            WarningsCache.add("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
+        if (eqRelation.isEmpty && logger.isDebugEnabled) logger.debug("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
-        eqRelation
+        if (options.computePointer) eqRelation else None
+
+
     }
 }

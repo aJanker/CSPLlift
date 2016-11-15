@@ -12,10 +12,14 @@ import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import de.fosd.typechef.{ErrorXML, Frontend}
+import org.slf4j.{Logger, LoggerFactory}
 
 object Launch extends App {
 
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
+
     override def main(args: Array[String]): Unit = {
+        setDefaultLogging()
         // load options
         val opt = new CInterAnalysisOptions
         try {
@@ -137,4 +141,6 @@ object Launch extends App {
     private def serializeAST(ast: AST, filename: String) = Frontend.serializeAST(ast, filename)
 
     private def loadSerializedAST(filename: String): TranslationUnit = Frontend.loadSerializedAST(filename)
+
+    private def setDefaultLogging() = if (System.getProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY) == null) System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO")
 }

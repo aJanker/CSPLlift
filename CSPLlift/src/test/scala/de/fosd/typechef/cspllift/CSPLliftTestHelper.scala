@@ -12,7 +12,6 @@ trait CSPLliftTestHelper extends TestHelper with Matchers {
 
     de.fosd.typechef.featureexpr.FeatureExprFactory.setDefault(de.fosd.typechef.featureexpr.FeatureExprFactory.bdd)
 
-    val dbg = false
 
     override val fa = FeatureExprFactory.createDefinedExternal("A")
     override val fb = FeatureExprFactory.createDefinedExternal("B")
@@ -27,6 +26,10 @@ trait CSPLliftTestHelper extends TestHelper with Matchers {
     val testfileDir = "testfiles/"
 
     lazy val dbgWriterDir = "/Users/andi/Dropbox/Masterarbeit/ifg_tests/"
+
+    lazy val dbg = false
+
+    setDefaultLogging()
 
     def parseTUnitFromFile(filename: String): TranslationUnit = {
         val inStream: InputStream = getClass.getResourceAsStream("/" + testfileDir + filename)
@@ -57,4 +60,6 @@ trait CSPLliftTestHelper extends TestHelper with Matchers {
         tunit
 
     }
+
+    private def setDefaultLogging() = if (System.getProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY) == null) System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO")
 }

@@ -20,7 +20,7 @@ trait CInterCFGConfiguration {
     def getGraphEntryFunctionNames: List[String] = List("main")
 
     /*
-     * If enabled, now warnings for discovered type errors are shown.
+     * If enabled, no warnings for discovered type errors are shown.
      */
     def silentTypeCheck: Boolean = true
 
@@ -28,6 +28,11 @@ trait CInterCFGConfiguration {
      * Sets the option if in our analysis system functions should be visited or ignored.
      */
     def pseudoVisitingSystemLibFunctions: Boolean
+
+    /**
+      * Enables or disables the function pointer computation for a more precise callgraph.
+      */
+    def computePointer: Boolean = true
 }
 
 class DefaultCInterCFGConfiguration(moduleInterfacePath: Option[String] = None, stopWatchPrefix: String = "") extends CInterCFGConfiguration {
@@ -36,8 +41,12 @@ class DefaultCInterCFGConfiguration(moduleInterfacePath: Option[String] = None, 
     override def getStopWatchPrefix: String = stopWatchPrefix
 }
 
-class ConfigurationBasedCInterCFGConfiguration(configuration: SimpleConfiguration, moduleInterfacePath: Option[String] = None, stopWatchPrefix: String = "") extends DefaultCInterCFGConfiguration(moduleInterfacePath, stopWatchPrefix) {
-    override def getConfiguration: Option[SimpleConfiguration] = Some(configuration)
-    override def getTrueSet: Option[Set[String]] = Some(configuration.getTrueFeatures)
-    override def getFalseSet: Option[Set[String]] = Some(configuration.getFalseFeatures)
+class ConfigurationBasedCInterCFGConfiguration(moduleInterfacePath: Option[String] = None, configuration: Option[SimpleConfiguration] = None, stopWatchPrefix: String = "") extends DefaultCInterCFGConfiguration(moduleInterfacePath, stopWatchPrefix) {
+    override def getConfiguration: Option[SimpleConfiguration] = configuration
+
+    override def getTrueSet: Option[Set[String]] = if (getConfiguration.isDefined) Some(getConfiguration.get.getTrueFeatures) else None
+
+    override def getFalseSet: Option[Set[String]] = if (getConfiguration.isDefined) Some(getConfiguration.get.getFalseFeatures) else None
+
+    override def computePointer: Boolean = false
 }

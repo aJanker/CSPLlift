@@ -1,10 +1,11 @@
 package de.fosd.typechef.cspllift.commons
 
-import java.io.{FileOutputStream, PrintWriter}
+import java.io.{File, FileOutputStream, PrintWriter}
 import java.util
 import java.util.zip.GZIPOutputStream
 
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.cspllift.CICFGFDef
 import de.fosd.typechef.customization.crewrite.AssignDeclDefUse
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, _}
@@ -28,12 +29,16 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
     def getPlainFileName(ast: AST, default: String = "NOFILENAME_AST"): String = getPlainFileNameS(ast.getFile.getOrElse(default))
 
     def getPlainFileNameS(str: String, default: String = "NOFILENAME"): String = {
-        val regex = """^(([^/]+/)*)(([^/.]+)\..+)""".r
+        if (str.equalsIgnoreCase(default)) return default
+
         val filePrefix = "file "
-        str match {
-            case regex(m1, m2, m3, m4) => if (m4.startsWith(filePrefix)) m4.substring(filePrefix.length) else m4
-            case _ => default
-        }
+        val prefixFree = if (str.startsWith(filePrefix)) str.substring(filePrefix.length) else str
+        val index = prefixFree.lastIndexOf(File.separatorChar)
+        val fName = if (index != -1) prefixFree.substring(index + 1) else prefixFree
+        val extensionIndex = fName.lastIndexOf('.')
+        val res = if (extensionIndex != -1) fName.substring(0, extensionIndex) else fName
+
+        res
     }
 
     /*
@@ -71,6 +76,7 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
         (group.reverse :: groups).reverse
     }
 
+    def getFDefParameters(fDef: CICFGFDef): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.method)
     def getFDefParameters(fDef: Opt[FunctionDef]): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.entry)
     def getFDefParameters(fDef: FunctionDef): List[Opt[ParameterDeclarationD]] =
         fDef.declarator.extensions.flatMap {
@@ -82,6 +88,7 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
             case _ => None
         }
 
+    def getPointerFDefParamNames(fDef: CICFGFDef): List[Opt[Id]] = getPointerFDefParamNames(fDef.method)
     def getPointerFDefParamNames(fDef: Opt[FunctionDef]): List[Opt[Id]] = getPointerFDefParamNames(fDef.entry)
     def getPointerFDefParamNames(fDef: FunctionDef): List[Opt[Id]] = {
         def andAll(a: FeatureExpr, b: Opt[_]): FeatureExpr = a.and(b.condition)
