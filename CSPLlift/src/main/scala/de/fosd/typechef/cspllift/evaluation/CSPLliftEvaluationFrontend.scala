@@ -77,7 +77,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val codeCoverageDir = rootDir + CODECOVERAGE + "/"
         checkDir(codeCoverageDir)
 
-        val conditionCoverageDir = rootDir + CODECOVERAGE + "/"
+        val conditionCoverageDir = rootDir + CONDITIONCOVERAGE + "/"
         checkDir(conditionCoverageDir)
 
         serialize(liftedEvalFacts, rootDir + "facts" + FILE_EXTENSION)
