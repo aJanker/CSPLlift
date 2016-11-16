@@ -13,7 +13,7 @@ import de.fosd.typechef.typesystem.linker.SystemLinker
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import heros.InterproceduralCFG
 import org.slf4j.{Logger, LoggerFactory}
-import spllift.SPLFeatureFunction
+import spllift.ConditionalEdgeFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -69,14 +69,22 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     def getPointsToCondition(callSite: N, callee: M): FeatureExpr
 
     /**
+      * Gets the correctly annotated (lifted) call edge function for a single statement.
+      * With the use of this method, SPLlift is able to introduce initial seeds according to their presence conditions
+      * @param stmt the statement (generally a global variable)
+      * @return the correct conditional flow edge
+      */
+    def getConditionalEdgeFunction(stmt: CICFGStmt) : ConditionalEdgeFunction
+
+    /**
       * Gets the correctly annotated (lifted) call edge function between a call site and its corresponding target callee.
       * With the use of this method, SPLlift is able to resolve the constraint of an call and call-to-return edge.
       *
       * @param callSite the statement where the call occurred
       * @param callee   the target of the call
-      * @return the correct points to flow edge
+      * @return the correct points-to conditional flow edge
       */
-    def getFlowEdgeFunction(callSite: N, callee: M) : SPLFeatureFunction
+    def getConditionalEdgeFunction(callSite: N, callee: M) : ConditionalEdgeFunction
 
     /**
       * Gets the full flow condition between a source node and its successor node.
@@ -112,7 +120,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     override def getFlowCondition(currStmt: CICFGStmt, succStmt: CICFGStmt): FeatureExpr = succStmt.getCondition.and(currStmt.getCondition)
 
-    override def getFlowEdgeFunction(currStmt: CICFGStmt, callee: CICFGFDef) : SPLFeatureFunction = new SPLFeatureFunction(getPointsToCondition(currStmt, callee), getFeatureModel, false)
+    override def getConditionalEdgeFunction(currStmt: CICFGStmt, callee: CICFGFDef) : ConditionalEdgeFunction = new ConditionalEdgeFunction(getPointsToCondition(currStmt, callee), getFeatureModel, false)
+
+    override def getConditionalEdgeFunction(stmt: CICFGStmt) : ConditionalEdgeFunction = new ConditionalEdgeFunction(stmt.getCondition, getFeatureModel, false)
 
     override def getPointsToCondition(callSite: CICFGStmt, callee: CICFGFDef): FeatureExpr = {
         val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)

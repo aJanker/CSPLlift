@@ -161,7 +161,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             cfgConds + cfgCond
         })
 
-        // 3. Generate Condition Coverage Configurations for all distinct warning conditions
+        // 3. Generate ConditionalEdgeFunction Coverage Configurations for all distinct warning conditions
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
         val configs = sampling.conditionConfigurationCoverage(cfgConditions.asInstanceOf[Set[FeatureExpr]])
 

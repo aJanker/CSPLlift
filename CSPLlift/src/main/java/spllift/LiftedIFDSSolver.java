@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.Set;
 
 
-public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, FeatureExpr, CInterCFG> {
+public class LiftedIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, FeatureExpr, CInterCFG> {
 
-    public SPLIFDSSolver(final IFDSTabulationProblem<CICFGStmt, D, CICFGFDef, CInterCFG> ifdsProblem, final FeatureModel fm, final boolean useFMInEdgeComputations) {
+    public LiftedIFDSSolver(final IFDSTabulationProblem<CICFGStmt, D, CICFGFDef, CInterCFG> ifdsProblem, final FeatureModel fm, final boolean useFMInEdgeComputations) {
         super(new DefaultSPLIFDSTabulationProblem<CICFGStmt, D, CICFGFDef, CInterCFG>(ifdsProblem) {
             @Override
             public Map<CICFGStmt, Set<D>> initialSeeds() {
@@ -68,14 +68,14 @@ public class SPLIFDSSolver<D> extends IDESolver<CICFGStmt, D, CICFGFDef, Feature
                     if (pointsToflowCondition != null)
                         cfgCondition = cfgCondition.and(pointsToflowCondition);
 
-                    return new SPLFeatureFunction(cfgCondition, fm, useFMInEdgeComputations);
+                    return new ConditionalEdgeFunction(cfgCondition, fm, useFMInEdgeComputations);
                 }
             }
 
 
             @Override
             protected EdgeFunction<FeatureExpr> createAllTopFunction() {
-                return new SPLFeatureFunction(FeatureExprFactory.False(), fm, useFMInEdgeComputations);
+                return new ConditionalEdgeFunction(FeatureExprFactory.False(), fm, useFMInEdgeComputations);
             }
 
             @Override

@@ -361,7 +361,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
                 for (D d3 : res) {
                     //create initial self-loop
                     /*
-                     * Instead of push an identitiy edge, we are pushing the correct flow edge according to the points-to condition.
+                     * Instead of push an identity edge, we are pushing the correct flow edge according to the points-to condition.
                      */
                     propagate(d3, sP, d3, f, n, false); //line 15
 
@@ -429,7 +429,7 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
     private EdgeFunction<V> getConditionalFlowEdgeFunction(N call, M callee, EdgeFunction<V> f) {
         if (icfg instanceof CInterCFG && call instanceof CICFGStmt && callee instanceof CICFGFDef) {
             @SuppressWarnings("unchecked")
-            EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getFlowEdgeFunction((CICFGStmt) call, (CICFGFDef) callee);
+            EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getConditionalEdgeFunction((CICFGStmt) call, (CICFGFDef) callee);
             f = f.composeWith(f3);
         }
         return f;

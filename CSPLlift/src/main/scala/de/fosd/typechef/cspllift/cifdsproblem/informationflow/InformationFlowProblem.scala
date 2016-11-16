@@ -93,7 +93,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                     }
                                     GEN(getSinksAndSourcesOf(currSourceDefinition, sources))
                                 } else if (currStructFieldAssigns.isEmpty && currStructFieldUses.isEmpty && currAssignments.exists { case (assignee, assignor) => assignor.contains(structName) }) {
-                                    // TODO Clean Condition
+                                    // TODO Clean ConditionalEdgeFunction
                                     val sources = currAssignments.flatMap {
                                         case (assignee, assignor) if assignor.contains(structName) => getDefineSourcesFromAssignment(assignee)
                                         case _ => None

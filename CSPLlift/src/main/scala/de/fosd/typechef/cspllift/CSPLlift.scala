@@ -7,7 +7,7 @@ import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
-import spllift.SPLIFDSSolver
+import spllift.LiftedIFDSSolver
 
 class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) {
     def analyze(opt: CSPLliftOptions) = {
@@ -27,7 +27,7 @@ object CSPLlift {
     def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[LiftedCFlowFact[D]] = {
         SuperCallGraph.clear()
 
-        val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new SPLIFDSSolver(problem, fm, false)})
+        val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new LiftedIFDSSolver(problem, fm, false)})
         StopWatch.measureWallTime("wall_lift_solve", {solver.solve()})
 
         liftedFlowFactsAsScala(solver.getAllResults)

@@ -7,13 +7,13 @@ import heros.EdgeFunction;
 import heros.edgefunc.AllTop;
 import heros.edgefunc.EdgeIdentity;
 
-public class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
+public class ConditionalEdgeFunction implements EdgeFunction<FeatureExpr> {
 
     private final FeatureExpr condition;
     private final FeatureModel fm;
     private final boolean useFM;
 
-    public SPLFeatureFunction(final FeatureExpr condition, final FeatureModel fModel, final boolean useFMInEdgeComputations) {
+    public ConditionalEdgeFunction(final FeatureExpr condition, final FeatureModel fModel, final boolean useFMInEdgeComputations) {
         if (condition == null) throw new RuntimeException();
         this.condition = condition;
         this.fm = fModel;
@@ -27,8 +27,8 @@ public class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
     public EdgeFunction<FeatureExpr> composeWith(EdgeFunction<FeatureExpr> secondFunction) {
         if (secondFunction instanceof EdgeIdentity || secondFunction instanceof AllTop ) return this;
 
-        SPLFeatureFunction other = (SPLFeatureFunction) secondFunction;
-        return new SPLFeatureFunction(this.and(other.condition), fm, useFM);
+        ConditionalEdgeFunction other = (ConditionalEdgeFunction) secondFunction;
+        return new ConditionalEdgeFunction(this.and(other.condition), fm, useFM);
     }
 
     public EdgeFunction<FeatureExpr> joinWith(EdgeFunction<FeatureExpr> otherFunction) {
@@ -36,13 +36,13 @@ public class SPLFeatureFunction implements EdgeFunction<FeatureExpr> {
         if (otherFunction instanceof AllTop) return this;
         if (otherFunction instanceof EdgeIdentity) return otherFunction;
 
-        SPLFeatureFunction other = (SPLFeatureFunction) otherFunction;
-        return new SPLFeatureFunction(this.or(other.condition), fm, useFM);
+        ConditionalEdgeFunction other = (ConditionalEdgeFunction) otherFunction;
+        return new ConditionalEdgeFunction(this.or(other.condition), fm, useFM);
     }
 
     public boolean equalTo(EdgeFunction<FeatureExpr> other) {
-        if (other instanceof SPLFeatureFunction) {
-            SPLFeatureFunction function = (SPLFeatureFunction) other;
+        if (other instanceof ConditionalEdgeFunction) {
+            ConditionalEdgeFunction function = (ConditionalEdgeFunction) other;
             return function.condition.equivalentTo(condition);
         }
         return false;
