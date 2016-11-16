@@ -4,7 +4,6 @@ import java.util
 import java.util.Collections
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Zero}
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.cspllift.{CInterCFG, IFDSProblem}
@@ -24,20 +23,6 @@ abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProble
       * interface should therefore cache the return value!
       */
     override def interproceduralCFG: CInterCFG = cICFG
-
-    /**
-      * This must be a data-flow fact of type {@link D}, but must <i>not</i>
-      * be part of the domain of data-flow facts. Typically this will be a
-      * singleton object of type {@link D} that is used for nothing else.
-      * It must holds that this object does not equals any object
-      * within the domain.
-      *
-      * <b>NOTE:</b> this method could be called many times. Implementations of this
-      * interface should therefore cache the return value!
-      */
-    override def zeroValue(): InformationFlowFact = zero
-
-    private lazy val zero = Zero()
 }
 
 trait CFlowFact extends Cloneable with Product{

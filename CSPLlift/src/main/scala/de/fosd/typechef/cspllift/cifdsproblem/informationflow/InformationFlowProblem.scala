@@ -23,6 +23,20 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     /**
+      * This must be a data-flow fact of type {@link D}, but must <i>not</i>
+      * be part of the domain of data-flow facts. Typically this will be a
+      * singleton object of type {@link D} that is used for nothing else.
+      * It must holds that this object does not equals any object
+      * within the domain.
+      *
+      * <b>NOTE:</b> this method could be called many times. Implementations of this
+      * interface should therefore cache the return value!
+      */
+    private lazy val zero: InformationFlowFact = Zero()
+
+    override def zeroValue(): InformationFlowFact = zero
+
+    /**
       * Returns initial seeds to be used for the analysis. This is a mapping of statements to initial analysis facts.
       * We consider global variables as initial sources.
       */
@@ -44,7 +58,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       * interface should therefore cache the return value!
       */
     override def flowFunctions(): FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] = flowFunctionFactory
-
     private lazy val flowFunctionFactory: FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] = new FlowFunctions[CICFGStmt, InformationFlowFact, CICFGFDef] {
 
             /**
