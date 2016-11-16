@@ -1,14 +1,14 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource
 
 import de.fosd.typechef.crewrite.ProductDerivation
-import de.fosd.typechef.cspllift.CICFGStmt
+import de.fosd.typechef.cspllift.CICFGNode
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowHelper
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowFact}
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.Id
 
 
-sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper with CFlowConstants {
+sealed abstract class Sink(override val cICFGStmt: CICFGNode, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper with CFlowConstants {
 
     /**
       * Sinks are always interesting facts for our evaluation strategy, however rewriting introduces some variant specific flows only.
@@ -49,7 +49,7 @@ sealed abstract class Sink(override val cICFGStmt: CICFGStmt, val source: Source
     def getOriginId : Id = getOriginSource.getType.getName
 }
 
-case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {
+case class SinkToAssignment(override val cICFGStmt: CICFGNode, override val source: Source, assignee: Id) extends Sink(cICFGStmt, source) {
 
     /**
       * Sinks are always interesting facts for our evaluation strategy, however rewriting introduces some variant specific flows only.
@@ -70,7 +70,7 @@ case class SinkToAssignment(override val cICFGStmt: CICFGStmt, override val sour
     override def canEqual(that: Any): Boolean = that.isInstanceOf[SinkToAssignment]
 }
 
-case class SinkToUse(override val cICFGStmt: CICFGStmt, override val source: Source) extends Sink(cICFGStmt, source) {
+case class SinkToUse(override val cICFGStmt: CICFGNode, override val source: Source) extends Sink(cICFGStmt, source) {
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean =
         if (!other.isInstanceOf[SinkToUse]) false
         else super.isEquivalentTo(other, configuration)

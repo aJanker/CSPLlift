@@ -5,14 +5,14 @@ import java.util
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Zero}
-import de.fosd.typechef.cspllift.{CICFGStmt, CInterCFG}
+import de.fosd.typechef.cspllift.{CICFGNode, CInterCFG}
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExprFactory
 import de.fosd.typechef.parser.c.{AST, FunctionDef, Id}
 import de.fosd.typechef.typesystem.{CAnonymousStruct, CStruct, CType, ConditionalTypeMap}
 import org.slf4j.{Logger, LoggerFactory}
 
 
-abstract class IFDefaultFlowFunction(interproceduralCFG: CInterCFG, curr: CICFGStmt, succ: CICFGStmt) extends IFFlowFunction {
+abstract class IFDefaultFlowFunction(interproceduralCFG: CInterCFG, curr: CICFGNode, succ: CICFGNode) extends IFFlowFunction {
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     lazy val currStmt = curr.getStmt

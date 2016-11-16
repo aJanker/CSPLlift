@@ -82,7 +82,7 @@ object TaintCheck {
             case (stmt, _) => stmt.getASTEntry.equals(taintedSink)
         }
 
-    private def getSinksWithTaintedSourceEntry(taintedSinks: GenTraversable[(CICFGStmt, List[(Sink, FeatureExpr)])], taintedSource : String) =
+    private def getSinksWithTaintedSourceEntry(taintedSinks: GenTraversable[(CICFGNode, List[(Sink, FeatureExpr)])], taintedSource : String) =
         taintedSinks.par.flatMap(_._2).filter(s => containsName(s._1, taintedSource))
 
     private def containsName(sink : Sink, name : String) : Boolean = {
@@ -158,7 +158,7 @@ object TaintCheck {
     /**
       * Retrieves the original presence condition in the ast, not the dataflow condition
       */
-    private def getNode(x: CICFGStmt, icfg: CInterCFG): Node[AST] = {
+    private def getNode(x: CICFGNode, icfg: CInterCFG): Node[AST] = {
         val stmt = x.getStmt
         icfg.getEnv(stmt.entry) match {
             case Some(env) => Node(x.getStmt)
@@ -166,9 +166,9 @@ object TaintCheck {
         }
     }
 
-    private def getEdge(f: CICFGStmt, t: CICFGStmt, icfg: CInterCFG): Edge[AST] = getEdge(f, t, f.getCondition.and(t.getCondition), icfg)
+    private def getEdge(f: CICFGNode, t: CICFGNode, icfg: CInterCFG): Edge[AST] = getEdge(f, t, f.getCondition.and(t.getCondition), icfg)
 
-    private def getEdge(f: CICFGStmt, t: CICFGStmt, flowCondition : FeatureExpr, icfg: CInterCFG): Edge[AST] =
+    private def getEdge(f: CICFGNode, t: CICFGNode, flowCondition : FeatureExpr, icfg: CInterCFG): Edge[AST] =
         Edge(getNode(f, icfg), getNode(t, icfg), flowCondition)
 
     private def writeExplodedSuperCallGraph(opt: CSPLliftOptions) : Unit = {

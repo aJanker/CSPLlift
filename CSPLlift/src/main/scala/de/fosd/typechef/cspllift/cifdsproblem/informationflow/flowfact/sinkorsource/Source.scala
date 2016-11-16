@@ -1,7 +1,7 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource
 
 import de.fosd.typechef.crewrite.ProductDerivation
-import de.fosd.typechef.cspllift.CICFGStmt
+import de.fosd.typechef.cspllift.CICFGNode
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.Id
@@ -33,7 +33,7 @@ case class Variable(name: Id) extends SourceType(name) {
     }
 }
 
-sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CICFGStmt, scope: Int) extends SinkOrSource(cICFGStmt) {
+sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CICFGNode, scope: Int) extends SinkOrSource(cICFGStmt) {
 
     def getScope = scope
 
@@ -53,8 +53,8 @@ sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CIC
     }
 }
 
-case class SourceDefinition(sourceType: SourceType, override val cICFGStmt: CICFGStmt, scope: Int) extends Source(sourceType, cICFGStmt, scope)
+case class SourceDefinition(sourceType: SourceType, override val cICFGStmt: CICFGNode, scope: Int) extends Source(sourceType, cICFGStmt, scope)
 
-case class SourceDefinitionOf(sourceType: SourceType, override val cICFGStmt: CICFGStmt, define: SourceDefinition, scope: Int) extends Source(sourceType, cICFGStmt, scope) {
+case class SourceDefinitionOf(sourceType: SourceType, override val cICFGStmt: CICFGNode, define: SourceDefinition, scope: Int) extends Source(sourceType, cICFGStmt, scope) {
     def getDefinition = define
 }

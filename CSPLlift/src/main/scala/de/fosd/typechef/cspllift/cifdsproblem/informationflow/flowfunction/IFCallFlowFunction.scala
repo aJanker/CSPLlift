@@ -1,7 +1,7 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfunction
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.{CICFGFDef, CICFGStmt, CInterCFG}
+import de.fosd.typechef.cspllift.{CICFGFDef, CICFGNode, CInterCFG}
 import de.fosd.typechef.parser.c._
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
 /**
   * Adds additional methods for call and callee parameter matching requiered at call-flow edges.
   */
-abstract class IFCallFlowFunction(interproceduralCFG: CInterCFG, callStmt: CICFGStmt, destinationMethod: CICFGFDef) extends IFDefaultFlowFunction(interproceduralCFG, callStmt, destinationMethod) {
+abstract class IFCallFlowFunction(interproceduralCFG: CInterCFG, callStmt: CICFGNode, destinationMethod: CICFGFDef) extends IFDefaultFlowFunction(interproceduralCFG, callStmt, destinationMethod) {
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     lazy val destinationStmt = interproceduralCFG.getSuccsOf(destinationMethod).asScala.headOption.getOrElse(destinationMethod)

@@ -5,7 +5,7 @@ import java.io.{StringWriter, Writer}
 import de.fosd.typechef.conditional.One
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SinkOrSource, Source}
-import de.fosd.typechef.cspllift.{CICFGStmt, LiftedCFlowFact, StmtFlowFacts}
+import de.fosd.typechef.cspllift.{CICFGNode, LiftedCFlowFact, StmtFlowFacts}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{EmptyStatement, ForStatement, PrettyPrinter}
 
@@ -49,7 +49,7 @@ object InformationFlow {
         }
 
     private def filter[F <: SinkOrSource](solverResult: List[(InformationFlowFact, FeatureExpr)], isMatch: (F) => Boolean)(implicit m: Manifest[F]): Traversable[StmtFlowFacts[F]] =
-        solverResult.foldLeft(Map[CICFGStmt, List[LiftedCFlowFact[F]]]()) {
+        solverResult.foldLeft(Map[CICFGNode, List[LiftedCFlowFact[F]]]()) {
             case (map, solution@(s: F, c: FeatureExpr)) if isMatch(s) =>
                 val key = s.cICFGStmt
                 // remove duplicate source sinks

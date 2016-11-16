@@ -21,7 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
 import de.fosd.typechef.cspllift.CICFGFDef;
-import de.fosd.typechef.cspllift.CICFGStmt;
+import de.fosd.typechef.cspllift.CICFGNode;
 import de.fosd.typechef.cspllift.CInterCFG;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
@@ -427,9 +427,9 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
      * @return correct flow edge
      */
     private EdgeFunction<V> getConditionalFlowEdgeFunction(N call, M callee, EdgeFunction<V> f) {
-        if (icfg instanceof CInterCFG && call instanceof CICFGStmt && callee instanceof CICFGFDef) {
+        if (icfg instanceof CInterCFG && call instanceof CICFGNode && callee instanceof CICFGFDef) {
             @SuppressWarnings("unchecked")
-            EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getConditionalEdgeFunction((CICFGStmt) call, (CICFGFDef) callee);
+            EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getConditionalEdgeFunction((CICFGNode) call, (CICFGFDef) callee);
             f = f.composeWith(f3);
         }
         return f;

@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.parser.c._
 
-sealed abstract class CICFGStmt(stmt: Opt[AST]) extends Product {
+sealed abstract class CICFGNode(stmt: Opt[AST]) extends Product {
     def getStmt = stmt
     def getCondition = getStmt.condition
     def getASTEntry = getStmt.entry
@@ -20,13 +20,13 @@ sealed abstract class CICFGStmt(stmt: Opt[AST]) extends Product {
       * TypeChef. Therefore we are wrapping these elements for Heros.
       */
     override def equals(x: Any) = x match {
-        case c: CICFGStmt => (c.getCondition eq getCondition) && equalsASTElement(c)
+        case c: CICFGNode => (c.getCondition eq getCondition) && equalsASTElement(c)
         case _ => false
     }
 
-    override def canEqual(that: Any): Boolean = that.isInstanceOf[CICFGStmt]
+    override def canEqual(that: Any): Boolean = that.isInstanceOf[CICFGNode]
 
-    private def equalsASTElement(that: CICFGStmt): Boolean = {
+    private def equalsASTElement(that: CICFGNode): Boolean = {
         val eqPosition =
             if (hasPosition && that.hasPosition) getPosition.equals(that.getPosition)
             else true
@@ -43,7 +43,7 @@ sealed abstract class CICFGStmt(stmt: Opt[AST]) extends Product {
     }
 }
 
-case class CICFGConcreteStmt(stmt: Opt[AST]) extends CICFGStmt(stmt) {
+case class CICFGStmt(stmt: Opt[AST]) extends CICFGNode(stmt) {
     override def toText: String =
         stmt match {
             case Opt(condition, s: Statement) => PrettyPrinter.print(CompoundStatement(List(Opt(condition, s))))
@@ -52,7 +52,7 @@ case class CICFGConcreteStmt(stmt: Opt[AST]) extends CICFGStmt(stmt) {
         }
 }
 
-case class CICFGFDef(method: Opt[FunctionDef]) extends CICFGStmt(method) {
+case class CICFGFDef(method: Opt[FunctionDef]) extends CICFGNode(method) {
     override def toText: String = PrettyPrinter.print(TranslationUnit(List(method)))
 }
 
