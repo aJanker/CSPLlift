@@ -43,7 +43,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     private def initProfiling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Unit = {
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
-        val (initTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "init")
+        val (initTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("init"))
 
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
 
@@ -115,7 +115,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         logger.info(config.toString)
 
         val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer, Some(config), run)
-        val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
+        val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(run + "_"))
 
         if (opt.writeVariants) writeVariants(icfg, opt, strategy, Some(i), Some(config))
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, strategy, Some(run))
@@ -140,7 +140,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
-        val (vaaWallTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
+        val (vaaWallTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("lifted"))
 
         if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
@@ -181,7 +181,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 1. Step -> Run VAA first in order to detect all affected features
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
-        val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, "vaa")
+        val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("lifted_"))
 
         if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
@@ -232,9 +232,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
 
-    private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGConfiguration, stopWatchMark: String = "None"): (Long, (List[LiftedCFlowFact[D]], CInterCFG)) =
-        StopWatch.measureUserTime(stopWatchMark, {
-            val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions)
+    private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGConfiguration, benchmarkTag: Option[String] = None): (Long, (List[LiftedCFlowFact[D]], CInterCFG)) =
+        StopWatch.measureUserTime(benchmarkTag.getOrElse("NO_TAG"), {
+            val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions, benchmarkTag)
             val problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG)
 
             (CSPLlift.solve[D](problem), cInterCFG)

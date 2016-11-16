@@ -9,6 +9,9 @@ import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.parser.c._
 import spllift.LiftedIFDSSolver
 
+/*
+ * Frontend interface for selecting different analysis strategies.
+ */
 class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) {
     def analyze(opt: CSPLliftOptions) = {
 
@@ -19,16 +22,20 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
     }
 }
 
+/**
+  * Connector the Java Frontend of the lifted IFDS solver.
+  */
 object CSPLlift {
 
-    def solveCIFDSProblem[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[LiftedCFlowFact[D]] =
-        CSPLlift.solve[D](getCIFDSProblemInstance[D, T](ifdsProblem)(cifg), fm, printWarnings)
+    def solveCIFDSProblem[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fm: FeatureModel = BDDFeatureModel.empty): List[LiftedCFlowFact[D]] =
+        CSPLlift.solve[D](getCIFDSProblemInstance[D, T](ifdsProblem)(cifg), fm)
 
-    def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, printWarnings: Boolean = false): List[LiftedCFlowFact[D]] = {
+    def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, benchmarkTag : Option[String] = None): List[LiftedCFlowFact[D]] = {
         SuperCallGraph.clear()
 
-        val (_, solver) = StopWatch.measureWallTime("wall_lift_init", {new LiftedIFDSSolver(problem, fm, false)})
-        StopWatch.measureWallTime("wall_lift_solve", {solver.solve()})
+        val solver = new LiftedIFDSSolver(problem, fm, false)
+
+        StopWatch.measureUserTime(benchmarkTag.getOrElse("") + "SOLVING", {solver.solve()})
 
         liftedFlowFactsAsScala(solver.getAllResults)
     }

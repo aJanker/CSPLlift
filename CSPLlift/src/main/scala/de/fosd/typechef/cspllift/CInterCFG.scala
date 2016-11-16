@@ -96,7 +96,7 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
     def getFlowCondition(srcStmt: N, succStmt: N): FeatureExpr
 }
 
-class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration)
+class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration, benchmarkTag : Option[String] = None)
   extends CInterproceduralCFG[CICFGNode, CICFGFDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)

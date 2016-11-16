@@ -18,9 +18,9 @@ object StopWatch {
 
     private lazy val times: util.Map[(Int, String), Long] = new ConcurrentHashMap[(Int, String), Long]()
     private lazy val bean = ManagementFactory.getThreadMXBean
-    private var currentPeriodId: Int = 0
+    private var currentPeriod: Int = 0
 
-    private def genId(): Int = this.synchronized {currentPeriodId += 1; currentPeriodId}
+    private def genId(): Int = this.synchronized {currentPeriod += 1; currentPeriod}
 
     def reset() = times.clear()
 

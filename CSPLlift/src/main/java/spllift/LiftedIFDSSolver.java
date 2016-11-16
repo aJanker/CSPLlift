@@ -22,15 +22,15 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
                 return ifdsProblem.initialSeeds();
             }
 
-            class SPLIFDSEdgeFunctions implements EdgeFunctions<CICFGNode, D, CICFGFDef, FeatureExpr> {
+            class ConditionalIFDSEdgeFunctions implements EdgeFunctions<CICFGNode, D, CICFGFDef, FeatureExpr> {
                 private final CInterCFG icfg;
 
-                private SPLIFDSEdgeFunctions(CInterCFG icfg) {
+                private ConditionalIFDSEdgeFunctions(CInterCFG icfg) {
                     this.icfg = icfg;
                 }
 
                 public EdgeFunction<FeatureExpr> getNormalEdgeFunction(CICFGNode currStmt, D srcFact, CICFGNode succStmt, D succFact) {
-                    return buildFlowFunction(currStmt, succStmt);
+                    return conditionalFlowFunction(currStmt, succStmt);
                 }
 
                 public EdgeFunction<FeatureExpr> getCallEdgeFunction(CICFGNode callStmt, D srcFact, CICFGFDef destinationMethod, D destFact) {
@@ -42,7 +42,7 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
                      * flow presence condition along the normal-flow edges.
                      */
                     FeatureExpr pointsToFlowCondition= icfg.getPointsToCondition(callStmt, destinationMethod);
-                    return buildFlowFunction(callStmt, destinationMethod, pointsToFlowCondition);
+                    return conditionalFlowFunction(callStmt, destinationMethod, pointsToFlowCondition);
                 }
 
                 public EdgeFunction<FeatureExpr> getReturnEdgeFunction(CICFGNode callSite, CICFGFDef calleeMethod, CICFGNode exitStmt, D srcFact, CICFGNode returnSite, D succFact) {
@@ -51,22 +51,22 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
                      * Otherwise we would assume this flow has the presence condition of true.
                      */
                     FeatureExpr pointsToFlowCondition = icfg.getPointsToCondition(callSite, calleeMethod).and(icfg.getCondition(callSite)).and(icfg.getCondition(calleeMethod));
-                    return buildFlowFunction(exitStmt, returnSite, pointsToFlowCondition);
+                    return conditionalFlowFunction(exitStmt, returnSite, pointsToFlowCondition);
                 }
 
                 public EdgeFunction<FeatureExpr> getCallToReturnEdgeFunction(CICFGNode callSite, D srcFact, CICFGNode returnSite, D succFact) {
-                    return buildFlowFunction(callSite, returnSite);
+                    return conditionalFlowFunction(callSite, returnSite);
                 }
 
-                private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGNode src, CICFGNode successor) {
-                    return buildFlowFunction(src, successor, null);
+                private EdgeFunction<FeatureExpr> conditionalFlowFunction(CICFGNode src, CICFGNode successor) {
+                    return conditionalFlowFunction(src, successor, null);
                 }
 
-                private EdgeFunction<FeatureExpr> buildFlowFunction(CICFGNode src, CICFGNode successor, FeatureExpr pointsToflowCondition) {
-                    FeatureExpr cfgCondition = icfg.getFlowCondition(src, src); // TODO: Test corner cases
+                private EdgeFunction<FeatureExpr> conditionalFlowFunction(CICFGNode src, CICFGNode successor, FeatureExpr pointsToFlowCondition) {
+                    FeatureExpr cfgCondition = icfg.getFlowCondition(src, src);
 
-                    if (pointsToflowCondition != null)
-                        cfgCondition = cfgCondition.and(pointsToflowCondition);
+                    if (pointsToFlowCondition != null)
+                        cfgCondition = cfgCondition.and(pointsToFlowCondition);
 
                     return new ConditionalEdgeFunction(cfgCondition, fm, useFMInEdgeComputations);
                 }
@@ -99,14 +99,11 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
 
             @Override
             protected EdgeFunctions<CICFGNode, D, CICFGFDef, FeatureExpr> createEdgeFunctionsFactory() {
-                return new SPLIFDSEdgeFunctions(interproceduralCFG());
+                return new ConditionalIFDSEdgeFunctions(interproceduralCFG());
             }
 
             @Override
             protected FlowFunctions<CICFGNode, D, CICFGFDef> createFlowFunctionsFactory() {
-
-                // See git history for removed wrapper code.
-                // Not sure why some flow functions were wrapped into a another flowfunction without being able to kill flow facts.
                 return new FlowFunctions<CICFGNode, D, CICFGFDef>() {
 
                     @Override
