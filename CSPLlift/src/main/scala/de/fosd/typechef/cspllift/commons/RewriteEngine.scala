@@ -39,7 +39,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
     /**
       * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
       */
-    def addReturnStmtsForNonReturnExits[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+    def addReturnStmtsForNonReturnVoidExits[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
         val astEnv = CASTEnv.createASTEnv(ast)
 
         val voidFunctions = filterAllASTElems[FunctionDef](ast).filter(fDef => fDef.specifiers.exists(_.entry match {
@@ -68,8 +68,6 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
       * We are otherwise unable to use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
       */
     def removeUndisciplinedVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
-        assert(ast != null, "ast should not be null")
-
         val astEnv = CASTEnv.createASTEnv(ast)
 
         val cfgStmts = getCFGStatements(ast)
@@ -109,7 +107,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
       * returnTypeOf(foo(x)) tmp = foo(x);
       * return tmp;
       */
-    def rewriteFunctionCallsInReturnStmts(tunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty): TranslationUnit = {
+    def rewriteCombinedCallAndExitStmts(tunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty): TranslationUnit = {
         val allReturnStatementsWithFunctionCall =
             filterAllASTElems[ReturnStatement](tunit).filter {
                 filterAllASTElems[FunctionCall](_).nonEmpty
@@ -173,7 +171,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
         val stmt = findPriorASTElem[Statement](replacement._1, env)
 
         if (cc.isEmpty || stmt.isEmpty) {
-            Console.err.println("Warning: function rewrite rule may not by exhaustive for:\t" + replacement._1)
+            logger.warn("Function rewrite rule may not by exhaustive for:\t" + replacement._1)
             return tunit
         } // return not part of a compound statement -> can not rewrite
 

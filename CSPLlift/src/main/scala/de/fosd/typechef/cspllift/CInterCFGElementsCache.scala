@@ -95,39 +95,40 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
       * Enforcing the compatibility of the used ast representation with the IFDS/IDE framework.
       */
     override def prepareAST[T <: Product](t: T): T = {
-        println("\t#Rewriting...")
         var tUnit = t.asInstanceOf[TranslationUnit]
+        val file = tUnit.defs.last.entry.getFile.get
+
+        if (logger.isInfoEnabled) logger.info("Rewriting " + file)
+
         tUnit = super.prepareAST(tUnit)
 
         // Rewrite undisciplined variability
         tUnit = removeUndisciplinedVariability(tUnit, fm)
         // Rewrite combined call and return statements
-        tUnit = rewriteFunctionCallsInReturnStmts(tUnit, fm)
+        tUnit = rewriteCombinedCallAndExitStmts(tUnit, fm)
         // Rewrite nested function calls
         tUnit = rewriteNestedFunctionCalls(tUnit, fm)
         // Enforce single function entry point
         tUnit = enforceSingleFunctionEntryPoint(tUnit)
         // Enforce exit in void over return stmt
-        tUnit = addReturnStmtsForNonReturnExits(tUnit, fm)
+        tUnit = addReturnStmtsForNonReturnVoidExits(tUnit, fm)
 
         if (options.getConfiguration.isDefined)
             tUnit = ProductDerivation.deriveProduct(ProductDerivation.deriveProduct(tUnit, options.getTrueSet.get), options.getTrueSet.get)
-
-        checkPositionInformation(tUnit)
 
         tUnit.asInstanceOf[T]
     }
 
     private def addToCache(tunit: TranslationUnit): TranslationUnit = {
         if (tunit.defs.isEmpty) {
-            println("#empty tunit. did not add to cache")
+            logger.warn("Empty tunit. did not add to cache")
             return tunit
         }
-        println("#upfront computation of newly loaded translation unit started... ")
 
         var res: TranslationUnit = tunit
-
         val file = tunit.defs.last.entry.getFile.get
+
+        if (logger.isInfoEnabled) logger.info("Upfront computation of newly loaded translation unit started for " + file + ".")
 
         val (time, _) = StopWatch.measureWallTime(options.getStopWatchPrefix + "tunit_completePreparation", {
             StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", res = prepareAST(res))
@@ -148,18 +149,18 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             val ts = new CTypeSystemFrontend(res, fm) with CTypeCache with CDeclUse
             if (options.silentTypeCheck) ts.makeSilent()
 
-            println("\t#Typechecking...")
+            if (logger.isInfoEnabled) logger.info("Typechecking " + file)
             StopWatch.measureUserTime(options.getStopWatchPrefix + "typecheck", {
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
             val env = CASTEnv.createASTEnv(res)
             updateCaches(res, file, env, ts, pseudoSystemFunctionCall)
-            println("\t#Calculating Pointer Equivalence Realations...")
+            if (logger.isInfoEnabled) logger.info("Calculating Pointer Equivalence Realations: " + file)
             calculatePointerEquivalenceRelations
         })
 
-        println("#upfront computation of newly loaded translation unit finished in " + time + "ms")
+        if (logger.isInfoEnabled) logger.info("Upfront computation of newly loaded translation unit finished in " + time + "ms for " +  file + ".")
 
         res
     }
@@ -222,8 +223,8 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {
         val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
         val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
-        val dbgName = filename //.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
-        println("#loading:\t" + dbgName)
+        val dbgName = filename.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
+        if (logger.isInfoEnabled) logger.info("Loading:\t" + dbgName)
 
         val (source, _) = dbgName.splitAt(dbgName.lastIndexOf(fileExtension))
         val inputStream = new ObjectInputStream(new GZIPInputStream(new FileInputStream(source + ".ast"))) {
@@ -269,15 +270,13 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
 
     private def getPointerEquivalenceClass(pointer: Opt[Expr], currFuncName: String): Option[EquivalenceClass] = {
-        if (cFunctionPointerEQRelation.isEmpty) return None
-
         val eqQuery = buildEquivalenceClassLookupQuery(pointer.entry, currFuncName)
-        val eqRelation = cFunctionPointerEQRelation.get.find(eqQuery)
+        val eqRelation =
+            if (cFunctionPointerEQRelation.isDefined) cFunctionPointerEQRelation.get.find(eqQuery)
+            else None
 
         if (eqRelation.isEmpty && logger.isDebugEnabled) logger.debug("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
-        if (options.computePointer) eqRelation else None
-
-
+        eqRelation
     }
 }

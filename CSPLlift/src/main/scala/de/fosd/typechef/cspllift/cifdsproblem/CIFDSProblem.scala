@@ -25,7 +25,7 @@ abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProble
     override def interproceduralCFG: CInterCFG = cICFG
 }
 
-trait CFlowFact extends Cloneable with Product{
+trait CFlowFact extends Cloneable with Product with Serializable {
 
     override def clone(): CFlowFact.this.type = super.clone().asInstanceOf[CFlowFact.this.type]
 

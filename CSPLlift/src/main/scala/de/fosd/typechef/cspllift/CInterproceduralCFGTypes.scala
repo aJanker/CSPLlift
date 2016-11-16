@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.parser.c._
 
-sealed abstract class CICFGNode(stmt: Opt[AST]) extends Product {
+sealed abstract class CICFGNode(stmt: Opt[AST]) extends Product with Serializable {
     def getStmt = stmt
     def getCondition = getStmt.condition
     def getASTEntry = getStmt.entry
