@@ -10,11 +10,14 @@ import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.parser.c.{AST, TranslationUnit}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.GenTraversable
 
 
 object TaintCheck {
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     private val taintedSource = "key" // TODO External Parameter
 
@@ -30,10 +33,10 @@ object TaintCheck {
         writeStmtFlowGraph(taintedSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir)
         writeTaintFlowGraph(sinksWithTaintedSource, cInterCFG, opt.getInformationFlowGraphsOutputDir)
 
-        println("#static taint analysis with spllift - result")
+        logger.info("Static taint analysis with spllift - result")
 
-        println("\n#sinks")
-        println(InformationFlow.prettyPrintSinks(taintedSinks))
+        logger.info("Sinks: ")
+        logger.info(InformationFlow.prettyPrintSinks(taintedSinks))
     }
 
     def checkAll(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
@@ -51,14 +54,12 @@ object TaintCheck {
         writeStmtFlowGraph(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir)
         writeInfoFlowGraph(allSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir)
 
-        println("#static taint analysis with spllift - result")
+        logger.info("Static taint analysis result")
 
-        println("\n#sinks")
-        println(InformationFlow.prettyPrintSinks(allSinks))
+        logger.info("Sinks")
+        logger.info(InformationFlow.prettyPrintSinks(allSinks))
 
-        println("\n#used tunits number:")
-        println(cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size + "\n")
-        println("#static taint analysis with spllift - finished")
+        logger.info("Used tunits number:\t" + cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size)
     }
 
     def check(cInterCFG : CInterCFG) : List[LiftedCFlowFact[InformationFlowFact]] = {

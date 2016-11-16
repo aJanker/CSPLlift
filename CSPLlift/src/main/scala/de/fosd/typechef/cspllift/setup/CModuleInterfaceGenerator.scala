@@ -5,12 +5,15 @@ import java.io.File
 import de.fosd.typechef.customization.clinking.CInterfaceWriter
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.typesystem.linker._
+import org.slf4j.{Logger, LoggerFactory}
 
 
 /**
   * Interface for generating linking information of a whole project
   */
 object CModuleInterfaceGenerator extends App with CInterfaceWriter {
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     val startDir = args(0)
     val featureModel_DIMACS: String = if (args.length > 3) args(1) else " "
@@ -30,11 +33,11 @@ object CModuleInterfaceGenerator extends App with CInterfaceWriter {
             interface
         }).toList
 
-        println("#Loaded interfaces:\t" + interfaces.size)
+        logger.info("Loaded interfaces:\t" + interfaces.size)
 
         val finalInterface = linkInterfaces(interfaces, strictness) //.packWithOutElimination //.andFM(fm_constraints)
 
-        println("#Linked interface is well-formed:\t" + finalInterface.isWellformed)
+        logger.debug("Linked interface is well-formed:\t" + finalInterface.isWellformed)
 
         finalInterface
     }
@@ -45,7 +48,7 @@ object CModuleInterfaceGenerator extends App with CInterfaceWriter {
 
         writeExportInterface(interface, out)
 
-        println("#Linked interface written to:\t" + out.getAbsolutePath)
+        logger.info("Linked interface written to:\t" + out.getAbsolutePath)
     }
 
     private def getFileTree(f: File): Stream[File] = f #:: (if (f.isDirectory) f.listFiles().toStream.flatMap(getFileTree) else Stream.empty)
