@@ -81,8 +81,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         checkDir(conditionCoverageDir)
 
         serialize(liftedEvalFacts, rootDir + "facts" + FILE_EXTENSION)
-        conditionCoverageConfigs.zipWithIndex { case (config, i) => serialize(config, conditionCoverageDir + "config_" + i + FILE_EXTENSION) }
-        codeCoverageConfigs.zipWithIndex { case (config, i) => serialize(config, codeCoverageDir + "config_" + i + FILE_EXTENSION) }
+        conditionCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, conditionCoverageDir + "config_" + i + FILE_EXTENSION) }
+        codeCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, codeCoverageDir + "config_" + i + FILE_EXTENSION) }
 
         // TODO Timing
     }
