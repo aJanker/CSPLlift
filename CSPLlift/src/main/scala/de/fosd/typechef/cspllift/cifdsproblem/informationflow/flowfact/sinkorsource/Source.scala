@@ -8,20 +8,38 @@ import de.fosd.typechef.parser.c.Id
 
 sealed abstract class SourceType(name: Id) {
     def getName: Id = name
+    def isEquivalentTo(other : SourceType, configuration: SimpleConfiguration): Boolean
 }
 
-case class Struct(name: Id, field: Option[Source]) extends SourceType(name)
+case class Struct(name: Id, field: Option[Source]) extends SourceType(name) {
+    override def canEqual(that: Any): Boolean = that.isInstanceOf[Struct]
+    override def isEquivalentTo(other: SourceType, configuration: SimpleConfiguration): Boolean = {
+        if (!canEqual(other)) return false
+        val that = other.asInstanceOf[Struct]
+        that.getName.equals(getName) && equivalentField(field, that.field, configuration)
+    }
 
-case class Variable(name: Id) extends SourceType(name)
+    private def equivalentField(thisField : Option[Source], otherField : Option[Source], configuration: SimpleConfiguration) : Boolean = {
+        if (thisField.isDefined && otherField.isDefined) thisField.get.isEquivalentTo(otherField.get, configuration)
+        else thisField.isEmpty && otherField.isEmpty
+    }
+}
+
+case class Variable(name: Id) extends SourceType(name) {
+    override def canEqual(that: Any): Boolean = that.isInstanceOf[Variable]
+    override def isEquivalentTo(other: SourceType, configuration: SimpleConfiguration): Boolean = {
+        if (!canEqual(other)) return false
+        other.getName.equals(getName)
+    }
+}
 
 sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CICFGStmt, scope: Int) extends SinkOrSource(cICFGStmt) {
+
     def getScope = scope
 
     def getType : SourceType = sourceType
 
     def getCIFGStmt = cICFGStmt
-
-    override def get: Source = this
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
         if (!canEqual(other)) return false
@@ -31,7 +49,7 @@ sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CIC
         lazy val stmtProduct = ProductDerivation.deriveProduct(getCIFGStmt.getStmt.entry, configuration.getTrueFeatures)
         lazy val eqStmt = stmtProduct.equals(otherSource.getCIFGStmt.getStmt.entry)
 
-        otherSource.getType.equals(getType) && eqStmt
+        otherSource.getType.isEquivalentTo(getType, configuration) && eqStmt
     }
 }
 

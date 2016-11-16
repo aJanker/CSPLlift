@@ -32,7 +32,8 @@ trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProb
                 }
 
                 val global = flowFact match {
-                    case s: Source if s.getScope == SCOPE_GLOBAL => GEN(copySource(s, callStmt.getStmt))
+                    case s: Source if s.getScope == SCOPE_GLOBAL => GEN(s)
+                    case s: Sink => KILL
                     case _ => KILL
                 }
                 GEN(global, use)

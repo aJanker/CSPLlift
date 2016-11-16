@@ -1,10 +1,54 @@
 //#include <stdlib.h>
 //#include <stdio.h>
 
+/*void bar(int b) {
+    while(b < 0) {
+    int sink = b;
+
+    }
+
+        int emtpyStatement;
+        int emtpyStatement2;
+} */
+
+/*int foo(int f) {
+    int res = 0;
+    #ifndef C
+    res = f;
+    #endif
+    return res;
+    }
+
+
+int main() {
+
+    int secret = 1;
+    #ifdef A
+        secret = 2;
+    #endif
+
+    int merge;
+    int final2 = foo(secret);
+    int final = final2;
+    // bar(secret);
+    return 0;
+}
+*/
+int foo(int f) {
+    int foofoo = 0;
+#ifdef C
+    foofoo = f;
+#endif
+
+    return foofoo;
+    }
+
 int cipher1(int i) {
    int res, x = 0;
    int y = 10;
    int dbg = res;
+
+   foo(i);
 
    #ifdef C
       x = y;
@@ -56,35 +100,32 @@ int cipher_do(struct cipher_ctx *c, int value) {
 }
 
 int main() {
-    struct cipher_ctx *c = malloc(sizeof(struct cipher_ctx));
+   struct cipher_ctx *c = malloc(sizeof(struct cipher_ctx));
 
 #ifdef A
     cipher_init(c, &cipher1);
 #else
     cipher_init(c, &cipher2);
 #endif
-
-    int secret = 1;
-    int value = 5;
-
-    #ifdef D
-    secret = 666;
+   int secret = 1;
+    #ifdef S
+     secret = 3;
     #endif
 
-    int value2000 = 2;
-#ifdef D
-    value2000 = secret;
-#endif
+    int ctmp = 3;
+
     int sink = cipher_do(c, secret);
 
-    //int sink2 = cipher1(secret);
+    #ifdef S
+        foo(ctmp);
+    #endif
+
 
     printf("%i\n", sink);
 
-    #ifdef E
-    printf("%i\n", value2000);
+    #ifdef S
+    printf("%i\n", secret);
     #endif
-
 
     return 0;
 }

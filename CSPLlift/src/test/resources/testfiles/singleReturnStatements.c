@@ -14,7 +14,11 @@ int bar(int j) {
 #ifdef A
     foo2(j);
 #endif
+if (j < 0) {
     int r = foo(j);
+} else {
+    r = 0;
+}
     return r;
 }
 

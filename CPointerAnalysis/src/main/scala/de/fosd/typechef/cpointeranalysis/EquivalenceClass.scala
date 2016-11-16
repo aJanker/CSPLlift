@@ -47,6 +47,11 @@ class EquivalenceClass(var objectNames: ConditionalSet[String], var prefixSet: C
         this.objectNames.toPlainSet().equals(other.objectNames.toPlainSet()) && this.prefixes().toPlainSet().equals(other.prefixes().toPlainSet())
     }
 
+    def subClass(other : EquivalenceClass): Boolean = {
+        this.objectNames.toPlainSet().subsetOf(other.objectNames.toPlainSet()) && this.prefixes().toPlainSet().subsetOf(other.prefixes().toPlainSet()) ||
+          other.objectNames.toPlainSet().subsetOf(this.objectNames.toPlainSet()) && other.prefixes().toPlainSet().subsetOf(this.prefixes().toPlainSet())
+    }
+
     override def toString: String = "%s ---> (%d) %s".format(objectNames.toPlainSetWithConditionals().mkString("{", ", ", "}"), prefixes().toPlainSet().size, prefixes().toPlainSetWithConditionals().mkString("{", ", ", "}"))
 }
 

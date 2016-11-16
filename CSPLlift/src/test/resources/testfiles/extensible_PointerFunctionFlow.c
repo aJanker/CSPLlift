@@ -30,8 +30,50 @@ void free_fun(struct obstack *h, void *f) {
     //(h->freefun)();
 } */
 
+int bar(int i) {
+    int x = 2;
+    int start;
+    int start2;
 
-int foo(int value) {
+    int y2 = i;
+#ifdef A
+    int local = y2;
+#endif
+
+    int local2 = local;
+    i++;
+
+    return local2;
+    }
+
+int foo(int i) {
+ int result;
+ result = bar(i);
+ return result;
+
+}
+
+int main() {
+    int value;
+    int secret;
+
+    secret = 666;
+    value = 1;
+
+#ifdef B
+    int y = foo(secret);
+    int y = foo(value);
+#endif
+
+
+    value = secret + y;
+
+    return 0;
+
+}
+
+
+/*int foo(int value) {
         int i = 0;
         int y = 2;
         int x = 1;
@@ -72,7 +114,7 @@ int main() {
 
     foo(); */
 
-    int secret = 6;
+  /*  int secret = 6;
     int non = 3;
     int j1 = 1;
     int j2 = 2;
@@ -101,7 +143,7 @@ int main() {
 
 DST: */
 
-    #ifdef X
+ /*   #ifdef X
         secret = non;
     #endif
 
@@ -120,4 +162,4 @@ DST: */
 
      return 0;
 
-}
+} */

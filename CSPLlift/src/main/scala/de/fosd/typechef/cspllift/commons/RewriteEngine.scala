@@ -8,12 +8,33 @@ import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CInt, CShort, _}
-
-
+import org.slf4j.{Logger, LoggerFactory}
 
 trait RewriteEngine extends ASTNavigation with ConditionalNavigation with RewritingRules {
 
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
+
     private var tmpVariablesCount = 0
+
+    /**
+      * Rewrites all innerstatements of a function definition to enforce
+      * a single entry point for analysis with IFDS/IDE.
+      */
+    def enforceSingleFunctionEntryPoint[T <: Product](ast: T): T = {
+        val astEnv = CASTEnv.createASTEnv(ast)
+        filterAllASTElems[FunctionDef](ast).foldLeft(ast)((a, fDef) => {
+            lazy val cond = astEnv.featureExpr(fDef)
+            val compoundStmt = fDef.stmt
+
+            if (compoundStmt.innerStatements.isEmpty) a
+            else {
+                val stmt = Opt(cond, EmptyStatement())
+                stmt.entry.range = fDef.range
+                val compoundStmtWithSingleEntryPoint = compoundStmt.copy(innerStatements = stmt :: compoundStmt.innerStatements)
+                replace(a, compoundStmt, compoundStmtWithSingleEntryPoint)
+            }
+        })
+    }
 
     /**
       * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
@@ -43,10 +64,10 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
     }
 
     /**
-      * Moves variability nested in CFG-Statements up to the CFG Statement by code duplication.
-      * We are otherwise unable use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
+      * Moves variability nested in CFG-Statements (undisciplined variability) up to the CFG Statement by code duplication.
+      * We are otherwise unable to use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
       */
-    def removeStmtVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+    def removeUndisciplinedVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
         assert(ast != null, "ast should not be null")
 
         val astEnv = CASTEnv.createASTEnv(ast)
@@ -100,7 +121,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
         ts.checkASTSilent
 
         def extractExprFromReturnStatement(r: Opt[ReturnStatement]): List[Opt[Statement]] = {
-            val (tmpName, tmpDeclaration) = makeTmpDeclarationFromExpr(Opt(r.condition, r.entry.expr.get), ts)
+            val (tmpName, tmpDeclaration) = genTmpDeclarationFromExpr(Opt(r.condition, r.entry.expr.get), ts)
             List(tmpDeclaration, r.copy(entry = r.entry.copy(expr = Some(Id(tmpName)))))
         }
 
@@ -174,7 +195,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
 
         def rewriteSingleNestedFCall(x: (FunctionCall, List[Opt[Statement]]), curr: Opt[Expr]): (FunctionCall, List[Opt[Statement]]) = {
             val (f, newDecls) = x
-            val (name, declaration) = makeTmpDeclarationFromExpr(curr, ts)
+            val (name, declaration) = genTmpDeclarationFromExpr(curr, ts)
             val replacedExpr = Id(name)
             val newCall = replace(f, curr.entry, replacedExpr)
 
@@ -198,7 +219,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
     }
 
 
-    private def makeTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
+    private def genTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
         val tmpSpecifiers = getExprTypeSpecifiers(expr, ts)
         val tmpName = namePrefix + tmpVariablesCount
         val tmpNameDeclarator = AtomicNamedDeclarator(List(), Id(tmpName), List())
@@ -226,8 +247,9 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
                 case CPointer(t) => aTypeToASTTypeSpecifier(t, condition)
                 case CStruct(name, isUnion) => List(Opt(condition, StructOrUnionSpecifier(isUnion, Some(Id(name)), None, List(), List())))
                 case CVoid() | CZero() => List(Opt(condition, VoidSpecifier()))
+                case CUnknown(_) => List(Opt(condition, VoidSpecifier()))
                 case missed =>
-                    scala.Console.err.println("No atype definiton found for " + missed + "!")
+                    if (logger.isDebugEnabled) logger.debug("No atype definition found for " + missed + "!")
                     List(Opt(condition, VoidSpecifier()))
             }
 

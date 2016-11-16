@@ -1,9 +1,8 @@
-#define function(x, y) do { if (bar(x, y)) goto jump; } while( 0 );
+#define function(x, y) do { if (bar(x, y)) goto jump; } while( 0 )
 #define function2(x, y) do { if (bar(x, y)) ;} while( 0 )
 
 void bar(int v, int n) {
     int p = v; while( n-- ) p = n;
-    return;
 }
 
 int foo(int value) {
@@ -46,15 +45,10 @@ int main() {
     int trace2 = 0;
     int sink_m;
     int secret = 666;
-    int sec2 = secret;
 
-#ifdef A
+
     function(trace, trace2);
-    function(trace, sec2);
     function(trace, trace2);
-#else
-    function(trace, trace2);
-#endif
 
     #ifdef F
       res_m = foo(secret);

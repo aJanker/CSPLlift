@@ -20,6 +20,9 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
+import de.fosd.typechef.cspllift.CICFGFDef;
+import de.fosd.typechef.cspllift.CICFGStmt;
+import de.fosd.typechef.cspllift.CInterCFG;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import org.slf4j.Logger;
@@ -140,7 +143,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 
 	private boolean recordEdges;
 
-	private static CacheBuilder<Object, Object> getDefaultCacheBuilder(IDETabulationProblem tabulationProblem) {
+	private static CacheBuilder<Object, Object> getFlowFunctionsCache(IDETabulationProblem tabulationProblem) {
 		return tabulationProblem.cacheFlowFunctions() ? DEFAULT_CACHE_BUILDER : null;
 	}
 
@@ -149,7 +152,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 	 * The solver must then be started by calling {@link #solve()}.
 	 */
 	public IDESolver(IDETabulationProblem<N,D,M,V,I> tabulationProblem) {
-		this(tabulationProblem, getDefaultCacheBuilder(tabulationProblem), getDefaultCacheBuilder(tabulationProblem));
+		this(tabulationProblem, getFlowFunctionsCache(tabulationProblem), getFlowFunctionsCache(tabulationProblem));
 	}
 
 	/**
@@ -158,7 +161,7 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 	 * @param flowFunctionCacheBuilder A valid {@link CacheBuilder} or <code>null</code> if no caching is to be used for flow functions.
 	 * @param edgeFunctionCacheBuilder A valid {@link CacheBuilder} or <code>null</code> if no caching is to be used for edge functions.
 	 */
-	public IDESolver(IDETabulationProblem<N,D,M,V,I> tabulationProblem, @SuppressWarnings("rawtypes") CacheBuilder flowFunctionCacheBuilder, @SuppressWarnings("rawtypes") CacheBuilder edgeFunctionCacheBuilder) {
+	private IDESolver(IDETabulationProblem<N,D,M,V,I> tabulationProblem, @SuppressWarnings("rawtypes") CacheBuilder flowFunctionCacheBuilder, @SuppressWarnings("rawtypes") CacheBuilder edgeFunctionCacheBuilder) {
 		if(logger.isDebugEnabled()) {
 			if(flowFunctionCacheBuilder != null)
 				flowFunctionCacheBuilder = flowFunctionCacheBuilder.recordStats();
@@ -330,12 +333,14 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 
 		final D d2 = edge.factAtTarget();
 		EdgeFunction<V> f = jumpFunction(edge);
+		final EdgeFunction<V> f_org = f;
 		Collection<N> returnSiteNs = icfg.getReturnSitesOfCallAt(n);
 		
 		//for each possible callee
 		Collection<M> callees = icfg.getCalleesOfCallAt(n);
 		for(M sCalledProcN: callees) { //still line 14
-			
+			f = getConditionalFlowEdgeFunction(n, sCalledProcN, f_org);
+
 			//compute the call-flow function
 			FlowFunction<D> function = flowFunctions.getCallFlowFunction(n, sCalledProcN);
 			flowFunctionConstructionCount++;
@@ -347,8 +352,8 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 				//for each result node of the call-flow function
 				for(D d3: res) {
 					//create initial self-loop
-					propagate(d3, sP, d3, EdgeIdentity.<V>v(), n, false); //line 15
-	
+					propagate(d3, sP, d3, f, n, false); //line 15
+
 					//register the fact that <sp,d3> has an incoming edge from <n,d2>
 					Set<Cell<N, D, EdgeFunction<V>>> endSumm;
 					synchronized (incoming) {
@@ -396,9 +401,27 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 			saveEdges(n, returnSiteN, d2, returnFacts, false);
 			for(D d3: returnFacts) {
 				EdgeFunction<V> edgeFnE = edgeFunctions.getCallToReturnEdgeFunction(n, d2, returnSiteN, d3);
-				propagate(d1, returnSiteN, d3, f.composeWith(edgeFnE), n, false);
+				propagate(d1, returnSiteN, d3, f_org.composeWith(edgeFnE), n, false);
 			}
 		}
+	}
+
+	/**
+	 * Custom function for lifting IFDS problems on configurable software systems.
+	 * This function determines by querying the icfg the correct edge constraint for call and return-flows.
+	 *
+	 * @param call call site of the call
+	 * @param callee target site of the call
+	 * @param f original flow edge
+	 * @return correct flow edge
+	 */
+	private EdgeFunction<V> getConditionalFlowEdgeFunction(N call, M callee, EdgeFunction<V> f) {
+		if (icfg instanceof CInterCFG && call instanceof CICFGStmt && callee instanceof CICFGFDef) {
+            @SuppressWarnings("unchecked")
+            EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getFlowEdgeFunction((CICFGStmt) call, (CICFGFDef) callee);
+            f = f.composeWith(f3);
+        }
+		return f;
 	}
 
 	/**
@@ -618,6 +641,9 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 	protected void propagate(D sourceVal, N target, D targetVal, EdgeFunction<V> f,
 		/* deliberately exposed to clients */ N relatedCallSite,
 		/* deliberately exposed to clients */ boolean isUnbalancedReturn) {
+		if(f.equalTo(allTop))
+			return;
+
 		EdgeFunction<V> jumpFnE;
 		EdgeFunction<V> fPrime;
 		boolean newFunction;
@@ -930,15 +956,15 @@ public class IDESolver<N,D,M,V,I extends InterproceduralCFG<N, M>> {
 			int sectionSize = (int) Math.floor(values.length / numThreads) + numThreads;
 			for(int i = sectionSize * num; i < Math.min(sectionSize * (num+1),values.length); i++) {
 				N n = values[i];
-				for(N sP: icfg.getStartPointsOf(icfg.getMethodOf(n))) {					
+				for(N sP: initialSeeds.keySet()) {
 					Set<Cell<D, D, EdgeFunction<V>>> lookupByTarget;
 					lookupByTarget = jumpFn.lookupByTarget(n);
 					for(Cell<D, D, EdgeFunction<V>> sourceValTargetValAndFunction : lookupByTarget) {
-						D dPrime = sourceValTargetValAndFunction.getRowKey();
+						D dPrime = zeroValue; //sourceValTargetValAndFunction.getRowKey();
 						D d = sourceValTargetValAndFunction.getColumnKey();
 						EdgeFunction<V> fPrime = sourceValTargetValAndFunction.getValue();
 						synchronized (val) {
-							setVal(n,d,valueLattice.join(val(n,d),fPrime.computeTarget(val(sP,dPrime))));
+                            setVal(n,d,valueLattice.join(val(n,d),fPrime.computeTarget(val(sP,dPrime))));
 						}
 						flowFunctionApplicationCount++;
 					}

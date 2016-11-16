@@ -1,23 +1,15 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow
 
-import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Source, SourceDefinition, SourceDefinitionOf, Struct}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowOperations}
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
-import de.fosd.typechef.parser.c.{AST, ASTEnv, ArrayAccess, Id}
+import de.fosd.typechef.parser.c.{ASTEnv, ArrayAccess, Id}
 import de.fosd.typechef.typesystem._
 
 trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
 
 trait InformationFlowHelper extends CInterCFGCommons {
-    def copySource(s: Source, previousStmt: Opt[AST]): Source = s
-       /* s match {
-            case s: SourceDefinition => s.copy(previousStmt = Some(previousStmt.entry))
-            case sOf: SourceDefinitionOf => sOf.copy(previousStmt = Some(previousStmt.entry))
-            case _ => s
-        } */
-
     def getDefinition(s: Source): SourceDefinition =
         s match {
             case sd: SourceDefinition => sd
@@ -40,7 +32,7 @@ trait InformationFlowHelper extends CInterCFGCommons {
                 case _ => false
             } else s match {
                 case s: Source => s.getType match {
-                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field.get, parents.tail)
+                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field, parents.tail)
                     case _ => false
                 }
                 case _ => false
@@ -57,7 +49,7 @@ trait InformationFlowHelper extends CInterCFGCommons {
             if (parents.isEmpty) fieldAssignment._1.equals(s.getType.getName)
             else s match {
                 case s: Source => s.getType match {
-                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field.get, parents.tail)
+                    case Struct(name, Some(field)) if parents.head.equals(name) => matches(field, parents.tail)
                     case _ => false
                 }
                 case _ => false
