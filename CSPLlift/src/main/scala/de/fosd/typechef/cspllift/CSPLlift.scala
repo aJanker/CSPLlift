@@ -12,7 +12,7 @@ import spllift.SPLIFDSSolver
 class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) {
     def analyze(opt: CSPLliftOptions) = {
 
-        val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath)
+        lazy val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
 
         if (opt.liftTaintAnalysis)
             TaintCheck.checkAES(ast, fm, opt, cInterCFGConfiguration)

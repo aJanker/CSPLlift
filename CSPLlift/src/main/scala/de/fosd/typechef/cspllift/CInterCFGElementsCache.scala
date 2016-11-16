@@ -81,8 +81,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
     private val tunitToPseudoCall: util.IdentityHashMap[AST, Opt[FunctionDef]] = new util.IdentityHashMap()
 
-    private var cFunctionPointerAnalysis = new CPointerAnalysisFrontend(fm)
-    var cFunctionPointerEQRelation: CPointerAnalysisContext = _
+    private var cFunctionPointerEQRelation: Option[CPointerAnalysisContext] = None
 
     private val cModuleInterface: Option[CModuleInterface] =
         cModuleInterfacePath match {
@@ -119,34 +118,34 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tUnit.asInstanceOf[T]
     }
 
-    private def addToCache(tUnit: TranslationUnit): TranslationUnit = {
-        if (tUnit.defs.isEmpty) {
+    private def addToCache(tunit: TranslationUnit): TranslationUnit = {
+        if (tunit.defs.isEmpty) {
             println("#empty tunit. did not add to cache")
-            return tUnit
+            return tunit
         }
         println("#upfront computation of newly loaded translation unit started... ")
 
-        var _tUnit: TranslationUnit = tUnit
+        var res: TranslationUnit = tunit
 
-        val file = tUnit.defs.last.entry.getFile.get
+        val file = tunit.defs.last.entry.getFile.get
 
         val (time, _) = StopWatch.measureWallTime(options.getStopWatchPrefix + "tunit_completePreparation", {
-            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", _tUnit = prepareAST(_tUnit))
+            StopWatch.measureUserTime(options.getStopWatchPrefix + "tunit_rewriting", res = prepareAST(res))
 
             val pos = new TokenPosition(file, 0, 0, 0)
             val pseudoSystemFunctionCall = genPseudoSystemFunctionCall(Some(pos, pos))
 
             // if pseudo visiting system functions is enabled, add the pseudo function to the tunit
-            _tUnit =
+            res =
               if (options.pseudoVisitingSystemLibFunctions) {
-                  val _tUnitPseudo = _tUnit.copy(defs = pseudoSystemFunctionCall :: _tUnit.defs)
-                  _tUnitPseudo.range = _tUnit.range
+                  val _tUnitPseudo = res.copy(defs = pseudoSystemFunctionCall :: res.defs)
+                  _tUnitPseudo.range = res.range
                   _tUnitPseudo
-              } else _tUnit
+              } else res
 
-            checkPositionInformation(_tUnit)
+            checkPositionInformation(res)
 
-            val ts = new CTypeSystemFrontend(_tUnit, fm) with CTypeCache with CDeclUse
+            val ts = new CTypeSystemFrontend(res, fm) with CTypeCache with CDeclUse
             if (options.silentTypeCheck) ts.makeSilent()
 
             println("\t#Typechecking...")
@@ -154,15 +153,15 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
-            val env = CASTEnv.createASTEnv(_tUnit)
-            updateCaches(_tUnit, file, env, ts, pseudoSystemFunctionCall)
+            val env = CASTEnv.createASTEnv(res)
+            updateCaches(res, file, env, ts, pseudoSystemFunctionCall)
             println("\t#Calculating Pointer Equivalence Realations...")
             calculatePointerEquivalenceRelations
         })
 
         println("#upfront computation of newly loaded translation unit finished in " + time + "ms")
 
-        _tUnit
+        res
     }
 
     private def updateCaches(tunit: TranslationUnit, file: String, env: ASTEnv, ts: CTypeSystemFrontend with CTypeCache with CDeclUse, pseudoSystemFunctionCall: Opt[FunctionDef]) = {
@@ -172,12 +171,12 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         tunitToPseudoCall.put(tunit, pseudoSystemFunctionCall)
     }
 
-    private def calculatePointerEquivalenceRelations = {
-        StopWatch.measureUserTime(options.getStopWatchPrefix + "pointsToAnalysis", {
-            cFunctionPointerAnalysis = new CPointerAnalysisFrontend(fm)
-            cFunctionPointerEQRelation = cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, (getEnvs, envToTS))
+    private def calculatePointerEquivalenceRelations =
+        if (options.computePointer) StopWatch.measureUserTime(options.getStopWatchPrefix + "pointsToAnalysis", {
+            val cFunctionPointerAnalysis = new CPointerAnalysisFrontend(fm)
+            val env = (getEnvs, envToTS)
+            cFunctionPointerEQRelation = Some(cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, env))
         })
-    }
 
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
 
@@ -270,13 +269,13 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
 
 
     private def getPointerEquivalenceClass(pointer: Opt[Expr], currFuncName: String): Option[EquivalenceClass] = {
+        if (cFunctionPointerEQRelation.isEmpty) return None
+
         val eqQuery = buildEquivalenceClassLookupQuery(pointer.entry, currFuncName)
-        val eqRelation = cFunctionPointerEQRelation.find(eqQuery)
+        val eqRelation = cFunctionPointerEQRelation.get.find(eqQuery)
 
         if (eqRelation.isEmpty && logger.isDebugEnabled) logger.debug("No pointer relation found for lookup: " + pointer + "\nQuery:\t" + eqQuery)
 
-        if (options.computePointer) eqRelation else None
-
-
+        eqRelation
     }
 }

@@ -4,19 +4,24 @@ import de.fosd.typechef.options.{FrontendOptionsWithConfigFiles, OptionException
 import gnu.getopt.{Getopt, LongOpt}
 
 class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLliftOptions {
+
     private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
 
-    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle, liftPrintVariants, liftCallGraph, mergeCLinkingInterfaces: Boolean = false
+    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle: Boolean = false
+    private var printVariants, printCallGraph, mergeCLinkingInterfaces, noFunctionPointerComputation: Boolean = false
 
     private val F_MERGELINKINTERFACE: Char = Options.genOptionId()
     private val F_LINKINTERFACE: Char = Options.genOptionId()
     private val F_SPLLIFT: Char = Options.genOptionId
+    private val F_NOFUNCTIONPOINTER: Char = Options.genOptionId()
 
     private val SPLLIFT_Taint = SecurityOption("TAINT", "Issues a warning when a potential taint memory leak is found.", dflt = false)
 
     private val liftopts: List[SecurityOption] = List(
         SPLLIFT_Taint
     )
+
+    override def resolveFunctionPointer: Boolean = !noFunctionPointerComputation
 
     override def getCLinkingInterfacePath: Option[String] = cLinkingInterfacePath
 
@@ -42,11 +47,11 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def isLiftSingleEvaluationEnabled: Boolean = liftEvalSingle
 
-    override def isLiftPrintExplodedSuperCallGraphEnabled: Boolean = liftCallGraph
+    override def isLiftPrintExplodedSuperCallGraphEnabled: Boolean = printCallGraph
 
     override def liftTaintAnalysis: Boolean = SPLLIFT_Taint.isSelected
 
-    override def writeVariants: Boolean = liftPrintVariants
+    override def writeVariants: Boolean = printVariants
 
     override def getOptionGroups = {
         val r = super.getOptionGroups
@@ -57,6 +62,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
                   opts.map(o => " * " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
                   "\n(Analyses with * are activated by default)."
             ),
+            new Options.Option("noFP", LongOpt.NO_ARGUMENT, F_NOFUNCTIONPOINTER, null, "Disable function pointer computation for call graph."),
             new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions."),
             new Options.Option("mergeLinkingInterface", LongOpt.REQUIRED_ARGUMENT, F_MERGELINKINTERFACE, "file", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
         ))
@@ -72,8 +78,8 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
             else if (arg.equalsIgnoreCase("BENCHMARK")) liftBenchmark = true
             else if (arg.equalsIgnoreCase("EVALCOVERAGE")) liftEvalSampling = true
             else if (arg.equalsIgnoreCase("EVALSINGLE")) liftEvalSingle = true
-            else if (arg.equalsIgnoreCase("PRINTVARIANTS")) liftPrintVariants = true
-            else if (arg.equalsIgnoreCase("CALLGRAPH")) liftCallGraph = true
+            else if (arg.equalsIgnoreCase("PRINTVARIANTS")) printVariants = true
+            else if (arg.equalsIgnoreCase("CALLGRAPH")) printCallGraph = true
             else {
                 val opt = liftopts.find(_.param.toUpperCase equalsIgnoreCase arg)
 
@@ -93,6 +99,8 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
         } else if (c == F_SPLLIFT) {
             lift = true
             interpretLiftOpts()
+        } else if (c == F_NOFUNCTIONPOINTER) {
+            noFunctionPointerComputation = true
         } else return super.interpretOption(c, g)
 
         true

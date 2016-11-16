@@ -76,9 +76,11 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
         (group.reverse :: groups).reverse
     }
 
-    def getFDefParameters(fDef: CICFGFDef): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.method)
-    def getFDefParameters(fDef: Opt[FunctionDef]): List[Opt[ParameterDeclarationD]] = getFDefParameters(fDef.entry)
-    def getFDefParameters(fDef: FunctionDef): List[Opt[ParameterDeclarationD]] =
+    def getCalleeParameters(fDef: CICFGFDef): List[Opt[ParameterDeclarationD]] = getCalleeParameters(fDef.method)
+
+    def getCalleeParameters(fDef: Opt[FunctionDef]): List[Opt[ParameterDeclarationD]] = getCalleeParameters(fDef.entry)
+
+    def getCalleeParameters(fDef: FunctionDef): List[Opt[ParameterDeclarationD]] =
         fDef.declarator.extensions.flatMap {
             case Opt(_, DeclParameterDeclList(l)) =>
                 l.headOption match {
@@ -93,7 +95,7 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
     def getPointerFDefParamNames(fDef: FunctionDef): List[Opt[Id]] = {
         def andAll(a: FeatureExpr, b: Opt[_]): FeatureExpr = a.and(b.condition)
 
-        getFDefParameters(fDef).flatMap(param => {
+        getCalleeParameters(fDef).flatMap(param => {
             if (param.entry.decl.pointers.nonEmpty)
                 Some(Opt(param.entry.decl.pointers.foldLeft(FeatureExprFactory.True)(andAll), param.entry.decl.getId))
             else None
