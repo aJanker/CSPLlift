@@ -7,6 +7,9 @@ import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{Informat
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlowConfiguration, InformationFlowProblemOperations}
 import heros.FlowFunction
 
+/**
+  * Extended Flow-Function definition for Information-Flow Anlysis in IFDS.
+  */
 trait IFFlowFunction extends FlowFunction[InformationFlowFact] with InformationFlowConfiguration with InformationFlowProblemOperations {
     override def computeTargets(fact: InformationFlowFact): util.Set[InformationFlowFact] = fact match {
         case s: Source =>

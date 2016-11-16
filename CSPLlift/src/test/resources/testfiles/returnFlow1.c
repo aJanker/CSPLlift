@@ -2,6 +2,7 @@ int foo(int p) {
 #ifdef A
     p = 0;
 #endif
+   printf("%i\n", p);
 #ifdef B
     return p;
 #else
@@ -20,7 +21,7 @@ int main() {
 
 #ifdef E
     x = secret;
-#endif
+    #endif
 
 #ifdef C
     y = foo(x);

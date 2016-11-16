@@ -2,7 +2,6 @@ package de.fosd.typechef.cspllift.analysis
 
 import java.io.{File, FileWriter}
 
-import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
@@ -67,7 +66,6 @@ object TaintCheck {
             val problem = new InformationFlowProblem(cInterCFG)
             CSPLlift.solve(problem)
         })
-
         solution
     }
 
@@ -163,7 +161,7 @@ object TaintCheck {
     private def getNode(x: CICFGStmt, icfg: CInterCFG): Node[AST] = {
         val stmt = x.getStmt
         icfg.getEnv(stmt.entry) match {
-            case Some(env) => Node(Opt(env.featureExpr(stmt.entry), stmt.entry))
+            case Some(env) => Node(x.getStmt)
             case _ => Node(stmt)
         }
     }

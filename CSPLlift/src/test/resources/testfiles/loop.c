@@ -26,6 +26,7 @@ int main() {
      start
 #endif
      ; i < bound; i++) {
+        sink = i;
      #ifdef B
         foo = z;
         #endif
