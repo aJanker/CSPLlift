@@ -40,27 +40,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         successful
     }
 
-    def profile(opt: CSPLliftOptions): Unit = {
-        if (opt.initProfiling) {
-
-            if (opt.liftTaintAnalysis)
-                initProfiling[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt)
-
-
-        } else if (opt.getProfileType.isDefined) {
-            // profileConfiguration()
-        }
-    }
-
-    private def profileConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions, strategy : String, configNumber : Int) : Unit = {
-        val rootDir = opt.getProfilingDir + "/"
-
-        val liftedCFlowFacts = load[List[LiftedCFlowFact[D]]](rootDir + "facts" + FILE_EXTENSION)
-        val config = load[SimpleConfiguration](rootDir + strategy + "config_" + configNumber + FILE_EXTENSION)
-
-
-    }
-
     private def initProfiling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Unit = {
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
@@ -88,8 +67,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val conditionCoverageDir = rootDir + CONDITIONCOVERAGE + "/"
         checkDir(conditionCoverageDir)
         conditionCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, conditionCoverageDir + "config_" + i + FILE_EXTENSION) }
-
-        // TODO Timing
     }
 
 
@@ -176,18 +153,13 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         // 4. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = runAndCompare((ifdsProblem, opt), configs, liftedFacts, method)
 
-        println("\n### Tested " + configs.size + " unique variants for code coverage.")
-        configs.foreach(println)
-        println
+        logger.info("Tested " + configs.size + " unique variants for code coverage.")
 
-        if (unmatchedLiftedFacts.nonEmpty) {
-            println("\n### Following results were not covered by the coverage approach: ")
-            println("Size:\t" + unmatchedLiftedFacts.size)
-        }
+        if (unmatchedLiftedFacts.nonEmpty)
+            logger.info("Following results were not covered by the coverage approach:\t" + unmatchedLiftedFacts.size)
 
         if (unmatchedCoverageFacts.nonEmpty) {
-            println("\n### Following results were not covered by the lifted approach: ")
-            println("Size:\t" + unmatchedCoverageFacts.foldLeft(0)((i, x) => x._1.size + i))
+            logger.info("Following results were not covered by the lifted approach:\t" + unmatchedCoverageFacts.foldLeft(0)((i, x) => x._1.size + i))
 
             unmatchedCoverageFacts.foreach(uc => {
                 println("Configuration:\t" + uc._2)
@@ -199,7 +171,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
                 println("###\n")
             })
-        } else println("\n### All results were covered by the lifted approach!")
+        } else logger.info("All results were covered by the lifted approach!")
 
         unmatchedCoverageFacts.isEmpty
     }
@@ -214,11 +186,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         if (opt.writeVariants) writeVariants(icfg, opt, method)
         if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
 
-        println("### results for lifting ")
-        val allLiftSinks = InformationFlow.allSinks(liftedFacts.asInstanceOf[List[(InformationFlowFact, FeatureExpr)]])
-
-        println(InformationFlow.prettyPrintSinks(allLiftSinks))
-
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
             val cfgCond = fact._2
@@ -230,15 +197,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val configs = sampling.conditionCoverageConfigs(cfgConditions.asInstanceOf[Set[FeatureExpr]])
 
         // 5. Compare
-        println("### Started Result Compare...")
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = runAndCompare((ifdsProblem, opt), configs, liftedFacts, method)
 
-        println("\n### Tested " + configs.size + " unique variants for condition coverage.")
+        logger.info("Tested " + configs.size + " unique variants for condition coverage.")
 
         if (unmatchedLiftedFacts.nonEmpty) {
-            println("\n### Following results were not covered by the condition coverage approach: ")
-            println("Size:\t" + unmatchedLiftedFacts.size)
-            println(liftedFacts.count(_._1.isEvaluationFact))
+            logger.info("Following results were not covered by the condition coverage approach:\t" + unmatchedLiftedFacts.size + " of total: " + liftedFacts.count(_._1.isEvaluationFact))
 
             var conditions: List[FeatureExpr] = List()
 
@@ -252,11 +216,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             conditions.distinct.foreach(cond => {
                 println(cond)
             })
-        } else println("\n### All results were covered by the condition coverage approach!")
+        } else logger.info("All results were covered by the condition coverage approach!")
 
         if (unmatchedCoverageFacts.nonEmpty) {
-            println("\n### Following results were not covered by the lifted approach: ")
-            println("Size:\t" + unmatchedCoverageFacts.foldLeft(0)((i, x) => x._1.size + i))
+            logger.info("Following results were not covered by the lifted approach:\t" + unmatchedCoverageFacts.foldLeft(0)((i, x) => x._1.size + i))
 
             unmatchedCoverageFacts.foreach(uc => {
                 println("Configuration:\t" + uc._2)
@@ -264,7 +227,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                 println(InformationFlow.prettyPrintSinks(all))
                 println("###\n")
             })
-        } else println("\n### All condition coverage results were covered by the lifted approach!")
+        } else logger.info("All condition coverage results were covered by the lifted approach!")
 
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
