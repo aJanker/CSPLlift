@@ -22,12 +22,12 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
     /** Maps SingleFeatureExpr Objects to IDs (IDs only known/used in this file) */
     private val featureIDHashmap: Map[SingleFeatureExpr, Int] = new HashMap[SingleFeatureExpr, Int]().++(features.zipWithIndex)
 
-    def codeConfigurationCoverage() : List[SimpleConfiguration] = {
+    def codeCoverageConfigs() : List[SimpleConfiguration] = {
         val configs = configurationCoverage(tunit, fm, features)
         configs._1
     }
 
-    def conditionConfigurationCoverage(cfgConditions: Set[FeatureExpr]) : List[SimpleConfiguration] = {
+    def conditionCoverageConfigs(cfgConditions: Set[FeatureExpr]) : List[SimpleConfiguration] = {
         val configs = conditionCoverage(cfgConditions)
         configs._1
     }

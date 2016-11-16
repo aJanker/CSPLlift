@@ -7,14 +7,19 @@ import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.parser.c.{ASTEnv, ArrayAccess, Id}
 import de.fosd.typechef.typesystem._
 
-trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
 
-trait InformationFlowHelper extends CInterCFGCommons {
+
+trait InformationFlowProblemOperationsInformation extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
+
+trait InformationFactOperations {
     def getDefinition(s: Source): SourceDefinition =
         s match {
             case sd: SourceDefinition => sd
             case so: SourceDefinitionOf => so.getDefinition
         }
+}
+
+trait InformationFlowHelper extends CInterCFGCommons with InformationFactOperations {
 
     def isOnlyUsedAsArrayAccess(id: Id, uses: List[Id], env: ASTEnv): Boolean = {
         val matchingUses = uses.filter(id.equals)

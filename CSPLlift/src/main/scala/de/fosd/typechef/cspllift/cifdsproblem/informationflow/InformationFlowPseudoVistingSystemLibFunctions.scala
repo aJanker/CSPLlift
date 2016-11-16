@@ -10,7 +10,7 @@ import de.fosd.typechef.cspllift.{CICFGNode, CInterCFG}
 import de.fosd.typechef.parser.c._
 import heros.FlowFunction
 
-trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProblemOperations with CInterCFGCommons {
+trait InformationFlowPseudoVistingSystemLibFunctions extends InformationFlowProblemOperationsInformation with CInterCFGCommons {
 
     def pseudoSystemFunctionCallCallFlowFunction(callStmt: CICFGNode, callEnv: ASTEnv, interproceduralCFG: CInterCFG): FlowFunction[InformationFlowFact] with Object {def computeTargets(flowFact: InformationFlowFact): util.Set[InformationFlowFact]} = {
         val fCallNode = parentOpt(callStmt.getStmt.entry, callEnv).asInstanceOf[Opt[AST]]

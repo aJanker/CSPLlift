@@ -4,13 +4,13 @@ import java.util
 
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, Source, Struct, Variable}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Zero}
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlowConfiguration, InformationFlowProblemOperations}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.{InformationFlowConfiguration, InformationFlowProblemOperationsInformation}
 import heros.FlowFunction
 
 /**
   * Extended Flow-Function definition for Information-Flow Anlysis in IFDS.
   */
-trait IFFlowFunction extends FlowFunction[InformationFlowFact] with InformationFlowConfiguration with InformationFlowProblemOperations {
+trait IFFlowFunction extends FlowFunction[InformationFlowFact] with InformationFlowConfiguration with InformationFlowProblemOperationsInformation {
     override def computeTargets(fact: InformationFlowFact): util.Set[InformationFlowFact] = fact match {
         case s: Source =>
             s.getType match {

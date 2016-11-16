@@ -6,7 +6,7 @@ import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.Id
 
-sealed abstract class SourceType(name: Id) {
+sealed abstract class SourceType(name: Id) extends Serializable {
     def getName: Id = name
     def isEquivalentTo(other : SourceType, configuration: SimpleConfiguration): Boolean
 }

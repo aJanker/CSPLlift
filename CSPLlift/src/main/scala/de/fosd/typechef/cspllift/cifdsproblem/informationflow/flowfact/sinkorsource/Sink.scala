@@ -2,13 +2,12 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorso
 
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.CICFGNode
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowHelper
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowFact}
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.Id
 
 
-sealed abstract class Sink(override val cICFGStmt: CICFGNode, val source: Source) extends SinkOrSource(cICFGStmt) with InformationFlowHelper with CFlowConstants {
+sealed abstract class Sink(override val cICFGStmt: CICFGNode, val source: Source) extends SinkOrSource(cICFGStmt) with CFlowConstants {
 
     /**
       * Sinks are always interesting facts for our evaluation strategy, however rewriting introduces some variant specific flows only.

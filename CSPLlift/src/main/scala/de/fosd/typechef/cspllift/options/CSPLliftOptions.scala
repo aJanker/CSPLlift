@@ -10,6 +10,7 @@ trait CSPLliftOptions {
     def getInformationFLowGraphFilename: String
     def getInformationFlowGraphsOutputDir: String
     def getVariantsOutputDir: String
+    def getProfilingDir: String
     def getCModuleInterfaceMergeDir: String
 
     def isLiftEvaluationModeEnabled: Boolean
@@ -25,4 +26,8 @@ trait CSPLliftOptions {
     def liftTaintAnalysis : Boolean
 
     def writeVariants : Boolean
+
+    def isProfiling: Boolean
+    def initProfiling: Boolean
+    def getProfileType: Option[String]
 }

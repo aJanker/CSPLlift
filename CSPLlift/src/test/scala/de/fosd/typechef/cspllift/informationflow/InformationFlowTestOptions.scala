@@ -6,4 +6,10 @@ class InformationFlowTestOptions(interface : Option[String] = None) extends CSPL
     override def liftTaintAnalysis: Boolean = true
 
     override def resolveFunctionPointer: Boolean = true
+
+    override def isProfiling: Boolean = false
+
+    override def initProfiling: Boolean = false
+
+    override def getProfileType: Option[String] = None
 }

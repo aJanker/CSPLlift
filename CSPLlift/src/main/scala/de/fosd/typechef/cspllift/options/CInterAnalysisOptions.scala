@@ -35,6 +35,8 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def getVariantsOutputDir: String = getOutputStem + "_variants"
 
+    override def getProfilingDir: String = getOutputStem + "_profile"
+
     override def isLiftEvaluationModeEnabled: Boolean = liftEvalSampling || liftEvalSingle
 
     override def isLiftAnalysisEnabled: Boolean = lift
@@ -52,6 +54,12 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
     override def liftTaintAnalysis: Boolean = SPLLIFT_Taint.isSelected
 
     override def writeVariants: Boolean = printVariants
+
+    override def isProfiling: Boolean = false
+
+    override def initProfiling: Boolean = false
+
+    override def getProfileType: Option[String] = None
 
     override def getOptionGroups = {
         val r = super.getOptionGroups

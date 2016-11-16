@@ -11,8 +11,9 @@ import de.fosd.typechef.cspllift.cifdsproblem.CFlowConstants
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, RewritingRules}
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.customization.clinking.CModuleInterface
-import de.fosd.typechef.featureexpr.FeatureModel
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
+import de.fosd.typechef.error.Position
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, True}
+import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, _}
 import org.slf4j.{Logger, LoggerFactory}
@@ -178,6 +179,14 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             val env = (getEnvs, envToTS)
             cFunctionPointerEQRelation = Some(cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, env))
         })
+
+    private def genPseudoSystemFunctionCall(range: Option[(Position, Position)]) : Opt[FunctionDef] = {
+        val call = Opt(True, FunctionDef(List(Opt(FeatureExprFactory.True, VoidSpecifier())), AtomicNamedDeclarator(List(), Id(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME), List(Opt(FeatureExprFactory.True, DeclIdentifierList(List())))), List(), CompoundStatement(List(Opt(FeatureExprFactory.True, ReturnStatement(None))))))
+        val addRange = everywherebu(query[Product] { case a: AST => if (!a.hasPosition) a.range = range})
+
+        addRange(call)
+        call
+    }
 
     def getAllKnownTUnits: List[TranslationUnit] = envToTUnit.values.toList
 
