@@ -31,27 +31,34 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     def evaluate(opt: CSPLliftOptions): Boolean = {
         var successful = true
 
-        profile(opt)
-
-        /*if (opt.isLiftSamplingEvaluationEnabled)
+        if (opt.isLiftSamplingEvaluationEnabled)
             successful = checkAgainstSampling(opt) && successful
 
         if (opt.isLiftSingleEvaluationEnabled)
-            successful = checkAgainstErrorConfiguration(opt) && successful */
+            successful = checkAgainstErrorConfiguration(opt) && successful
 
         successful
     }
 
     def profile(opt: CSPLliftOptions): Unit = {
-        if (true || opt.initProfiling) {
+        if (opt.initProfiling) {
 
-            if (true || opt.liftTaintAnalysis)
+            if (opt.liftTaintAnalysis)
                 initProfiling[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt)
 
 
         } else if (opt.getProfileType.isDefined) {
-            true
+            // profileConfiguration()
         }
+    }
+
+    private def profileConfiguration[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions, strategy : String, configNumber : Int) : Unit = {
+        val rootDir = opt.getProfilingDir + "/"
+
+        val liftedCFlowFacts = load[List[LiftedCFlowFact[D]]](rootDir + "facts" + FILE_EXTENSION)
+        val config = load[SimpleConfiguration](rootDir + strategy + "config_" + configNumber + FILE_EXTENSION)
+
+
     }
 
     private def initProfiling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Unit = {
@@ -69,20 +76,18 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val conditionCoverageConfigs = sampling.conditionCoverageConfigs(flowConditions.toSet)
 
         // 4. Serialize configs and interesting facts
-        val liftedEvalFacts = liftedFacts.par.filter(_._1.isEvaluationFact).toList
-
-        val rootDir = opt.getVariantsOutputDir + "/"
+        val rootDir = opt.getProfilingDir + "/"
         checkDir(rootDir)
+        val liftedEvalFacts = liftedFacts.par.filter(_._1.isEvaluationFact).toList
+        serialize(liftedEvalFacts, rootDir + "facts" + FILE_EXTENSION)
 
         val codeCoverageDir = rootDir + CODECOVERAGE + "/"
         checkDir(codeCoverageDir)
+        codeCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, codeCoverageDir + "config_" + i + FILE_EXTENSION) }
 
         val conditionCoverageDir = rootDir + CONDITIONCOVERAGE + "/"
         checkDir(conditionCoverageDir)
-
-        serialize(liftedEvalFacts, rootDir + "facts" + FILE_EXTENSION)
         conditionCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, conditionCoverageDir + "config_" + i + FILE_EXTENSION) }
-        codeCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, codeCoverageDir + "config_" + i + FILE_EXTENSION) }
 
         // TODO Timing
     }
@@ -129,8 +134,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     private def singleCompareRun[T <: CIFDSProblem[D], D <: CFlowFact](configs: List[SimpleConfiguration], strategy: String, ifdsProblem: Class[T], opt: CSPLliftOptions, matchedLiftedFacts: TrieMap[(D, FeatureExpr), Int], liftedEvalFacts: List[(D, FeatureExpr)], config: SimpleConfiguration, i: Int): Iterable[(List[(D, FeatureExpr)], SimpleConfiguration)] = {
         val run: String = if (strategy.equalsIgnoreCase("")) strategy + "_" + i else i.toString
 
-        println("### starting run:\t" + (i + 1) + " of " + configs.size)
-        println(config)
+        logger.info("Starting run:\t" + (i + 1) + " of " + configs.size)
+        logger.info(config.toString)
 
         val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer, Some(config), run)
         val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, run + "_")
@@ -307,11 +312,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     }
 
     private def load[T](filename : String) : T = {
-        val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename))) {
-            override protected def resolveClass(desc: ObjectStreamClass) = { super.resolveClass(desc) }
-        }
-        val res = fr.readObject()
+        val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename)))
+        val obj = fr.readObject()
         fr.close()
-        res.asInstanceOf[T]
+        obj.asInstanceOf[T]
     }
 }
