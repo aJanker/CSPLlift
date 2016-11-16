@@ -232,7 +232,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {
         val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
         val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
-        val dbgName = filename.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
+        val dbgName = filename//.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
         if (logger.isInfoEnabled) logger.info("Loading:\t" + dbgName)
 
         val (source, _) = dbgName.splitAt(dbgName.lastIndexOf(fileExtension))
