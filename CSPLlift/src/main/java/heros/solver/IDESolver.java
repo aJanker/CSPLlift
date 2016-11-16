@@ -23,6 +23,7 @@ import com.google.common.collect.Table.Cell;
 import de.fosd.typechef.cspllift.CICFGFDef;
 import de.fosd.typechef.cspllift.CICFGNode;
 import de.fosd.typechef.cspllift.CInterCFG;
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.Source;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import org.slf4j.Logger;
@@ -217,10 +218,21 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
         for (Entry<N, Set<D>> seed : initialSeeds.entrySet()) {
             N startPoint = seed.getKey();
             for (D val : seed.getValue()) {
-                propagate(zeroValue, startPoint, val, EdgeIdentity.<V>v(), null, false);
+                propagate(zeroValue, startPoint, val, getInitialSeedEdge(val), null, false);
             }
             jumpFn.addFunction(zeroValue, startPoint, zeroValue, EdgeIdentity.<V>v());
         }
+    }
+
+    /**
+     * Retrieves for lifting based IFDS problems the correct flow-condition of an initial seed value.
+     * Otherwise we would assume an inital fact is always true.
+     */
+    private EdgeFunction<V> getInitialSeedEdge(D seedFact) {
+        @SuppressWarnings("unchecked")
+        EdgeFunction<V> edge = (icfg instanceof CInterCFG && seedFact instanceof Source) ?
+                (EdgeFunction<V> )((CInterCFG) icfg).getConditionalEdgeFunction(((Source) seedFact).getCIFGStmt()) : EdgeIdentity.<V>v();
+        return edge;
     }
 
     /**

@@ -29,11 +29,11 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
                     this.icfg = icfg;
                 }
 
-                public EdgeFunction<FeatureExpr> getNormalEdgeFunction(CICFGNode currStmt, D currNode, CICFGNode succStmt, D succNode) {
+                public EdgeFunction<FeatureExpr> getNormalEdgeFunction(CICFGNode currStmt, D srcFact, CICFGNode succStmt, D succFact) {
                     return buildFlowFunction(currStmt, succStmt);
                 }
 
-                public EdgeFunction<FeatureExpr> getCallEdgeFunction(CICFGNode callStmt, D srcNode, CICFGFDef destinationMethod, D destNode) {
+                public EdgeFunction<FeatureExpr> getCallEdgeFunction(CICFGNode callStmt, D srcFact, CICFGFDef destinationMethod, D destFact) {
                     /*
                      * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
                      * Otherwise we would assume this flow has the presence condition of true.
@@ -45,7 +45,7 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
                     return buildFlowFunction(callStmt, destinationMethod, pointsToFlowCondition);
                 }
 
-                public EdgeFunction<FeatureExpr> getReturnEdgeFunction(CICFGNode callSite, CICFGFDef calleeMethod, CICFGNode exitStmt, D exitNode, CICFGNode returnSite, D retNode) {
+                public EdgeFunction<FeatureExpr> getReturnEdgeFunction(CICFGNode callSite, CICFGFDef calleeMethod, CICFGNode exitStmt, D srcFact, CICFGNode returnSite, D succFact) {
                     /*
                      * Calculates the points-to presence condition and annotates the resulting edge function with the correct flow presence condition.
                      * Otherwise we would assume this flow has the presence condition of true.
@@ -54,7 +54,7 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
                     return buildFlowFunction(exitStmt, returnSite, pointsToFlowCondition);
                 }
 
-                public EdgeFunction<FeatureExpr> getCallToReturnEdgeFunction(CICFGNode callSite, D callNode, CICFGNode returnSite, D returnSideNode) {
+                public EdgeFunction<FeatureExpr> getCallToReturnEdgeFunction(CICFGNode callSite, D srcFact, CICFGNode returnSite, D succFact) {
                     return buildFlowFunction(callSite, returnSite);
                 }
 
