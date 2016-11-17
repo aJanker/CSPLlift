@@ -15,25 +15,27 @@ sealed abstract class CICFGNode(stmt: Opt[AST]) extends Product with Serializabl
 
     /**
       * The equality operation for AST elements does not consider the position within the Translation Unit.
-      * However for the IDE-Solver Heros this behaviour is wrong: as it distinguishes between cfg nodes with the
-      * equals operator. However, two different return() statements would return true in the AST implementation of
+      * However for the IDE-Solver Heros this behaviour is wrong: as it distinguishes between cfg nodes using the
+      * equals operator. However, for example two different return() statements would return true in the AST implementation of
       * TypeChef. Therefore we are wrapping these elements for Heros.
       */
-    override def equals(x: Any) = x match {
-        case c: CICFGNode => (c.getCondition eq getCondition) && equalsASTElement(c)
-        case _ => false
+    override def equals(x: Any) = {
+        def equalsASTElement(that: CICFGNode): Boolean = {
+            val eqPosition =
+                if (hasPosition && that.hasPosition) getPosition.equals(that.getPosition)
+                else true
+            lazy val eqAST = getASTEntry.equals(that.getASTEntry)
+
+            eqPosition && eqAST
+        }
+
+        x match {
+            case c: CICFGNode => (c.getCondition eq getCondition) && equalsASTElement(c)
+            case _ => false
+        }
     }
 
     override def canEqual(that: Any): Boolean = that.isInstanceOf[CICFGNode]
-
-    private def equalsASTElement(that: CICFGNode): Boolean = {
-        val eqPosition =
-            if (hasPosition && that.hasPosition) getPosition.equals(that.getPosition)
-            else true
-        lazy val eqAST = getASTEntry.equals(that.getASTEntry)
-
-        eqPosition && eqAST
-    }
 
     override def hashCode(): Int = {
         val positionHashCode =

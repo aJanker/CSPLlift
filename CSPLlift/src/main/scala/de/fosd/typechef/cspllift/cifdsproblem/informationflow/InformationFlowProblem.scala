@@ -42,12 +42,12 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
       */
     override def initialSeeds(): util.Map[CICFGNode, util.Set[InformationFlowFact]] = {
         val initialSeeds = new util.HashMap[CICFGNode, util.Set[InformationFlowFact]]()
-        interproceduralCFG.getEntryFunctions.foldLeft(initialSeeds)((seeds, entryFunction) => {
-            interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(seeds.put(_, globalsAsInitialSeeds(entryFunction)))
-            initialGlobalsFile = entryFunction.method.entry.getFile.getOrElse("")
-            filesWithSeeds = filesWithSeeds + initialGlobalsFile
-            seeds
-        })
+
+        interproceduralCFG.getEntryFunctions.foreach {
+            entryFunction => interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(initialSeeds.put(_, GEN(zeroValue())))
+        }
+
+        initialSeeds
     }
 
     /**
@@ -193,13 +193,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 def addCallToCallGraph() = SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition))
 
                 new IFCallFlowFunction(interproceduralCFG, callStmt, destinationMethod) {
-                    override def computeZero(z: Zero): util.Set[InformationFlowFact] = z match {
-                        case z: Zero if !initialSeedsExists(destinationMethod.method.entry) =>
-                            // Introduce Global Variables from linked file
-                            filesWithSeeds = filesWithSeeds + destinationMethod.method.entry.getFile.getOrElse("")
-                            addCallToCallGraph()
-                            GEN(z :: globalsAsInitialSeedsL(destinationMethod))
-                        case z: Zero =>
+                    override def computeZero(z: Zero): util.Set[InformationFlowFact] = {
                             addCallToCallGraph()
                             GEN(z)
                     }
@@ -416,40 +410,6 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                 }
             }
         }
-    private var initialGlobalsFile: String = ""
-    private var filesWithSeeds: Set[String] = Set()
-
-    private def globalsAsInitialSeeds(fDef: CICFGFDef): util.Set[InformationFlowFact] = GEN(globalsAsInitialSeedsL(fDef) :+ zeroValue())
-
-    private def globalsAsInitialSeedsL(fDef: CICFGFDef): List[InformationFlowFact] = {
-        /*val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
-            // Ignore function and typedef definitions
-            case Opt(_, f: FunctionDef) => true //
-            case Opt(_, d: Declaration) =>
-                d.declSpecs.exists {
-                    case Opt(_, t: TypedefSpecifier) => true
-                    case _ => false
-                }
-            case _ => false
-        }
-
-        val globalInfoFlowFacts = globalVariables.flatMap(x => {
-            val decls = declares(x)
-
-            // Note: we ignore the actual file of the declaration as it may be declared in a header file.
-            // As variables declared in header files may be included across several files, this way prevents matching errors.
-            if (decls.nonEmpty) decls.map(decl => SourceDefinition(Variable(decl), CICFGConcreteStmt(x), SCOPE_GLOBAL))
-            else None
-        })
-
-        globalInfoFlowFacts */
-        List()
-    }
-
-    private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
-        val destinationMethodFile = destinationMethod.getFile.getOrElse("")
-        initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
-    }
 
     private def computeGlobal(source: Source) = if (source.getScope == SCOPE_GLOBAL) GEN(source) else KILL
 }
