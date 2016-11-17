@@ -23,7 +23,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
     private val featureIDHashmap: Map[SingleFeatureExpr, Int] = new HashMap[SingleFeatureExpr, Int]().++(features.zipWithIndex)
 
     def codeCoverageConfigs() : List[SimpleConfiguration] = {
-        val configs = configurationCoverage(tunit, fm, features, includeVariabilityFromHeaderFiles =  true)
+        val configs = configurationCoverage(tunit, fm, features, includeVariabilityFromHeaderFiles =  false)
         configs._1
     }
 
