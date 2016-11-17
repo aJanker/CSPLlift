@@ -1,4 +1,8 @@
+#ifdef B
 int secret = 0;
+#else
+int secret = 10;
+#endif
 
 int foo() {
 
@@ -9,8 +13,6 @@ int foo() {
 
 
 int main() {
-
-    secret = 3;
 
 #ifdef A
     int secret = 2;
