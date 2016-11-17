@@ -21,7 +21,7 @@ object TaintCheck {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
-    private val taintedSource = "secret" // TODO External Parameter
+    private val taintedSource = "key" // TODO External Parameter
 
     def checkAES(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
         val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)

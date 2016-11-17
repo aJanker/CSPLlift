@@ -4,7 +4,7 @@ import java.util
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.CIFDSProblem
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{SourceDefinition, Variable}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{SourceDefinition, SourceType, Variable}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Zero}
 import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CICFGStmt, CInterCFG}
 import de.fosd.typechef.parser.c._
@@ -18,7 +18,24 @@ class GlobalSourcesProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlo
 
     private var globalSeeds = scala.collection.mutable.Map[String, List[InformationFlowFact]]()
 
-    def getGlobalSources = globalSeeds.values.toList.flatten
+    def getGlobalSources = {
+        val input = globalSeeds.values.toList.flatten
+        logger.info("Seeds initial:\t" + input.size)
+        val res = filterDuplicates(input)
+        logger.info("Seeds without duplicates:\t" + res.size)
+        res
+    }
+
+    private def filterDuplicates(seeds: List[InformationFlowFact]): List[InformationFlowFact] = {
+        var names = scala.collection.mutable.Set[SourceType]()
+
+        seeds.filter {
+            case s: SourceDefinition if !names.contains(s.getType) =>
+                names += s.getType
+                true
+            case _ => false
+        }
+    }
 
     override def initialSeeds(): util.Map[CICFGNode, util.Set[InformationFlowFact]] = {
         val initialSeeds = new util.HashMap[CICFGNode, util.Set[InformationFlowFact]]()
