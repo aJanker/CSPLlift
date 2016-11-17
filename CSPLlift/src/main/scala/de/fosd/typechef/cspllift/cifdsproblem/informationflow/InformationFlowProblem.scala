@@ -183,9 +183,9 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
               * The concrete target method for which the flow is computed.
               */
             override def getCallFlowFunction(callStmt: CICFGNode, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
-                val flowCondition = interproceduralCFG.getPointsToCondition(callStmt, destinationMethod).and(callStmt.getStmt.condition)
-                val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
-                val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
+                lazy val flowCondition = interproceduralCFG.getPointsToCondition(callStmt, destinationMethod).and(callStmt.getStmt.condition)
+                lazy val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
+                lazy val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
 
                 if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && destinationMethod.method.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                     return pseudoSystemFunctionCallCallFlowFunction(callStmt, interproceduralCFG.getASTEnv(callStmt), interproceduralCFG)

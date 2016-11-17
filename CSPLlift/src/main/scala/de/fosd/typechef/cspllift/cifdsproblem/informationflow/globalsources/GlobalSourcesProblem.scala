@@ -2,17 +2,23 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow.globalsources
 
 import java.util
 
+import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.CIFDSProblem
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{SourceDefinition, Variable}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.{InformationFlowFact, Zero}
-import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CInterCFG}
-import de.fosd.typechef.parser.c.FunctionDef
+import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CICFGStmt, CInterCFG}
+import de.fosd.typechef.parser.c._
 import heros.{FlowFunction, FlowFunctions}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 
-class GlobalSourcesProblem (cICFG: CInterCFG) extends CIFDSProblem[InformationFlowFact](cICFG) with GlobalSourcesConfiguration {
+class GlobalSourcesProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlowFact](cICFG) with GlobalSourcesConfiguration {
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
+
+    private var globalVariableSeeds = scala.collection.mutable.Map[String, List[Opt[InformationFlowFact]]]()
+
+    def getGlobalVarSources = globalVariableSeeds.toList
 
     override def zeroValue(): InformationFlowFact = zero
     private lazy val zero = Zero()
@@ -21,21 +27,21 @@ class GlobalSourcesProblem (cICFG: CInterCFG) extends CIFDSProblem[InformationFl
         val initialSeeds = new util.HashMap[CICFGNode, util.Set[InformationFlowFact]]()
 
         interproceduralCFG.getEntryFunctions.foreach {
-            entryFunction => interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(initialSeeds.put(_, GEN(zeroValue())))
+            entryFunction =>
+                if (!initialSeedsExists(entryFunction))
+                    globalVariableSeeds += (getDestinationFile(entryFunction) -> globalsAsInitialSeeds(entryFunction))
+
+                interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(initialSeeds.put(_, GEN(zeroValue())))
         }
 
         initialSeeds
     }
 
-    private var initialGlobalsFile: String = ""
-    private var filesWithSeeds: Set[String] = Set()
-
-    private def globalsAsInitialSeeds(fDef: CICFGFDef): util.Set[InformationFlowFact] = GEN(globalsAsInitialSeedsL(fDef) :+ zeroValue())
-
-    private def globalsAsInitialSeedsL(fDef: CICFGFDef): List[InformationFlowFact] = {
-        /*val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
+    private def globalsAsInitialSeeds(fDef: CICFGFDef): List[Opt[InformationFlowFact]] = {
+        val astEnv = interproceduralCFG.getASTEnv(fDef)
+        val globalVariables = interproceduralCFG.getTUnit(fDef).defs.filterNot {
             // Ignore function and typedef definitions
-            case Opt(_, f: FunctionDef) => true //
+            case Opt(_, f: FunctionDef) => true
             case Opt(_, d: Declaration) =>
                 d.declSpecs.exists {
                     case Opt(_, t: TypedefSpecifier) => true
@@ -46,21 +52,20 @@ class GlobalSourcesProblem (cICFG: CInterCFG) extends CIFDSProblem[InformationFl
 
         val globalInfoFlowFacts = globalVariables.flatMap(x => {
             val decls = declares(x)
+            lazy val presenceCondition = astEnv.featureExpr(x.entry)
 
             // Note: we ignore the actual file of the declaration as it may be declared in a header file.
             // As variables declared in header files may be included across several files, this way prevents matching errors.
-            if (decls.nonEmpty) decls.map(decl => SourceDefinition(Variable(decl), CICFGConcreteStmt(x), SCOPE_GLOBAL))
+            if (decls.nonEmpty) decls.map(decl => Opt(presenceCondition, SourceDefinition(Variable(decl), CICFGStmt(x), SCOPE_GLOBAL)))
             else None
         })
 
-        globalInfoFlowFacts */
-        List()
+        globalInfoFlowFacts
     }
 
-    private def initialSeedsExists(destinationMethod: FunctionDef): Boolean = {
-        val destinationMethodFile = destinationMethod.getFile.getOrElse("")
-        initialGlobalsFile.equalsIgnoreCase(destinationMethodFile) || filesWithSeeds.exists(destinationMethodFile.equalsIgnoreCase)
-    }
+    private def initialSeedsExists(destinationMethod: CICFGFDef): Boolean = globalVariableSeeds.keys.exists(getDestinationFile(destinationMethod).equalsIgnoreCase)
+
+    private def getDestinationFile(destinationMethod: CICFGFDef): String = destinationMethod.getASTEntry.getFile.getOrElse("")
 
     /**
       * In order to detect global variables as inital seed values for the information flow analysis problem,
@@ -70,9 +75,14 @@ class GlobalSourcesProblem (cICFG: CInterCFG) extends CIFDSProblem[InformationFl
     private lazy val flowFunctionFactory: FlowFunctions[CICFGNode, InformationFlowFact, CICFGFDef] = new FlowFunctions[CICFGNode, InformationFlowFact, CICFGFDef] {
         private lazy val defaultIdentityFlowFunction = new FlowFunction[InformationFlowFact] { override def computeTargets(fact: InformationFlowFact): util.Set[InformationFlowFact] = GEN(fact) }
 
-        override def getNormalFlowFunction(curr: CICFGNode, succ: CICFGNode): FlowFunction[InformationFlowFact] = defaultIdentityFlowFunction
+        override def getCallFlowFunction(callStmt: CICFGNode, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
+            if (!initialSeedsExists(destinationMethod))
+                globalVariableSeeds += (getDestinationFile(destinationMethod) -> globalsAsInitialSeeds(destinationMethod))
 
-        override def getCallFlowFunction(callStmt: CICFGNode, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = defaultIdentityFlowFunction
+            defaultIdentityFlowFunction
+        }
+
+        override def getNormalFlowFunction(curr: CICFGNode, succ: CICFGNode): FlowFunction[InformationFlowFact] = defaultIdentityFlowFunction
 
         override def getReturnFlowFunction(callSite: CICFGNode, calleeMethod: CICFGFDef, exitStmt: CICFGNode, returnSite: CICFGNode): FlowFunction[InformationFlowFact] = defaultIdentityFlowFunction
 
