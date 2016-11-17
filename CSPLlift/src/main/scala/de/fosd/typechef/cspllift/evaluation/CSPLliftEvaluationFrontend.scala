@@ -146,6 +146,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
         // warm up run for the jvm
         runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("warmup"))
+        logger.info("Finished warmup.")
+
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(method + "_init_"))
 
         if (opt.writeVariants) writeVariants(icfg, opt, method)
@@ -192,6 +194,9 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
         // warm up run for the jvm
         runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("warmup"))
+        logger.info("Finished warmup.")
+
+
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(method + "_init_"))
 
         if (opt.writeVariants) writeVariants(icfg, opt, method)
@@ -258,6 +263,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
                 val seedCFG = new CInterCFG(ast, fm, cInterCFGOptions)
                 val seeds = new GlobalSourcesProblem(seedCFG)
                 CSPLlift.solve(seeds)
+                logger.info("Computed initial seeds.")
                 problem = new InformationFlowProblem(cInterCFG, seeds.getGlobalSources).asInstanceOf[T]
             }
 
