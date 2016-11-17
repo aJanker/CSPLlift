@@ -36,10 +36,10 @@ sealed abstract class Sink(override val cICFGStmt: CICFGNode, val source: Source
         lazy val originStmtProduc = ProductDerivation.deriveProduct(getDefinition(source).getCIFGStmt.getStmt.entry, configuration.getTrueFeatures)
         lazy val eqOriginStmt = originStmtProduc.equals(getDefinition(otherSink.source).getCIFGStmt.getStmt.entry)
 
-        lazy val eqLocation = otherSink.source.getCIFGStmt.getASTEntry.range.equals(source.getCIFGStmt.getASTEntry.range)
+        lazy val eqLocation = otherSink.getOriginSource.getCIFGStmt.getASTEntry.range.equals(getOriginSource.getCIFGStmt.getASTEntry.range)
         lazy val eqOrigin = otherSink.cICFGStmt.getASTEntry.range.equals(cICFGStmt.getASTEntry.range)
 
-        // By comparing the origin and target location we save expensive ast product generation but still get the same result.
+        // By comparing the origin and target location we save expensive ast product generation but still get the same result as we only compare satisfiable lifting facts according to the current configuration
         eqLocation && eqOrigin
     }
 
