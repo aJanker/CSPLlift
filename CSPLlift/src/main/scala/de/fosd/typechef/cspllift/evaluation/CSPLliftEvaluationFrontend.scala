@@ -7,6 +7,7 @@ import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.analysis.{InformationFlow, InformationFlowGraphWriter, SuperCallGraph}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.globalsources.GlobalSourcesProblem
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.cintercfg._
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
@@ -251,7 +252,14 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGConfiguration, benchmarkTag: Option[String] = None): (Long, (List[LiftedCFlowFact[D]], CInterCFG)) =
         StopWatch.measureWallTime(benchmarkTag.getOrElse("") + RUN_MARK, {
             val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions, benchmarkTag)
-            val problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG)
+            var problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG, List())
+
+            if (problem.isInstanceOf[InformationFlowProblem]) {
+                val seedCFG = new CInterCFG(ast, fm, cInterCFGOptions)
+                val seeds = new GlobalSourcesProblem(seedCFG)
+                CSPLlift.solve(seeds)
+                problem = new InformationFlowProblem(cInterCFG, seeds.getGlobalSources).asInstanceOf[T]
+            }
 
             (CSPLlift.solve[D](problem, benchmarkTag = benchmarkTag), cInterCFG)
         })

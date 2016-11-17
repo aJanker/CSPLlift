@@ -34,6 +34,12 @@ int main() {
     return 0;
 }
 */
+
+#ifdef G
+int secret = 1;
+#endif
+
+
 int foo(int f) {
     int foofoo = 0;
 #ifdef C
@@ -107,7 +113,10 @@ int main() {
 #else
     cipher_init(c, &cipher2);
 #endif
-   int secret = 1;
+
+    int secret = 2;
+
+
     #ifdef S
      secret = 3;
     #endif

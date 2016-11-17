@@ -18,7 +18,7 @@ import scala.collection.JavaConverters._
 /**
   * Assignment based information-flow analysis as example IFDS problem for the C connector to the IFDS/IDE solver Heros.
   */
-class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlowFact](cICFG) with InformationFlowConfiguration with InformationFlowProblemOperationsInformation {
+class InformationFlowProblem(cICFG: CInterCFG, globalSources : List[InformationFlowFact] = List()) extends CIFDSProblem[InformationFlowFact](cICFG, globalSources) with InformationFlowConfiguration with InformationFlowProblemOperationsInformation {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
@@ -44,7 +44,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
         val initialSeeds = new util.HashMap[CICFGNode, util.Set[InformationFlowFact]]()
 
         interproceduralCFG.getEntryFunctions.foreach {
-            entryFunction => interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(initialSeeds.put(_, GEN(zeroValue())))
+            entryFunction => interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(initialSeeds.put(_, GEN(zeroValue() :: globalSources)))
         }
 
         initialSeeds
@@ -329,9 +329,7 @@ class InformationFlowProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationF
                                         List(newSource, sourceOf, sink)
                                     case _ => None
                                 }))
-                            } else {
-                                KILL
-                            }
+                            } else KILL
                         }
 
                         GEN(computeGlobal(source), sourcesAndSinks)

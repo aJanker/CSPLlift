@@ -1,8 +1,8 @@
 package de.fosd.typechef.cspllift
 
 import de.fosd.typechef.cspllift.analysis.{SuperCallGraph, TaintCheck}
-import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
-import de.fosd.typechef.cspllift.cintercfg.{CInterCFG, DefaultCInterCFGConfiguration}
+import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
+import de.fosd.typechef.cspllift.cintercfg.DefaultCInterCFGConfiguration
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.FeatureModel
@@ -27,9 +27,6 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
   * Connector the Java Frontend of the lifted IFDS solver.
   */
 object CSPLlift {
-
-    def solveCIFDSProblem[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], cifg: CInterCFG, fm: FeatureModel = BDDFeatureModel.empty): List[LiftedCFlowFact[D]] =
-        CSPLlift.solve[D](getCIFDSProblemInstance[D, T](ifdsProblem)(cifg), fm)
 
     def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, benchmarkTag : Option[String] = None): List[LiftedCFlowFact[D]] = {
         SuperCallGraph.clear()

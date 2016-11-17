@@ -6,6 +6,7 @@ import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SourceDefinition}
+import de.fosd.typechef.cspllift.cifdsproblem.informationflow.globalsources.GlobalSourcesProblem
 import de.fosd.typechef.cspllift.cintercfg.{CICFGNode, CInterCFG, DefaultCInterCFGConfiguration}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
@@ -20,7 +21,7 @@ object TaintCheck {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
-    private val taintedSource = "key" // TODO External Parameter
+    private val taintedSource = "secret" // TODO External Parameter
 
     def checkAES(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
         val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)
@@ -65,7 +66,10 @@ object TaintCheck {
 
     def check(cInterCFG : CInterCFG) : List[LiftedCFlowFact[InformationFlowFact]] = {
         val (_, solution) = StopWatch.measureUserTime("taintCheck", {
-            val problem = new InformationFlowProblem(cInterCFG)
+            val seeds = new GlobalSourcesProblem(cInterCFG)
+            CSPLlift.solve(seeds)
+
+            val problem = new InformationFlowProblem(cInterCFG, seeds.getGlobalSources)
             CSPLlift.solve(problem)
         })
         solution

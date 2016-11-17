@@ -13,7 +13,7 @@ import scala.collection.JavaConverters._
 /**
   * Connector class for solving IFDS variability-aware.
   */
-abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProblem[D] with CInterCFGCommons {
+abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG, seeds: List[D]) extends IFDSProblem[D] with CInterCFGCommons {
 
     /**
       * Returns the interprocedural control-flow graph which this problem is computed over.
