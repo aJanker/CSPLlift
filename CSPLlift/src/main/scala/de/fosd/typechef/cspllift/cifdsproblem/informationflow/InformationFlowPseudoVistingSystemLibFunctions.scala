@@ -5,8 +5,8 @@ import java.util
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
+import de.fosd.typechef.cspllift.cintercfg.{CICFGNode, CInterCFG}
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
-import de.fosd.typechef.cspllift.{CICFGNode, CInterCFG}
 import de.fosd.typechef.parser.c._
 import heros.FlowFunction
 

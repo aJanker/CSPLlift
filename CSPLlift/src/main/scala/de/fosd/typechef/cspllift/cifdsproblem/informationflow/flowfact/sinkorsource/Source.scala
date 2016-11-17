@@ -1,8 +1,8 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource
 
 import de.fosd.typechef.crewrite.ProductDerivation
-import de.fosd.typechef.cspllift.CICFGNode
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
+import de.fosd.typechef.cspllift.cintercfg.CICFGNode
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.Id
 

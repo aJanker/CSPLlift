@@ -1,4 +1,4 @@
-package de.fosd.typechef.cspllift
+package de.fosd.typechef.cspllift.cintercfg
 
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.parser.c._

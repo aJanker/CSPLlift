@@ -1,8 +1,8 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource
 
 import de.fosd.typechef.crewrite.ProductDerivation
-import de.fosd.typechef.cspllift.CICFGNode
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowConstants, CFlowFact}
+import de.fosd.typechef.cspllift.cintercfg.CICFGNode
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 import de.fosd.typechef.parser.c.Id
 
@@ -39,7 +39,7 @@ sealed abstract class Sink(override val cICFGStmt: CICFGNode, val source: Source
         lazy val eqLocation = otherSink.source.getCIFGStmt.getASTEntry.range.equals(source.getCIFGStmt.getASTEntry.range)
         lazy val eqOrigin = otherSink.cICFGStmt.getASTEntry.range.equals(cICFGStmt.getASTEntry.range)
 
-        // By comparing the origin and target location we save expensive ast product generation but still the same result.
+        // By comparing the origin and target location we save expensive ast product generation but still get the same result.
         eqLocation && eqOrigin
     }
 

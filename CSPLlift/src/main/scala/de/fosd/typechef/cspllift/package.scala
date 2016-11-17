@@ -3,6 +3,7 @@ package de.fosd.typechef
 import java.util
 
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
+import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CInterCFG}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import heros.IFDSTabulationProblem
 

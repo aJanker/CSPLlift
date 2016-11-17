@@ -1,8 +1,8 @@
 package spllift;
 
-import de.fosd.typechef.cspllift.CICFGFDef;
-import de.fosd.typechef.cspllift.CICFGNode;
-import de.fosd.typechef.cspllift.CInterCFG;
+import de.fosd.typechef.cspllift.cintercfg.CICFGFDef;
+import de.fosd.typechef.cspllift.cintercfg.CICFGNode;
+import de.fosd.typechef.cspllift.cintercfg.CInterCFG;
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import de.fosd.typechef.featureexpr.FeatureModel;

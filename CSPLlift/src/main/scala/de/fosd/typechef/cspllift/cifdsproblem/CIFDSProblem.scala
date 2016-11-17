@@ -3,13 +3,16 @@ package de.fosd.typechef.cspllift.cifdsproblem
 import java.util
 import java.util.Collections
 
+import de.fosd.typechef.cspllift.IFDSProblem
+import de.fosd.typechef.cspllift.cintercfg.CInterCFG
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
-import de.fosd.typechef.cspllift.{CInterCFG, IFDSProblem}
-import de.fosd.typechef.parser.c._
 
 import scala.collection.JavaConverters._
 
+/**
+  * Connector class for solving IFDS variability-aware.
+  */
 abstract class CIFDSProblem[D <: CFlowFact](cICFG: CInterCFG) extends IFDSProblem[D] with CInterCFGCommons {
 
     /**
@@ -32,7 +35,7 @@ trait CFlowFact extends Cloneable with Product with Serializable {
     def toText: String
 }
 
-trait CFlowOperations[D <: CFlowFact] extends CFlowConstants with ASTRewriting {
+trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {
 
     import java.util.stream.{Collectors, Stream}
 

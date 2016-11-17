@@ -6,6 +6,7 @@ import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SourceDefinition}
+import de.fosd.typechef.cspllift.cintercfg.{CICFGNode, CInterCFG, DefaultCInterCFGConfiguration}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}

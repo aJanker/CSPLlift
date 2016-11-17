@@ -5,7 +5,7 @@ import java.util
 import java.util.zip.GZIPOutputStream
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.CICFGFDef
+import de.fosd.typechef.cspllift.cintercfg.CICFGFDef
 import de.fosd.typechef.customization.crewrite.AssignDeclDefUse
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, _}

@@ -1,4 +1,4 @@
-package de.fosd.typechef.cspllift
+package de.fosd.typechef.cspllift.cintercfg
 
 import java.io._
 import java.util

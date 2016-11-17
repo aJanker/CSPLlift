@@ -8,6 +8,7 @@ import de.fosd.typechef.cspllift.analysis.{InformationFlow, InformationFlowGraph
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
+import de.fosd.typechef.cspllift.cintercfg._
 import de.fosd.typechef.cspllift.commons.{CInterCFGCommons, ConditionTools}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch

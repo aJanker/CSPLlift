@@ -28,9 +28,9 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
 
             if (compoundStmt.innerStatements.isEmpty) a
             else {
-                val stmt = Opt(cond, EmptyStatement())
-                stmt.entry.range = fDef.range
-                val compoundStmtWithSingleEntryPoint = compoundStmt.copy(innerStatements = stmt :: compoundStmt.innerStatements)
+                val entryStmt = Opt(cond, EmptyStatement())
+                entryStmt.entry.range = fDef.range
+                val compoundStmtWithSingleEntryPoint = compoundStmt.copy(innerStatements = entryStmt :: compoundStmt.innerStatements)
                 replace(a, compoundStmt, compoundStmtWithSingleEntryPoint)
             }
         })

@@ -2,6 +2,7 @@ package de.fosd.typechef.cspllift
 
 import de.fosd.typechef.cspllift.analysis.{SuperCallGraph, TaintCheck}
 import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
+import de.fosd.typechef.cspllift.cintercfg.{CInterCFG, DefaultCInterCFGConfiguration}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
 import de.fosd.typechef.featureexpr.FeatureModel

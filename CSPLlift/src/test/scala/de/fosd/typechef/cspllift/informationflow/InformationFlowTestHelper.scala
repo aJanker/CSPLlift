@@ -4,6 +4,7 @@ import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.analysis.InformationFlow
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
+import de.fosd.typechef.cspllift.cintercfg.{CInterCFG, DefaultCInterCFGConfiguration}
 import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.featureexpr.FeatureModel
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel

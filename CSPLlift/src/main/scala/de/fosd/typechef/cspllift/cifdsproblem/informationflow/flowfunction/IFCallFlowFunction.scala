@@ -1,7 +1,7 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfunction
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.{CICFGFDef, CICFGNode, CInterCFG}
+import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CInterCFG}
 import de.fosd.typechef.parser.c._
 import org.slf4j.{Logger, LoggerFactory}
 

@@ -8,7 +8,7 @@ import de.fosd.typechef.cspllift.cifdsproblem.CIFDSProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfunction.{IFCallFlowFunction, IFDefaultFlowFunction}
-import de.fosd.typechef.cspllift.{CICFGFDef, CICFGNode, CInterCFG}
+import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CInterCFG}
 import de.fosd.typechef.parser.c._
 import heros.{FlowFunction, FlowFunctions}
 import org.slf4j.{Logger, LoggerFactory}

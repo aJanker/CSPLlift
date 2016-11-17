@@ -5,7 +5,8 @@ import java.io.{StringWriter, Writer}
 import de.fosd.typechef.conditional.One
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SinkOrSource, Source}
-import de.fosd.typechef.cspllift.{CICFGNode, LiftedCFlowFact, StmtFlowFacts}
+import de.fosd.typechef.cspllift.cintercfg.CICFGNode
+import de.fosd.typechef.cspllift.{LiftedCFlowFact, StmtFlowFacts}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.{EmptyStatement, ForStatement, PrettyPrinter}
 
