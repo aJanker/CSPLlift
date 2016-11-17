@@ -116,7 +116,7 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources : List[InformationF
                             }
 
                             val assignments =
-                                if (currFactIsAssignee(source) && getCurrentScope(structName).forall(scope => (scope <= source.getScope) || (source.getScope == SCOPE_UNKNOWN))) KILL
+                                if (currFactIsAssignee(source) && getCurrentScope(structName).exists(scope => (scope <= source.getScope) || (source.getScope == SCOPE_UNKNOWN))) KILL
                                 else GEN(source)
 
                             GEN(assignments, usages)
@@ -154,7 +154,7 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources : List[InformationF
 
                             val leftHandSide =
                                 if (currAssignments.exists { case (assignee, assignor) => assignee.equals(varName) } || currDefines.exists(varName.equals)
-                                  && getCurrentScope(varName).forall(scope => (scope <= source.getScope) || (source.getScope == SCOPE_UNKNOWN))) KILL
+                                  && getCurrentScope(varName).exists(scope => (scope <= source.getScope) || (source.getScope == SCOPE_UNKNOWN))) KILL
                                 else GEN(source)
 
                             GEN(leftHandSide, rightHandSide)
