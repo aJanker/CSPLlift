@@ -20,8 +20,8 @@ class MinimalLinkingWithFunctionPointerTest extends CSPLliftTestHelper {
 
             //defaultTestInit("simplePointerFunctionFlow.c", allSinks)
 
-            val evaluation = new CSPLliftEvaluationFrontend(tunit)
-            val eval = evaluation.evaluate(new InformationFlowTestOptions(Some(interface)))
+            val evaluation = new CSPLliftEvaluationFrontend(tunit, options = new InformationFlowTestOptions(Some(interface)))
+            val eval = evaluation.evaluate()
 
             eval && successful should be(true)
 

@@ -1,7 +1,6 @@
 package de.fosd.typechef.cspllift.evaluation
 
 import java.io._
-import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.analysis.{InformationFlow, InformationFlowGraphWriter, SuperCallGraph}
@@ -20,7 +19,9 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.concurrent.TrieMap
 
-class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty) extends ConditionTools with CInterCFGCommons {
+class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CSPLliftOptions) extends ConditionTools with CInterCFGCommons {
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
     private val FILE_EXTENSION = ".lift"
 
@@ -30,99 +31,64 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
     private val RUN_MARK = "RUN"
 
-    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
+    private var warmJVM = false
 
-    def evaluate(opt: CSPLliftOptions): Boolean = {
+    def evaluate(): Boolean = {
         var successful = true
 
-        if (opt.isLiftSamplingEvaluationEnabled)
-            successful = checkAgainstSampling(opt) && successful
+        if (options.isLiftSamplingEvaluationEnabled)
+            successful = checkAgainstSampling() && successful
 
-        if (opt.isLiftSingleEvaluationEnabled)
-            successful = checkAgainstErrorConfiguration(opt) && successful
+        if (options.isLiftSingleEvaluationEnabled)
+            successful = checkAgainstErrorConfiguration() && successful
 
         successful
     }
 
-    private def initProfiling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Unit = {
-        // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
-        val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
-        val (initTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("init"))
 
-        val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
-
-        // 2. Extract configs for codecoverage and conditioncoverage
-        val codeCoverageConfigs = sampling.codeCoverageConfigs()
-
-        // 3. Extract all distinct flow conditions for reported flow-facts.
-        val flowConditions = liftedFacts.par.map(_._2).distinct.toList
-        val conditionCoverageConfigs = sampling.conditionCoverageConfigs(flowConditions.toSet)
-
-        // 4. Serialize configs and interesting facts
-        val rootDir = opt.getOutputLocation + "/"
-        checkDir(rootDir)
-        val liftedEvalFacts = liftedFacts.par.filter(_._1.isEvaluationFact).toList
-        serialize(liftedEvalFacts, rootDir + "facts" + FILE_EXTENSION)
-
-        val codeCoverageDir = rootDir + CODECOVERAGE + "/"
-        checkDir(codeCoverageDir)
-        codeCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, codeCoverageDir + "config_" + i + FILE_EXTENSION) }
-
-        val conditionCoverageDir = rootDir + CONDITIONCOVERAGE + "/"
-        checkDir(conditionCoverageDir)
-        conditionCoverageConfigs.zipWithIndex.foreach { case (config, i) => serialize(config, conditionCoverageDir + "config_" + i + FILE_EXTENSION) }
-    }
-
-
-    private def checkDir(dir: String) = {
-        val file = new File(dir)
-        if (!(file.exists() && file.isDirectory)) file.mkdirs()
-    }
-
-    def checkAgainstSampling(opt: CSPLliftOptions): Boolean = {
+    def checkAgainstSampling(): Boolean = {
         var successful = true
 
-        if (opt.liftTaintAnalysis)
-            successful = runSampling[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
+        if (options.liftTaintAnalysis)
+            successful = runSampling[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem]) && successful
 
         successful
     }
 
-    def checkAgainstErrorConfiguration(opt: CSPLliftOptions): Boolean = {
+    def checkAgainstErrorConfiguration(): Boolean = {
         var successful = true
 
-        if (opt.liftTaintAnalysis)
-            successful = runErrorConditionCoverage[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem], opt: CSPLliftOptions) && successful
+        if (options.liftTaintAnalysis)
+            successful = runErrorConditionCoverage[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem]) && successful
 
         successful
     }
 
-    private def runAndCompare[D <: CFlowFact, T <: CIFDSProblem[D]](cSPLlift: (java.lang.Class[T], CSPLliftOptions), configs: List[SimpleConfiguration], liftedFacts: List[LiftedCFlowFact[D]], strategy: String = "") = {
-        val (ifdsProblem, opt) = cSPLlift
+    private def analyzeConfigsAndCompare[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], configs: List[SimpleConfiguration], liftedFacts: List[LiftedCFlowFact[D]], strategy: String = "") = {
         var matchedLiftedFacts = scala.collection.concurrent.TrieMap[LiftedCFlowFact[D], Int]()
         val liftedEvalFacts = liftedFacts.par.filter(_._1.isEvaluationFact).toList
 
         liftedEvalFacts.foreach(fact => matchedLiftedFacts += (fact -> 0))
 
         val res = configs.zipWithIndex.flatMap {
-            case (config, i) => singleCompareRun(configs, strategy, ifdsProblem, opt, matchedLiftedFacts, liftedEvalFacts, config, i)
+            case (config, i) => analyzeSingleConfigAndCompare(configs, strategy, ifdsProblem, matchedLiftedFacts, liftedEvalFacts, config, i)
         }
 
         val unmatchedLiftedFacts = matchedLiftedFacts.par.collect { case ((x, 0)) => x }.toList
         (unmatchedLiftedFacts.distinct, res)
     }
 
-    private def singleCompareRun[T <: CIFDSProblem[D], D <: CFlowFact](configs: List[SimpleConfiguration], strategy: String, ifdsProblem: Class[T], opt: CSPLliftOptions, matchedLiftedFacts: TrieMap[(D, FeatureExpr), Int], liftedEvalFacts: List[(D, FeatureExpr)], config: SimpleConfiguration, i: Int): Iterable[(List[(D, FeatureExpr)], SimpleConfiguration)] = {
+    private def analyzeSingleConfigAndCompare[T <: CIFDSProblem[D], D <: CFlowFact](configs: List[SimpleConfiguration], strategy: String, ifdsProblem: Class[T], matchedLiftedFacts: TrieMap[(D, FeatureExpr), Int], liftedEvalFacts: List[(D, FeatureExpr)], config: SimpleConfiguration, i: Int): Iterable[(List[(D, FeatureExpr)], SimpleConfiguration)] = {
         val run: String = if (strategy.equalsIgnoreCase("")) i.toString else strategy + "_" + i
 
         logger.info("Starting run:\t" + (i + 1) + " of " + configs.size)
         logger.info(config.toString)
 
-        val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer, Some(config), run)
+        val cInterCFGOptions = new ConfigurationBasedCInterCFGConfiguration(options.getCLinkingInterfacePath, options.resolveFunctionPointer, Some(config), run)
         val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(run + "_"))
 
-        if (opt.writeVariants) writeVariants(icfg, opt, strategy, Some(i), Some(config))
-        if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, strategy, Some(run))
+        if (options.writeVariants) writeVariants(icfg, strategy, Some(i), Some(config))
+        if (options.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(strategy, Some(run))
 
         val sampleEvalFacts = solution.par.filter(_._1.isEvaluationFact)
         val satLiftedEvalFacts = liftedEvalFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
@@ -139,19 +105,18 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         else None
     }
 
-    private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T], opt: CSPLliftOptions): Boolean = {
+    private def runSampling[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: java.lang.Class[T]): Boolean = {
         val method: String = "codeCoverage"
 
         // 1. Step -> Run VAA first in order to detect all linked files for codecoverageconfiguration generation
-        val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
+        val cInterCFGOptions = new DefaultCInterCFGConfiguration(options.getCLinkingInterfacePath, options.resolveFunctionPointer)
         // warm up run for the jvm
-        runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("warmup"))
-        logger.info("Finished warmup.")
+        warmupJVM[D, T](ifdsProblem, cInterCFGOptions)
 
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(method + "_init_"))
 
-        if (opt.writeVariants) writeVariants(icfg, opt, method)
-        if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
+        if (options.writeVariants) writeVariants(icfg, method)
+        if (options.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(method)
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
@@ -159,7 +124,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 3. Run Analysis for every generated config
         // 4. Compare
-        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = runAndCompare((ifdsProblem, opt), configs, liftedFacts, method)
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = analyzeConfigsAndCompare(ifdsProblem, configs, liftedFacts, method)
 
         logger.info("Tested " + configs.size + " unique variants for code coverage.")
 
@@ -182,25 +147,22 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         } else logger.info("All results were covered by the lifted approach!")
 
         if (unmatchedCoverageFacts.isEmpty)
-            sumResults[D](opt, method, icfg, configs, liftedFacts.filter(_._1.isEvaluationFact), unmatchedLiftedFacts, unmatchedCoverageFacts)
+            sumResults[D](method, icfg, configs, liftedFacts.filter(_._1.isEvaluationFact), unmatchedLiftedFacts, unmatchedCoverageFacts)
 
         unmatchedCoverageFacts.isEmpty
     }
 
-    private def runErrorConditionCoverage[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], opt: CSPLliftOptions): Boolean = {
+    private def runErrorConditionCoverage[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T]): Boolean = {
         val method: String = "conditionCoverage"
 
         // 1. Step -> Run VAA first in order to detect all affected features
-        val cInterCFGOptions = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
-        // warm up run for the jvm
-        runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("warmup"))
-        logger.info("Finished warmup.")
-
+        val cInterCFGOptions = new DefaultCInterCFGConfiguration(options.getCLinkingInterfacePath, options.resolveFunctionPointer)
+        warmupJVM[D, T](ifdsProblem, cInterCFGOptions)
 
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(method + "_init_"))
 
-        if (opt.writeVariants) writeVariants(icfg, opt, method)
-        if (opt.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(opt, method)
+        if (options.writeVariants) writeVariants(icfg, method)
+        if (options.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(method)
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {
@@ -216,7 +178,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val configs = sampling.conditionCoverageConfigs(cfgConditions.asInstanceOf[Set[FeatureExpr]])
 
         // 5. Compare
-        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = runAndCompare((ifdsProblem, opt), configs, liftedFacts, method)
+        val (unmatchedLiftedFacts, unmatchedCoverageFacts) = analyzeConfigsAndCompare(ifdsProblem, configs, liftedFacts, method)
 
         logger.info("Tested " + configs.size + " unique variants for condition coverage.")
 
@@ -249,17 +211,25 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         } else logger.info("All condition coverage results were covered by the lifted approach!")
 
         if (unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty)
-            sumResults[D](opt, method, icfg, configs, liftedFacts.filter(_._1.isEvaluationFact), unmatchedLiftedFacts, unmatchedCoverageFacts)
+            sumResults[D](method, icfg, configs, liftedFacts.filter(_._1.isEvaluationFact), unmatchedLiftedFacts, unmatchedCoverageFacts)
 
         unmatchedLiftedFacts.isEmpty && unmatchedCoverageFacts.isEmpty
     }
+
+    private def warmupJVM[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: DefaultCInterCFGConfiguration): Unit =
+        if (options.warmupJVM && !warmJVM) {
+            logger.info("Warming up JVM.")
+            runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some("warmup"))
+            logger.info("Finished warmup.")
+            warmJVM = true
+        }
 
     private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGConfiguration, benchmarkTag: Option[String] = None): (Long, (List[LiftedCFlowFact[D]], CInterCFG)) =
         StopWatch.measureWallTime(benchmarkTag.getOrElse("") + RUN_MARK, {
             val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions, benchmarkTag)
             var problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG, List())
 
-            if (problem.isInstanceOf[InformationFlowProblem]) {
+            if (!options.noInitalSeeds && problem.isInstanceOf[InformationFlowProblem]) {
                 val seedCFG = new CInterCFG(ast, fm, cInterCFGOptions)
                 val seeds = new GlobalSourcesProblem(seedCFG)
                 CSPLlift.solve(seeds)
@@ -270,8 +240,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             (CSPLlift.solve[D](problem, benchmarkTag = benchmarkTag), cInterCFG)
         })
 
-    private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](icfg: CInterCFG, opt: CSPLliftOptions, method: String = "", index: Option[Int] = None, config: Option[SimpleConfiguration] = None) = {
-        val printDir = opt.getVariantsOutputDir + "/" + method + "/"
+    private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](icfg: CInterCFG, method: String = "", index: Option[Int] = None, config: Option[SimpleConfiguration] = None) = {
+        val printDir = options.getVariantsOutputDir + "/" + method + "/"
         val outputDir = if (index.isDefined) printDir + "/" + index.get else printDir
 
         val currDir = new File(outputDir)
@@ -286,8 +256,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         }
     }
 
-    private def writeExplodedSuperCallGraph(opt: CSPLliftOptions, method: String, variant: Option[String] = None): Unit = {
-        val graphDir = opt.getInformationFlowGraphsOutputDir + "/" + method + "/"
+    private def writeExplodedSuperCallGraph(method: String, variant: Option[String] = None): Unit = {
+        val graphDir = options.getInformationFlowGraphsOutputDir + "/" + method + "/"
         val dir = new File(graphDir)
 
         if (!(dir.exists() && dir.isDirectory)) dir.mkdirs()
@@ -301,8 +271,8 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     /**
       * Summarizes the evaluation result in case it was successful (no errors introduced by lifting)
       */
-    private def sumResults[D](opt: CSPLliftOptions, method: String, icfg: CInterCFG, configs: List[SimpleConfiguration], liftedFacts: List[(D, FeatureExpr)], unmatchedLiftedFacts: List[(D, FeatureExpr)], unmatchedCoverageFacts: List[(List[(D, FeatureExpr)], SimpleConfiguration)]) = {
-        val location = opt.getOutputLocation
+    private def sumResults[D](method: String, icfg: CInterCFG, configs: List[SimpleConfiguration], liftedFacts: List[(D, FeatureExpr)], unmatchedLiftedFacts: List[(D, FeatureExpr)], unmatchedCoverageFacts: List[(List[(D, FeatureExpr)], SimpleConfiguration)]) = {
+        val location = options.getOutputLocation
         val extension = method + ".sum"
         val writer = new BufferedWriter(new FileWriter(location + extension))
 
@@ -353,20 +323,5 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         writer.write("#SOLVINGMIN:\t" + samplingSolvingMin + "\n")
 
         writer.close()
-        // StopWatch.reset()
-    }
-
-
-    private def serialize(obj: Object, file: String) {
-        val fw = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(file)))
-        fw.writeObject(obj)
-        fw.close()
-    }
-
-    private def load[T](filename: String): T = {
-        val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename)))
-        val obj = fr.readObject()
-        fr.close()
-        obj.asInstanceOf[T]
     }
 }

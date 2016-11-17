@@ -90,8 +90,8 @@ object Launch extends App {
             logger.info("Starting static analysis with IFDS-Lifting")
 
             if (opt.isLiftEvaluationModeEnabled) {
-                val cSPLliftEvalFrontend = new CSPLliftEvaluationFrontend(ast, fullFM)
-                val successful = cSPLliftEvalFrontend.evaluate(opt)
+                val cSPLliftEvalFrontend = new CSPLliftEvaluationFrontend(ast, fullFM, opt)
+                val successful = cSPLliftEvalFrontend.evaluate()
 
                 logger.info("Static analysis with IFDS-Lifting was complete:\t" + successful)
             } else {

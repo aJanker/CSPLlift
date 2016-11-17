@@ -11,8 +11,8 @@ class extensible_PointerFunctionFlow extends CSPLliftTestHelper {
 
         val tunit= parseTUnitFromFile("simplePointerFunctionFlow.c")
 
-        val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(new InformationFlowTestOptions)
+        val evaluation = new CSPLliftEvaluationFrontend(tunit, options = new InformationFlowTestOptions)
+        val eval = evaluation.evaluate()
 
 
         successful && eval should be(true)
@@ -24,8 +24,8 @@ class extensible_PointerFunctionFlow extends CSPLliftTestHelper {
 
         val tunit= parseTUnitFromFile("extensible_PointerFunctionFlow.c")
 
-        val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(new InformationFlowTestOptions)
+        val evaluation = new CSPLliftEvaluationFrontend(tunit, options = new InformationFlowTestOptions)
+        val eval = evaluation.evaluate()
 
         successful && eval should be(true)
 

@@ -14,7 +14,7 @@ import scala.io.Source
 /**
   * Adapted from the sampling infrastructure of Jörg Liebig, Alex von Rhein, and me.
   */
-class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends ConditionTools {
+class Sampling(tunit: AST, fm: FeatureModel = BDDNoFeatureModel) extends ConditionTools {
 
     /** List of all features found in the currently processed file */
     private val features: List[SingleFeatureExpr] = getAllFeatures(tunit)
@@ -22,30 +22,15 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
     /** Maps SingleFeatureExpr Objects to IDs (IDs only known/used in this file) */
     private val featureIDHashmap: Map[SingleFeatureExpr, Int] = new HashMap[SingleFeatureExpr, Int]().++(features.zipWithIndex)
 
-    def codeCoverageConfigs() : List[SimpleConfiguration] = {
-        val configs = configurationCoverage(tunit, fm, features, includeVariabilityFromHeaderFiles =  true)
-        configs._1
-    }
+    /**
+      * Extracts a minimal number of configurations which include each statement of the program at least once.
+      */
+    def codeCoverageConfigs(headerVariability: Boolean = false): List[SimpleConfiguration] = configurationCoverage(tunit, fm, features, includeVariabilityFromHeaderFiles = headerVariability)._1
 
-    def conditionCoverageConfigs(cfgConditions: Set[FeatureExpr]) : List[SimpleConfiguration] = {
-        val configs = conditionCoverage(cfgConditions)
-        configs._1
-    }
-
-    private def conditionCoverage(conditions: Set[FeatureExpr]) : (List[SimpleConfiguration], String) = {
-        var unsatCombinations = 0
-
-        val configs = conditions.flatMap(condition => {
-            completeConfiguration(condition, features, fm, preferDisabledFeatures = true) match {
-                case null =>
-                    unsatCombinations += 1
-                    None
-                case x => Some(x)
-            }
-        }).toList
-
-        (configs, "Combinations:\t" + configs.size + "\n" + "unsatisfiableCombinations:\t" + unsatCombinations)
-    }
+    /**
+      * Extracts a minimal number of configurations which include each input condition at least once.
+      */
+    def conditionCoverageConfigs(cfgConditions: Set[FeatureExpr]): List[SimpleConfiguration] = conditionCoverage(cfgConditions)._1
 
     /*
         Configuration Coverage Method copied from Joerg and heavily modified :)
@@ -67,8 +52,8 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
       * @return
       */
     private def configurationCoverage(astRoot: AST, fm: FeatureModel, features: List[SingleFeatureExpr],
-                              existingConfigs: List[SimpleConfiguration] = List(), preferDisabledFeatures: Boolean = false,
-                              includeVariabilityFromHeaderFiles: Boolean = false):
+                                      existingConfigs: List[SimpleConfiguration] = List(), preferDisabledFeatures: Boolean = false,
+                                      includeVariabilityFromHeaderFiles: Boolean = false):
     (List[SimpleConfiguration], String) = {
 
         val unsatCombinationsCacheFile = new File("unsatCombinationsCache")
@@ -107,7 +92,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
                     if (x.productArity == 0) {
                         // termination point of recursion
                         if (includeVariabilityFromHeaderFiles ||
-                            (newPreviousFile != null && newPreviousFile.endsWith(".c"))) {
+                          (newPreviousFile != null && newPreviousFile.endsWith(".c"))) {
                             if (!nodeExpressions.contains(previousFeatureExprs)) {
                                 nodeExpressions += previousFeatureExprs
                             }
@@ -128,7 +113,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
                 case o => {
                     // termination point of recursion
                     if (includeVariabilityFromHeaderFiles ||
-                        (previousFile != null && previousFile.endsWith(".c"))) {
+                      (previousFile != null && previousFile.endsWith(".c"))) {
                         if (!nodeExpressions.contains(previousFeatureExprs)) {
                             nodeExpressions += previousFeatureExprs
                         }
@@ -163,7 +148,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
                                 simpleOrNodes += 1
                                 isCovered = (retList ++ existingConfigs).exists({
                                     conf: SimpleConfiguration => conf.containsAtLeastOneFeatureAsEnabled(enabled) ||
-                                        conf.containsAtLeastOneFeatureAsDisabled(disabled)
+                                      conf.containsAtLeastOneFeatureAsDisabled(disabled)
                                 })
                             }
                         }
@@ -172,7 +157,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
                         simpleAndNodes += 1
                         isCovered = (retList ++ existingConfigs).exists({
                             conf: SimpleConfiguration => conf.containsAllFeaturesAsEnabled(enabled) &&
-                                conf.containsAllFeaturesAsDisabled(disabled)
+                              conf.containsAllFeaturesAsDisabled(disabled)
                         })
                     }
                 }
@@ -200,7 +185,7 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
             }
         }
         if (nodeExpressions.isEmpty ||
-            (nodeExpressions.size == 1 && nodeExpressions.head.equals(List(FeatureExprFactory.True)))) {
+          (nodeExpressions.size == 1 && nodeExpressions.head.equals(List(FeatureExprFactory.True)))) {
             // no feature variables in this file, build one random config and return it
             val completeConfig = completeConfiguration(FeatureExprFactory.True, features, fm, preferDisabledFeatures)
             if (completeConfig != null) {
@@ -233,18 +218,19 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
         }
 
         (retList,
-            " unsatisfiableCombinations:\t" + unsatCombinations + "\n" +
-                " already covered combinations:\t" + alreadyCoveredCombinations + "\n" +
-                " created combinations:\t" + retList.size + "\n" +
-                (if (!includeVariabilityFromHeaderFiles) " Features in CFile:\t" + getFeaturesInCoveredExpressions.size + "\n" else "") +
-                " found " + nodeExpressions.size + " NodeExpressions\n" +
-                " found " + simpleAndNodes + " simpleAndNodes, " + simpleOrNodes + " simpleOrNodes and " + complexNodes + " complex nodes.\n")
+          " unsatisfiableCombinations:\t" + unsatCombinations + "\n" +
+            " already covered combinations:\t" + alreadyCoveredCombinations + "\n" +
+            " created combinations:\t" + retList.size + "\n" +
+            (if (!includeVariabilityFromHeaderFiles) " Features in CFile:\t" + getFeaturesInCoveredExpressions.size + "\n" else "") +
+            " found " + nodeExpressions.size + " NodeExpressions\n" +
+            " found " + simpleAndNodes + " simpleAndNodes, " + simpleOrNodes + " simpleOrNodes and " + complexNodes + " complex nodes.\n")
     }
 
     /**
       * Optimzed version of the completeConfiguration method. Uses Constraint.getSatisfiableAssignment to need only one SAT call.
-      * @param expr input feature expression
-      * @param list list of features
+      *
+      * @param expr  input feature expression
+      * @param list  list of features
       * @param model input feature model
       * @return
       */
@@ -254,6 +240,21 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
             case None => null
         }
     }
+
+    private def conditionCoverage(conditions: Set[FeatureExpr]): (List[SimpleConfiguration], String) = {
+        var unsatCombinations = 0
+
+        val configs = conditions.flatMap(condition => {
+            completeConfiguration(condition, features, fm, preferDisabledFeatures = true) match {
+                case null =>
+                    unsatCombinations += 1
+                    None
+                case x => Some(x)
+            }
+        }).toList
+
+        (configs, "Combinations:\t" + configs.size + "\n" + "unsatisfiableCombinations:\t" + unsatCombinations)
+    }
 }
 
 // representation of a product configuration that can be dumped into a file
@@ -261,13 +262,12 @@ class Sampling(tunit : AST, fm: FeatureModel = BDDNoFeatureModel) extends Condit
 class SimpleConfiguration(private val features: List[SingleFeatureExpr], private val featureIDHashmap: Map[SingleFeatureExpr, Int], private val config: scala.collection.immutable.BitSet) extends scala.Serializable {
 
     def this(trueSet: List[SingleFeatureExpr], falseSet: List[SingleFeatureExpr], features: List[SingleFeatureExpr], featureIDHashmap: Map[SingleFeatureExpr, Int]) =
-        this(features, featureIDHashmap,
-            {
-                val ret: scala.collection.mutable.BitSet = scala.collection.mutable.BitSet()
-                for (tf: SingleFeatureExpr <- trueSet) ret.add(featureIDHashmap(tf))
-                for (ff: SingleFeatureExpr <- falseSet) ret.remove(featureIDHashmap(ff))
-                ret.toImmutable
-            }
+        this(features, featureIDHashmap, {
+            val ret: scala.collection.mutable.BitSet = scala.collection.mutable.BitSet()
+            for (tf: SingleFeatureExpr <- trueSet) ret.add(featureIDHashmap(tf))
+            for (ff: SingleFeatureExpr <- falseSet) ret.remove(featureIDHashmap(ff))
+            ret.toImmutable
+        }
         )
 
     def getTrueSet: Set[SingleFeatureExpr] = {
@@ -283,6 +283,7 @@ class SimpleConfiguration(private val features: List[SingleFeatureExpr], private
     }
 
     def getTrueFeatures: Set[String] = getTrueSet.map(_.feature)
+
     def getFalseFeatures: Set[String] = getFalseSet.map(_.feature)
 
     override def toString: String = {
@@ -305,6 +306,7 @@ class SimpleConfiguration(private val features: List[SingleFeatureExpr], private
 
     /**
       * This method assumes that all features in the parameter-set appear in either the trueList, or in the falseList
+      *
       * @param features given feature set
       * @return
       */
@@ -317,6 +319,7 @@ class SimpleConfiguration(private val features: List[SingleFeatureExpr], private
 
     /**
       * This method assumes that all features in the parameter-set appear in the configuration (either as true or as false)
+      *
       * @param features given feature set
       * @return
       */

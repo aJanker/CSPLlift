@@ -37,8 +37,8 @@ trait InformationFlowTestHelper extends CSPLliftTestHelper {
 
 
 
-        val evaluation = new CSPLliftEvaluationFrontend(tunit)
-        val eval = evaluation.evaluate(testOptions)
+        val evaluation = new CSPLliftEvaluationFrontend(tunit, options = testOptions)
+        val eval = evaluation.evaluate()
 
         eval && sinks
     }

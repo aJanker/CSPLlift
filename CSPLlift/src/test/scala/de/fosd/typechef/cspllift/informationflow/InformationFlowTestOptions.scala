@@ -12,4 +12,8 @@ class InformationFlowTestOptions(interface : Option[String] = None) extends CSPL
     override def initProfiling: Boolean = false
 
     override def getProfileType: Option[String] = None
+
+    override def noInitalSeeds: Boolean = false
+
+    override def warmupJVM: Boolean = false
 }

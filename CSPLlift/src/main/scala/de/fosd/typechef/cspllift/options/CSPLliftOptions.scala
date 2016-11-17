@@ -4,6 +4,8 @@ package de.fosd.typechef.cspllift.options
 trait CSPLliftOptions {
 
     def resolveFunctionPointer: Boolean
+    def noInitalSeeds: Boolean
+    def warmupJVM: Boolean
 
     def getCLinkingInterfacePath: Option[String]
     def getInformationFlowGraphExtension: String
