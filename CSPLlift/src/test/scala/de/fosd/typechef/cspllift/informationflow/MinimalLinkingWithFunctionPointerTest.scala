@@ -9,7 +9,6 @@ import org.junit.Test
 class MinimalLinkingWithFunctionPointerTest extends CSPLliftTestHelper {
 
         @Test def minimalLinkingWithFunctionPointerTest() = {
-            var successful = true
             val interface = getClass.getResource("/" + testfileDir ).getFile + "CModuleInterface.interface"
 
             val tunit = parseTUnitFromFile("mininmalLinking/minimal_linking_main.c")
@@ -18,12 +17,10 @@ class MinimalLinkingWithFunctionPointerTest extends CSPLliftTestHelper {
 
             println(tunit)
 
-            //defaultTestInit("simplePointerFunctionFlow.c", allSinks)
-
             val evaluation = new CSPLliftEvaluationFrontend(tunit, options = new InformationFlowTestOptions(Some(interface)))
             val eval = evaluation.evaluate()
 
-            eval && successful should be(true)
+            eval should be(true)
 
         }
 

@@ -285,11 +285,11 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         // Loaded files
         writer.write("#FILES:\t" + icfg.cInterCFGElementsCacheEnv.getAllKnownTUnits.size + "\n")
         // Timings
-        val seperator = "_init_"
+        val separator = "_init_"
 
-        val liftedRun = StopWatch.get(method + seperator + RUN_MARK)
-        val liftedInit = StopWatch.get(method + seperator + CInterCFGBenchmarkMarks.TUNIT_INIT)
-        val liftedLoad = StopWatch.get(method + seperator + CInterCFGBenchmarkMarks.TUNIT_LOAD)
+        val liftedRun = StopWatch.get(method + separator + RUN_MARK)
+        val liftedInit = StopWatch.get(method + separator + CInterCFGBenchmarkMarks.TUNIT_INIT)
+        val liftedLoad = StopWatch.get(method + separator + CInterCFGBenchmarkMarks.TUNIT_LOAD)
         val liftedSolving = liftedRun - (liftedInit + liftedLoad)
 
         writer.write("#LIFTEDRUNTIME\t" + liftedRun + "\n")

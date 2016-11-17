@@ -67,10 +67,7 @@ class GlobalSourcesProblem(cICFG: CInterCFG) extends CIFDSProblem[InformationFlo
             // do not trace definitions as they are very expensive but do not propagate any information
             val decls = assignsVariables(x).map(_._1)
 
-            // Note: we ignore the actual file of the declaration as it may be declared in a header file.
-            // As variables declared in header files may be included across several files, this way prevents matching errors.
-            if (decls.nonEmpty) decls.map(decl => SourceDefinition(Variable(decl), CICFGStmt(x), SCOPE_GLOBAL))
-            else None
+            decls.map(decl => SourceDefinition(Variable(decl), CICFGStmt(x), SCOPE_GLOBAL))
         })
     }
 

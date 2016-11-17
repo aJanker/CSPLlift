@@ -9,9 +9,9 @@ import de.fosd.typechef.typesystem._
 
 
 
-trait InformationFlowProblemOperationsInformation extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
+trait InformationFlowProblemOperations extends CFlowConstants with CFlowOperations[InformationFlowFact] with InformationFlowHelper
 
-trait InformationFactOperations {
+trait InformationFlowFactOperations {
     def getDefinition(s: Source): SourceDefinition =
         s match {
             case sd: SourceDefinition => sd
@@ -19,7 +19,7 @@ trait InformationFactOperations {
         }
 }
 
-trait InformationFlowHelper extends CInterCFGCommons with InformationFactOperations {
+trait InformationFlowHelper extends CInterCFGCommons with InformationFlowFactOperations {
 
     def isOnlyUsedAsArrayAccess(id: Id, uses: List[Id], env: ASTEnv): Boolean = {
         val matchingUses = uses.filter(id.equals)

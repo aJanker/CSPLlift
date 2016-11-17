@@ -3,7 +3,7 @@ package de.fosd.typechef.cspllift.cintercfg
 import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
 
 /**
-  * Configuration of the interprocedural control-flow graph for SPLlift.
+  * Configuration of the interprocedural control-flow graph for TypeChef IFDS connector.
   */
 trait CInterCFGConfiguration {
 
@@ -16,8 +16,9 @@ trait CInterCFGConfiguration {
     def getTrueSet: Option[Set[String]] = None
     def getFalseSet: Option[Set[String]] = None
 
-    def getStopWatchPrefix: String
-
+    /**
+      * A list of function names which are considered as entry points for the interprocedural control-flow graph.
+      */
     def getGraphEntryFunctionNames: List[String] = List("main")
 
     /*
@@ -36,15 +37,13 @@ trait CInterCFGConfiguration {
     def computePointer: Boolean
 }
 
-class DefaultCInterCFGConfiguration(moduleInterfacePath: Option[String] = None, pointerComputation: Boolean = true, stopWatchPrefix: String = "") extends CInterCFGConfiguration {
+class DefaultCInterCFGConfiguration(moduleInterfacePath: Option[String] = None, pointerComputation: Boolean = true) extends CInterCFGConfiguration {
     override def getModuleInterfacePath: Option[String] = moduleInterfacePath
     override def pseudoVisitingSystemLibFunctions = true
-    override def getStopWatchPrefix: String = stopWatchPrefix
-
     override def computePointer: Boolean = pointerComputation
 }
 
-class ConfigurationBasedCInterCFGConfiguration(moduleInterfacePath: Option[String] = None, pointerComputation: Boolean = true, configuration: Option[SimpleConfiguration] = None, stopWatchPrefix: String = "") extends DefaultCInterCFGConfiguration(moduleInterfacePath, pointerComputation, stopWatchPrefix) {
+class ConfigurationBasedCInterCFGConfiguration(moduleInterfacePath: Option[String] = None, pointerComputation: Boolean = true, configuration: Option[SimpleConfiguration] = None, stopWatchPrefix: String = "") extends DefaultCInterCFGConfiguration(moduleInterfacePath, pointerComputation) {
     override def getConfiguration: Option[SimpleConfiguration] = configuration
     override def getTrueSet: Option[Set[String]] = if (getConfiguration.isDefined) Some(getConfiguration.get.getTrueFeatures) else None
     override def getFalseSet: Option[Set[String]] = if (getConfiguration.isDefined) Some(getConfiguration.get.getFalseFeatures) else None

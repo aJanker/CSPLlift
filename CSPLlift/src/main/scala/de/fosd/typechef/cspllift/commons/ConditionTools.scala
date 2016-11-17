@@ -16,7 +16,7 @@ trait ConditionTools {
       * @return
       */
     def getAllFeatures(root: Product): List[SingleFeatureExpr] = {
-        var featuresSorted: List[SingleFeatureExpr] = getAllFeaturesRec(root).toList
+        var featuresSorted: List[SingleFeatureExpr] = extractFeatures(root).toList
         // sort to eliminate any non-determinism caused by the set
         featuresSorted = featuresSorted.sortWith({
             (x: SingleFeatureExpr, y: SingleFeatureExpr) => x.feature.compare(y.feature) > 0
@@ -24,24 +24,12 @@ trait ConditionTools {
         featuresSorted //.map({s:String => FeatureExprFactory.createDefinedExternal(s)});
     }
 
-    private def getAllFeaturesRec(root: Any): Set[SingleFeatureExpr] = {
+    private def extractFeatures(root: Any): Set[SingleFeatureExpr] = {
         root match {
-            case x: Opt[_] => x.condition.collectDistinctFeatureObjects ++ getAllFeaturesRec(x.entry)
-            case x: Choice[_] => x.condition.collectDistinctFeatureObjects ++ getAllFeaturesRec(x.thenBranch) ++ getAllFeaturesRec(x.elseBranch)
-            case l: List[_] => {
-                var ret: Set[SingleFeatureExpr] = Set()
-                for (x <- l) {
-                    ret = ret ++ getAllFeaturesRec(x)
-                }
-                ret
-            }
-            case x: Product => {
-                var ret: Set[SingleFeatureExpr] = Set()
-                for (y <- x.productIterator.toList) {
-                    ret = ret ++ getAllFeaturesRec(y)
-                }
-                ret
-            }
+            case x: Opt[_] => x.condition.collectDistinctFeatureObjects ++ extractFeatures(x.entry)
+            case x: Choice[_] => x.condition.collectDistinctFeatureObjects ++ extractFeatures(x.thenBranch) ++ extractFeatures(x.elseBranch)
+            case l: List[_] => l.foldLeft(Set[SingleFeatureExpr]())((s, x) => s ++ extractFeatures(x))
+            case x: Product => x.productIterator.toList.foldLeft(Set[SingleFeatureExpr]())((s, y) => s ++ extractFeatures(y))
             case o => Set()
         }
     }

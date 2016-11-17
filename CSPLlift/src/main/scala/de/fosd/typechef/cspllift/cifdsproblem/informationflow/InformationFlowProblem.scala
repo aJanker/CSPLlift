@@ -18,7 +18,7 @@ import scala.collection.JavaConverters._
 /**
   * Assignment based information-flow analysis as example IFDS problem for the C connector to the IFDS/IDE solver Heros.
   */
-class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFlowFact] = List()) extends CIFDSProblem[InformationFlowFact](cICFG, globalSources) with InformationFlowConfiguration with InformationFlowProblemOperationsInformation {
+class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFlowFact] = List()) extends CIFDSProblem[InformationFlowFact](cICFG, globalSources) with InformationFlowConfiguration with InformationFlowProblemOperations {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 

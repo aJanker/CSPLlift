@@ -9,8 +9,6 @@ import de.fosd.typechef.featureexpr.bdd.False
 
 import scala.collection.immutable.Map
 import scala.collection.mutable
-import scala.pickling.Defaults._
-import scala.pickling.json._
 
 class CPointerAnalysisContext() extends PointerContext with ObjectNameContext with EquivalenceContext with FunctionContext {
 
@@ -288,12 +286,4 @@ object LinkedObjectNames extends PointerContext {
     }
 
     def get(name: ObjectName) = paramLinks.get(name)
-
-    def save(file: String) = new PrintWriter(file) {
-        write(paramLinks.keySet.map(key => (key, paramLinks(key))).pickle.toString)
-        close()
-    }
-
-    def load(file: String) =
-        scala.io.Source.fromFile(file).mkString.unpickle[List[(ObjectName, List[Opt[ObjectName]])]].foreach(x => paramLinks.put(x._1, x._2))
 }

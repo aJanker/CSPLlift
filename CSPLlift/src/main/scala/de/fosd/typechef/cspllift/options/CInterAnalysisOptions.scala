@@ -3,13 +3,10 @@ package de.fosd.typechef.cspllift.options
 import de.fosd.typechef.options.{FrontendOptionsWithConfigFiles, OptionException, Options}
 import gnu.getopt.{Getopt, LongOpt}
 
+/**
+  * Frontend options for user configuration of the TypeChef-IFDS connector.
+  */
 class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLliftOptions {
-
-    private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
-
-    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle: Boolean = false
-    private var printVariants, printCallGraph, mergeCLinkingInterfaces: Boolean = false
-    private var noFunctionPointerComputation, noSeeds, noWarmup, noHeader: Boolean = false
 
     private val F_MERGELINKINTERFACE: Char = Options.genOptionId()
     private val F_LINKINTERFACE: Char = Options.genOptionId()
@@ -18,12 +15,14 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
     private val F_NOHEADER: Char = Options.genOptionId()
     private val F_NOSEEDS: Char = Options.genOptionId()
     private val F_NOWARMUP: Char = Options.genOptionId()
-
     private val SPLLIFT_Taint = SecurityOption("TAINT", "Issues a warning when a potential taint memory leak is found.", dflt = false)
-
     private val liftopts: List[SecurityOption] = List(
         SPLLIFT_Taint
     )
+    private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
+    private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle: Boolean = false
+    private var printVariants, printCallGraph, mergeCLinkingInterfaces: Boolean = false
+    private var noFunctionPointerComputation, noSeeds, noWarmup, noHeader: Boolean = false
 
     override def resolveFunctionPointer: Boolean = !noFunctionPointerComputation
 
@@ -31,13 +30,15 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def warmupJVM: Boolean = !noWarmup
 
+    override def includeHeaderVariability = !noHeader
+
     override def getCLinkingInterfacePath: Option[String] = cLinkingInterfacePath
 
     override def getCModuleInterfaceMergeDir: String = cLinkingInterfaceMergeDir.getOrElse(getOutputStem)
 
-    override def getInformationFlowGraphExtension: String = ".ifg.dot"
-
     override def getInformationFLowGraphFilename: String = getOutputStem + getInformationFlowGraphExtension
+
+    override def getInformationFlowGraphExtension: String = ".ifg.dot"
 
     override def getInformationFlowGraphsOutputDir: String = getOutputStem + "_ifg"
 
@@ -126,7 +127,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
             noHeader = true
         } else if (c == F_NOWARMUP) {
             noWarmup = true
-        }else return super.interpretOption(c, g)
+        } else return super.interpretOption(c, g)
 
         true
     }

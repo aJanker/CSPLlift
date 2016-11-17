@@ -2,6 +2,9 @@ package de.fosd.typechef.cspllift.informationflow
 
 import de.fosd.typechef.cspllift.CSPLliftTestOptions
 
+/*
+ * Test configuration of the TypeChef-IFDS connector to Heros.
+ */
 class InformationFlowTestOptions(interface : Option[String] = None) extends CSPLliftTestOptions(interface) {
     override def liftTaintAnalysis: Boolean = true
 
@@ -16,4 +19,6 @@ class InformationFlowTestOptions(interface : Option[String] = None) extends CSPL
     override def noInitalSeeds: Boolean = false
 
     override def warmupJVM: Boolean = false
+
+    override def includeHeaderVariability: Boolean = false
 }

@@ -5,7 +5,6 @@ import java.util
 import de.fosd.typechef.conditional.Opt
 import de.fosd.typechef.crewrite._
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
-import de.fosd.typechef.error.Position
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
@@ -101,7 +100,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
-    private val cInterCFGNodes = new mutable.HashSet[CICFGNode]()
+    private val cInterCFGVisitedNodes = new mutable.HashSet[CICFGNode]()
 
     override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options, benchmarkTag)
 
@@ -179,7 +178,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Returns all caller statements/nodes of a given method.
       */
     override def getCallersOf(m: CICFGFDef): util.Set[CICFGNode] =
-    throw new UnsupportedOperationException("HIT TODO FUNCTION!")
+    throw new UnsupportedOperationException("Reverse lookup of calling origins is not supported by TypeChef.")
 
     /**
       * Returns all statements to which a call could return.
@@ -268,15 +267,18 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       */
     override def getSuccsOf(cICFGStmt: CICFGNode): util.List[CICFGNode] = {
         val succs = getSuccsOfS(cICFGStmt)
-        cInterCFGNodes.++=(succs)
+        cInterCFGVisitedNodes.++=(succs)
         succs.asJava
     }
 
     private def getSuccsOfS(cICFGStmt: CICFGNode): List[CICFGNode] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
 
+    /**
+      * Returns the predecessor nodes.
+      */
     override def getPredsOf(cICFGStmt: CICFGNode): util.List[CICFGNode] = {
         val preds = getPredsOfS(cICFGStmt)
-        cInterCFGNodes.++=(preds)
+        cInterCFGVisitedNodes.++=(preds)
         preds.asJava
     }
 
@@ -288,8 +290,6 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case x => x.condition.isSatisfiable(fm)
         }.map(CICFGStmt)
     }
-
-    private def replaceMacroFileLocation(position: Position, fallBack: Position): Position = if (position.getFile.endsWith(".h")) fallBack else position
 
     /**
       * Returns <code>true</code> if the given statement leads to a method return
@@ -318,10 +318,8 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             val node = getPresenceNode(n)
             !(isCallStmt(node) || isStartPoint(node))
         }
-        val allNonCallStartNodes = List() //cInterCFGElementsCacheEnv.getAllKnownTUnits flatMap {filterAllASTElems[Statement](_) filter nonCallStartNode} map getPresenceNode
-        val allVisitedNonCallStartNodes = cInterCFGNodes.toList filter nonCallStartOptNode
 
-        asJavaIdentitySet(allNonCallStartNodes ++ allVisitedNonCallStartNodes)
+        asJavaIdentitySet(cInterCFGVisitedNodes.toList filter nonCallStartOptNode)
     }
 
     /**
@@ -334,20 +332,17 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         successors.size > 1 && successors.last.getStmt.entry.equals(succ.getStmt.entry) && !getPresenceNode(succ.getStmt.entry).getStmt.condition.equals(succ.getStmt.condition) && successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.getStmt.condition.and(condition)).not().equivalentTo(successors.last.getStmt.condition)
     }
 
+    /**
+      * Look up the target destination of a given function call.
+      */
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[CICFGFDef] = {
-        val dstCond = name.condition
-        if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
-            return {
-                val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
-                List(CICFGFDef(pseudoCall))
-            }
-
-        val eval = options.getConfiguration.isDefined
+        lazy val dstCond = name.condition
+        lazy val noVariability = options.getConfiguration.isDefined
 
         def findCalleeInTunit(tunit: TranslationUnit) = {
             tunit.defs.flatMap {
-                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && (eval || ft.and(dstCond).isSatisfiable(getFeatureModel)) =>
-                    val cond = if (eval) FeatureExprFactory.True else ft.and(dstCond)
+                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && (noVariability || ft.and(dstCond).isSatisfiable(getFeatureModel)) =>
+                    val cond = if (noVariability) FeatureExprFactory.True else ft.and(dstCond)
                     Some(CICFGFDef(Opt(cond, f)))
                 case _ => None
             }
@@ -360,6 +355,12 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
             bruteForceResult
         }
+
+        if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
+            return {
+                val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
+                List(CICFGFDef(pseudoCall))
+            }
 
         val localDef = findCalleeInTunit(callTUnit)
         val externalDef = getExternalDefinitions(name)
@@ -377,6 +378,10 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
             case _ => None
         }
 
+    /**
+      * Retrieves the node according to its presence conditon in the source code
+      * and not according to its cfg flow-condition.
+      */
     private def getPresenceNode(node: AST): CICFGNode = CICFGStmt(Opt(getASTEnv(node).featureExpr(node), node))
 
     private def getFunctionPointerDestNames(pointer: Expr): List[Opt[String]] = {
