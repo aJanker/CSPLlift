@@ -309,16 +309,16 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         // Total Lifted Facts
         writer.write("#TOTAL_LIFTEDFACTS:\t" + liftedFacts.size + "\n")
         // Coverage
-        writer.write("#SAMPLING_COVERAGE:\t" + (((liftedFacts.size - unmatchedLiftedFacts.size).toFloat / liftedFacts.size.toFloat) * 100).toInt  + "\n")
+        writer.write("#SAMPLING_COVERAGE:\t" + (((liftedFacts.size - unmatchedLiftedFacts.size).toFloat / liftedFacts.size.toFloat) * 100).toInt + "\n")
         // Number of variants
         writer.write("#VARIANTS:\t" + configs.size + "\n")
         // Loaded files
-        writer.write("#FILES:\t" + icfg.cInterCFGElementsCacheEnv.getAllKnownTUnits.size  + "\n")
+        writer.write("#FILES:\t" + icfg.cInterCFGElementsCacheEnv.getAllKnownTUnits.size + "\n")
         // Timings
         val seperator = "_init_"
 
         val liftedRun = StopWatch.get(method + seperator + RUN_MARK)
-        val liftedInit = StopWatch.get(method + seperator  + CInterCFGBenchmarkMarks.TUNIT_INIT)
+        val liftedInit = StopWatch.get(method + seperator + CInterCFGBenchmarkMarks.TUNIT_INIT)
         val liftedLoad = StopWatch.get(method + seperator + CInterCFGBenchmarkMarks.TUNIT_LOAD)
         val liftedSolving = liftedRun - (liftedInit + liftedLoad)
 
@@ -342,13 +342,15 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val samplingInitTotal = samplingInits.sum
         val samplingLoadTotal = samplingLoads.sum
         val samplingSolvingTotal = samplingRunTotal - (samplingInitTotal + samplingLoadTotal)
+        val samplingSolvingMax = if (samplingSolvings.nonEmpty) samplingSolvings.max else 0
+        val samplingSolvingMin = if (samplingSolvings.nonEmpty) samplingSolvings.min else 0
 
         writer.write("#SAMPLINGTOTALRUNTIME:\t" + samplingRunTotal + "\n")
         writer.write("#SAMPLINGTOTALSOLVE:\t" + samplingSolvingTotal + "\n")
         writer.write("#SAMPLINGTOTALINIT:\t" + samplingInitTotal + "\n")
         writer.write("#SAMPLINGTOTALLOAD:\t" + samplingLoadTotal + "\n")
-        writer.write("#SOLVINGMAX:\t" + samplingSolvings.max + "\n")
-        writer.write("#SOLVINGMIN:\t" + samplingSolvings.min + "\n")
+        writer.write("#SOLVINGMAX:\t" + samplingSolvingMax + "\n")
+        writer.write("#SOLVINGMIN:\t" + samplingSolvingMin + "\n")
 
         writer.close()
         // StopWatch.reset()
