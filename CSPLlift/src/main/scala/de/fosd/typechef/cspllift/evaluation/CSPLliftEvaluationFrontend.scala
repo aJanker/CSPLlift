@@ -120,7 +120,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
-        val configs = sampling.codeCoverageConfigs()
+        val configs = sampling.codeCoverageConfigs(options.includeHeaderVariability)
 
         // 3. Run Analysis for every generated config
         // 4. Compare

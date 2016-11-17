@@ -12,7 +12,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
     private val F_LINKINTERFACE: Char = Options.genOptionId()
     private val F_SPLLIFT: Char = Options.genOptionId
     private val F_NOFUNCTIONPOINTER: Char = Options.genOptionId()
-    private val F_NOHEADER: Char = Options.genOptionId()
+    private val F_HEADERCOVERAGE: Char = Options.genOptionId()
     private val F_NOSEEDS: Char = Options.genOptionId()
     private val F_NOWARMUP: Char = Options.genOptionId()
     private val SPLLIFT_Taint = SecurityOption("TAINT", "Issues a warning when a potential taint memory leak is found.", dflt = false)
@@ -22,7 +22,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
     private var cLinkingInterfaceMergeDir, cLinkingInterfacePath: Option[String] = None
     private var lift, liftBenchmark, liftEvalSampling, liftEvalSingle: Boolean = false
     private var printVariants, printCallGraph, mergeCLinkingInterfaces: Boolean = false
-    private var noFunctionPointerComputation, noSeeds, noWarmup, noHeader: Boolean = false
+    private var noFunctionPointerComputation, noSeeds, noWarmup, headerCoverage: Boolean = false
 
     override def resolveFunctionPointer: Boolean = !noFunctionPointerComputation
 
@@ -30,7 +30,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def warmupJVM: Boolean = !noWarmup
 
-    override def includeHeaderVariability = !noHeader
+    override def includeHeaderVariability = headerCoverage
 
     override def getCLinkingInterfacePath: Option[String] = cLinkingInterfacePath
 
@@ -82,7 +82,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
             new Options.Option("noFP", LongOpt.NO_ARGUMENT, F_NOFUNCTIONPOINTER, null, "Disable function pointer computation for call graph."),
             new Options.Option("noWarmup", LongOpt.NO_ARGUMENT, F_NOWARMUP, null, "Disable vm warmup in evaluation mode."),
             new Options.Option("noSeeds", LongOpt.NO_ARGUMENT, F_NOSEEDS, null, "Disable initial seed computation."),
-            new Options.Option("noHeader", LongOpt.NO_ARGUMENT, F_NOHEADER, null, "Ignore variability introduced by header files."),
+            new Options.Option("headerCoverage", LongOpt.NO_ARGUMENT, F_HEADERCOVERAGE, null, "Include variability introduced by header files."),
             new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions."),
             new Options.Option("mergeLinkingInterface", LongOpt.REQUIRED_ARGUMENT, F_MERGELINKINTERFACE, "file", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
         ))
@@ -123,8 +123,8 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
             noFunctionPointerComputation = true
         } else if (c == F_NOSEEDS) {
             noSeeds = true
-        } else if (c == F_NOHEADER) {
-            noHeader = true
+        } else if (c == F_HEADERCOVERAGE) {
+            headerCoverage = true
         } else if (c == F_NOWARMUP) {
             noWarmup = true
         } else return super.interpretOption(c, g)
