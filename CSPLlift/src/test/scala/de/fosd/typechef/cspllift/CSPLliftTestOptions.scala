@@ -14,7 +14,7 @@ abstract class CSPLliftTestOptions(interface: Option[String] = None) extends CSP
 
     override def getVariantsOutputDir: String = ""
 
-    override def getProfilingDir: String = ""
+    override def getOutputLocation: String = ""
 
     override def getCModuleInterfaceMergeDir: String = ""
 

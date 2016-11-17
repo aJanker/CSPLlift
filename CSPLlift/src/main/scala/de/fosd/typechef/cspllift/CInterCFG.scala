@@ -103,7 +103,7 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
     private val cInterCFGNodes = new mutable.HashSet[CICFGNode]()
 
-    override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options)
+    override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options, benchmarkTag)
 
     override def getEntryFunctions =
         filterAllASTElems[FunctionDef](cInterCFGElementsCacheEnv.startTUnit) filter {

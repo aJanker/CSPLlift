@@ -20,7 +20,7 @@ object StopWatch {
     private lazy val bean = ManagementFactory.getThreadMXBean
     private var currentPeriod: Int = 0
 
-    private def genId(): Int = this.synchronized {currentPeriod += 1; currentPeriod}
+    private def getCurrentPeriod: Int = this.synchronized {currentPeriod += 1; currentPeriod}
 
     def reset() = times.clear()
 
@@ -33,7 +33,7 @@ object StopWatch {
     }
 
     def measureCheckpoint[R](checkpoint: String, block: => R, takeTime: () => Long, convertToUnit : Long => Long = identity): (Long, R) = {
-        val key = (genId(), checkpoint)
+        val key = (getCurrentPeriod, checkpoint)
         val (duration, result) = measure(block, takeTime, convertToUnit)
         times.put(key, duration)
 
@@ -49,7 +49,7 @@ object StopWatch {
     def measureWallTime[R](block: => R): (Long, R) = measure(block, System.currentTimeMillis)
     def measureWallTime[R](checkpoint: String, block: => R): (Long, R) = measureCheckpoint(checkpoint, block, System.currentTimeMillis)
 
-    def get(period: String): Long = times.asScala.find(_._1._2 equals period).map(_._2).getOrElse(-1)
+    def get(period: String): Long = times.asScala.find(_._1._2 equals period).map(_._2).getOrElse(0)
 
     def getMeasurements: List[(String, Long)] = times.asScala.toList.sortBy(_._1._1).map(x => (x._1._2, x._2))
 

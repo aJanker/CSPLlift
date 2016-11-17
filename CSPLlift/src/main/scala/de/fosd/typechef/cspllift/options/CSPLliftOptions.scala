@@ -10,7 +10,7 @@ trait CSPLliftOptions {
     def getInformationFLowGraphFilename: String
     def getInformationFlowGraphsOutputDir: String
     def getVariantsOutputDir: String
-    def getProfilingDir: String
+    def getOutputLocation: String
     def getCModuleInterfaceMergeDir: String
 
     def isLiftEvaluationModeEnabled: Boolean

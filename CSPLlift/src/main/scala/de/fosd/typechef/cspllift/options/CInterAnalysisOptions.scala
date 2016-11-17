@@ -35,7 +35,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def getVariantsOutputDir: String = getOutputStem + "_variants"
 
-    override def getProfilingDir: String = getOutputStem + "_profile"
+    override def getOutputLocation: String = getOutputStem
 
     override def isLiftEvaluationModeEnabled: Boolean = liftEvalSampling || liftEvalSingle
 
