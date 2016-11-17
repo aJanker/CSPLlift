@@ -8,5 +8,5 @@ trait GlobalSourcesConfiguration extends InformationFlowConfiguration {
       * This can save time for IFDS problems where all of the interesting results are collected already
       * during the computation of the super graph.
       */
-    override def computeValues(): Boolean = false
+    override def computeValues(): Boolean = true
 }
