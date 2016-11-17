@@ -256,7 +256,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         val tunit = StopWatch.measureWallTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_LOAD, {
             val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
             val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
-            val dbgName = filename.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
+            val dbgName = filename//.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")
 
             if (logger.isInfoEnabled) logger.info("Loading:\t" + dbgName)
 
