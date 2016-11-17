@@ -19,7 +19,7 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         lazy val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
 
         if (opt.liftTaintAnalysis)
-            TaintCheck.checkAES(ast, fm, opt, cInterCFGConfiguration)
+            TaintCheck.checkAll(ast, fm, opt, cInterCFGConfiguration)
     }
 }
 
