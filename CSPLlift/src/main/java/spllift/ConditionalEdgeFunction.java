@@ -21,7 +21,7 @@ public class ConditionalEdgeFunction implements EdgeFunction<FeatureExpr> {
     }
 
     public FeatureExpr computeTarget(final FeatureExpr source) {
-            return isValidInFM(this.and(source));
+            return isSatisfiableInFM(this.and(source));
     }
 
     public EdgeFunction<FeatureExpr> composeWith(final EdgeFunction<FeatureExpr> otherFunction) {
@@ -55,14 +55,14 @@ public class ConditionalEdgeFunction implements EdgeFunction<FeatureExpr> {
     }
 
     private FeatureExpr and(final FeatureExpr other) {
-        return isValidInFM(this.condition.and(other));
+        return isSatisfiableInFM(this.condition.and(other));
     }
 
     private FeatureExpr or(final FeatureExpr other) {
-        return isValidInFM(this.condition.or(other));
+        return isSatisfiableInFM(this.condition.or(other));
     }
 
-    private FeatureExpr isValidInFM(final FeatureExpr condition) {
+    private FeatureExpr isSatisfiableInFM(final FeatureExpr condition) {
         if (this.useFM)
             return condition.isSatisfiable(this.fm) ? condition : FeatureExprFactory.False();
         else
