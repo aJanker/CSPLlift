@@ -42,8 +42,10 @@ public class ConditionalEdgeFunction implements EdgeFunction<FeatureExpr> {
 
     public boolean equalTo(EdgeFunction<FeatureExpr> other) {
         if (other instanceof ConditionalEdgeFunction) {
-            ConditionalEdgeFunction function = (ConditionalEdgeFunction) other;
-            return function.condition.equivalentTo(condition);
+            final ConditionalEdgeFunction function = (ConditionalEdgeFunction) other;
+            final boolean equalSettings = (this.fm == function.fm) && (this.useFM == function.useFM);
+            if (equalSettings)
+                return useFM ? function.condition.equivalentTo(this.condition, this.fm) : function.condition.equivalentTo(this.condition);
         }
         return false;
     }
