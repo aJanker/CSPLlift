@@ -8,7 +8,7 @@ import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.cspllift.options.CInterAnalysisOptions
 import de.fosd.typechef.cspllift.setup.CModuleInterfaceGenerator
 import de.fosd.typechef.customization.StopWatch
-import de.fosd.typechef.featureexpr.FeatureExpr
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.options.{FrontendOptions, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c._
@@ -45,12 +45,8 @@ object Launch extends App {
     }
 
     private def processFile(opt: CInterAnalysisOptions) {
+        val (smallFM: FeatureModel, fullFM: FeatureModel) = setFeatureModels(opt)
         var ast: TranslationUnit = null
-
-        val smallFM = opt.getSmallFeatureModel.and(opt.getLocalFeatureModel).and(opt.getFilePresenceCondition)
-        opt.setSmallFeatureModel(smallFM) //otherwise the lexer does not get the updated feature model with file presence conditions
-        val fullFM = opt.getFullFeatureModel.and(opt.getLocalFeatureModel).and(opt.getFilePresenceCondition)
-        opt.setFullFeatureModel(fullFM) // should probably be fixed in how options are read
 
         if (!opt.getFilePresenceCondition.isSatisfiable(fullFM)) {
             logger.error("file has contradictory presence condition. existing.") //otherwise this can lead to strange parser errors, because True is satisfiable, but anything else isn't
@@ -107,6 +103,14 @@ object Launch extends App {
             FeatureExpr.printSatStatistics
         }
 
+    }
+
+    private def setFeatureModels(opt: CInterAnalysisOptions): (FeatureModel, FeatureModel) = {
+        val smallFM = opt.getSmallFeatureModel.and(opt.getLocalFeatureModel).and(opt.getFilePresenceCondition)
+        opt.setSmallFeatureModel(smallFM) //otherwise the lexer does not get the updated feature model with file presence conditions
+        val fullFM = opt.getFullFeatureModel.and(opt.getLocalFeatureModel).and(opt.getFilePresenceCondition)
+        opt.setFullFeatureModel(fullFM) // should probably be fixed in how options are read
+        (smallFM, fullFM)
     }
 
     private def lex(opt: FrontendOptions): TokenReader[CToken, CTypeContext] = Frontend.lex(opt)
