@@ -20,15 +20,15 @@ public class ConditionalEdgeFunction implements EdgeFunction<FeatureExpr> {
         this.useFM = useFMInEdgeComputations;
     }
 
-    public FeatureExpr computeTarget(FeatureExpr source) {
+    public FeatureExpr computeTarget(final FeatureExpr source) {
             return isValidInFM(this.and(source));
     }
 
-    public EdgeFunction<FeatureExpr> composeWith(EdgeFunction<FeatureExpr> secondFunction) {
-        if (secondFunction instanceof EdgeIdentity || secondFunction instanceof AllTop ) return this;
+    public EdgeFunction<FeatureExpr> composeWith(final EdgeFunction<FeatureExpr> otherFunction) {
+        if (otherFunction instanceof EdgeIdentity || otherFunction instanceof AllTop ) return this;
 
-        ConditionalEdgeFunction other = (ConditionalEdgeFunction) secondFunction;
-        return new ConditionalEdgeFunction(this.and(other.condition), fm, useFM);
+        final ConditionalEdgeFunction other = (ConditionalEdgeFunction) otherFunction;
+        return new ConditionalEdgeFunction(this.and(other.condition), this.fm, this.useFM);
     }
 
     public EdgeFunction<FeatureExpr> joinWith(EdgeFunction<FeatureExpr> otherFunction) {
@@ -36,22 +36,22 @@ public class ConditionalEdgeFunction implements EdgeFunction<FeatureExpr> {
         if (otherFunction instanceof AllTop) return this;
         if (otherFunction instanceof EdgeIdentity) return otherFunction;
 
-        ConditionalEdgeFunction other = (ConditionalEdgeFunction) otherFunction;
-        return new ConditionalEdgeFunction(this.or(other.condition), fm, useFM);
+        final ConditionalEdgeFunction other = (ConditionalEdgeFunction) otherFunction;
+        return new ConditionalEdgeFunction(this.or(other.condition), this.fm, this.useFM);
     }
 
     public boolean equalTo(EdgeFunction<FeatureExpr> other) {
         if (other instanceof ConditionalEdgeFunction) {
             final ConditionalEdgeFunction function = (ConditionalEdgeFunction) other;
-            final boolean equalSettings = (this.fm == function.fm) && (this.useFM == function.useFM);
+            final boolean equalSettings = (function.fm == this.fm) && (function.useFM == this.useFM);
             if (equalSettings)
-                return useFM ? function.condition.equivalentTo(this.condition, this.fm) : function.condition.equivalentTo(this.condition);
+                return this.useFM ? function.condition.equivalentTo(this.condition, this.fm) : function.condition.equivalentTo(this.condition);
         }
         return false;
     }
 
     public String toString() {
-        return condition.toString();
+        return this.condition.toTextExpr();
     }
 
     private FeatureExpr and(final FeatureExpr other) {
@@ -62,10 +62,10 @@ public class ConditionalEdgeFunction implements EdgeFunction<FeatureExpr> {
         return isValidInFM(this.condition.or(other));
     }
 
-    private FeatureExpr isValidInFM(final FeatureExpr constraint) {
+    private FeatureExpr isValidInFM(final FeatureExpr condition) {
         if (this.useFM)
-            return constraint.isSatisfiable(fm) ? constraint : FeatureExprFactory.False();
+            return condition.isSatisfiable(this.fm) ? condition : FeatureExprFactory.False();
         else
-            return constraint;
+            return condition;
     }
 }
