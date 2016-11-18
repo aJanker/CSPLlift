@@ -46,21 +46,21 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def getOutputLocation: String = getOutputStem
 
-    override def isLiftEvaluationModeEnabled: Boolean = liftEvalSampling || liftEvalSingle
+    override def isIFDSEvaluationModeEnabled: Boolean = liftEvalSampling || liftEvalSingle
 
-    override def isLiftAnalysisEnabled: Boolean = lift
+    override def isIFDSAnalysisEnabled: Boolean = lift
 
-    override def isLiftBenchmarkEnabled: Boolean = liftBenchmark
+    override def isIFDSBenchmarkEnabled: Boolean = liftBenchmark
 
     override def isMergeLinkingInterfacesEnabled: Boolean = mergeCLinkingInterfaces
 
-    override def isLiftSamplingEvaluationEnabled: Boolean = liftEvalSampling
+    override def isIFDSSamplingEvaluationEnabled: Boolean = liftEvalSampling
 
-    override def isLiftSingleEvaluationEnabled: Boolean = liftEvalSingle
+    override def isIFDSSingleEvaluationEnabled: Boolean = liftEvalSingle
 
-    override def isLiftPrintExplodedSuperCallGraphEnabled: Boolean = printCallGraph
+    override def isIFDSPrintExplodedSuperCallGraphEnabled: Boolean = printCallGraph
 
-    override def liftTaintAnalysis: Boolean = SPLLIFT_Taint.isSelected
+    override def IFDSTaintAnalysis: Boolean = SPLLIFT_Taint.isSelected
 
     override def writeVariants: Boolean = printVariants
 

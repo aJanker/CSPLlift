@@ -15,17 +15,17 @@ trait CSPLliftOptions {
     def getOutputLocation: String
     def getCModuleInterfaceMergeDir: String
 
-    def isLiftEvaluationModeEnabled: Boolean
+    def isIFDSEvaluationModeEnabled: Boolean
 
-    def isLiftAnalysisEnabled: Boolean
-    def isLiftBenchmarkEnabled: Boolean
+    def isIFDSAnalysisEnabled: Boolean
+    def isIFDSBenchmarkEnabled: Boolean
     def isMergeLinkingInterfacesEnabled: Boolean
 
-    def isLiftSamplingEvaluationEnabled: Boolean
-    def isLiftSingleEvaluationEnabled: Boolean
-    def isLiftPrintExplodedSuperCallGraphEnabled: Boolean
+    def isIFDSSamplingEvaluationEnabled: Boolean
+    def isIFDSSingleEvaluationEnabled: Boolean
+    def isIFDSPrintExplodedSuperCallGraphEnabled: Boolean
 
-    def liftTaintAnalysis : Boolean
+    def IFDSTaintAnalysis : Boolean
 
     def writeVariants : Boolean
 

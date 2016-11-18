@@ -36,10 +36,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     def evaluate(): Boolean = {
         var successful = true
 
-        if (options.isLiftSamplingEvaluationEnabled)
+        if (options.isIFDSSamplingEvaluationEnabled)
             successful = checkAgainstSampling() && successful
 
-        if (options.isLiftSingleEvaluationEnabled)
+        if (options.isIFDSSingleEvaluationEnabled)
             successful = checkAgainstErrorConfiguration() && successful
 
         successful
@@ -49,7 +49,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     def checkAgainstSampling(): Boolean = {
         var successful = true
 
-        if (options.liftTaintAnalysis)
+        if (options.IFDSTaintAnalysis)
             successful = runSampling[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem]) && successful
 
         successful
@@ -58,7 +58,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     def checkAgainstErrorConfiguration(): Boolean = {
         var successful = true
 
-        if (options.liftTaintAnalysis)
+        if (options.IFDSTaintAnalysis)
             successful = runErrorConditionCoverage[InformationFlowFact, InformationFlowProblem](classOf[InformationFlowProblem]) && successful
 
         successful
@@ -88,7 +88,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val (wallTime, (solution, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(run + "_"))
 
         if (options.writeVariants) writeVariants(icfg, strategy, Some(i), Some(config))
-        if (options.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(strategy, Some(run))
+        if (options.isIFDSPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(strategy, Some(run))
 
         val sampleEvalFacts = solution.par.filter(_._1.isEvaluationFact)
         val satLiftedEvalFacts = liftedEvalFacts.par.filter(fact => isSatisfiableInConfiguration(fact._2, config)).toList
@@ -116,7 +116,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(method + "_init_"))
 
         if (options.writeVariants) writeVariants(icfg, method)
-        if (options.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(method)
+        if (options.isIFDSPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(method)
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
@@ -162,7 +162,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         val (vaaUserTime, (liftedFacts, icfg)) = runSPLLift[D, T](ifdsProblem, cInterCFGOptions, Some(method + "_init_"))
 
         if (options.writeVariants) writeVariants(icfg, method)
-        if (options.isLiftPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(method)
+        if (options.isIFDSPrintExplodedSuperCallGraphEnabled) writeExplodedSuperCallGraph(method)
 
         // 2. Collect distinct conditions
         val cfgConditions = liftedFacts.foldLeft(Set[FeatureExpr]())((cfgConds, fact) => {

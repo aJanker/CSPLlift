@@ -47,7 +47,7 @@ object TaintCheck {
 
         val solution = check(cInterCFG)
 
-        if (opt.isLiftPrintExplodedSuperCallGraphEnabled)
+        if (opt.isIFDSPrintExplodedSuperCallGraphEnabled)
             writeExplodedSuperCallGraph(opt)
 
         val allSinks = InformationFlow.allSinks(solution)

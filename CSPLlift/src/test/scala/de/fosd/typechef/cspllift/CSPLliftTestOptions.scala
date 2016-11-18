@@ -18,19 +18,19 @@ abstract class CSPLliftTestOptions(interface: Option[String] = None) extends CSP
 
     override def getCModuleInterfaceMergeDir: String = ""
 
-    override def isLiftEvaluationModeEnabled: Boolean = true
+    override def isIFDSEvaluationModeEnabled: Boolean = true
 
-    override def isLiftAnalysisEnabled: Boolean = false
+    override def isIFDSAnalysisEnabled: Boolean = false
 
-    override def isLiftBenchmarkEnabled: Boolean = false
+    override def isIFDSBenchmarkEnabled: Boolean = false
 
     override def isMergeLinkingInterfacesEnabled: Boolean = false
 
-    override def isLiftSamplingEvaluationEnabled: Boolean = true
+    override def isIFDSSamplingEvaluationEnabled: Boolean = true
 
-    override def isLiftSingleEvaluationEnabled: Boolean = true
+    override def isIFDSSingleEvaluationEnabled: Boolean = true
 
-    override def isLiftPrintExplodedSuperCallGraphEnabled: Boolean = false
+    override def isIFDSPrintExplodedSuperCallGraphEnabled: Boolean = false
 
     override def writeVariants: Boolean = false
 }
