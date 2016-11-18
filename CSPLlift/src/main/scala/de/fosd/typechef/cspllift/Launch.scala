@@ -8,6 +8,7 @@ import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.cspllift.options.CInterAnalysisOptions
 import de.fosd.typechef.cspllift.setup.CModuleInterfaceGenerator
 import de.fosd.typechef.customization.StopWatch
+import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.options.{FrontendOptions, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c._
@@ -103,6 +104,7 @@ object Launch extends App {
         if (opt.recordTiming) {
             logger.info("Stopwatch")
             logger.info(StopWatch.toCSV)
+            FeatureExpr.printSatStatistics
         }
 
     }
