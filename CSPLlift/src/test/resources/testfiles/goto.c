@@ -12,6 +12,7 @@ void bar (int i)
     return;
     }
 
+
 #ifdef A
 int main() {
 
@@ -19,20 +20,22 @@ int main() {
 
 if (i < 1) {
     i = 9;
+   #ifdef B
     goto exit;
+    #endif
 }
 
     bar(i);
 
 exit:
 
-    int sink = i;
+    int sinkG = i;
 
-    sink = i;
+    int sinkG2 = i;
 
     i = 7;
 
-    sink = i;
+    int sinkG3 = i;
     return 0;
 }
 

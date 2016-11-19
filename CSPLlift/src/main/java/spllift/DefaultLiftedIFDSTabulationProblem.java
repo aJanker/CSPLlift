@@ -6,11 +6,11 @@ import heros.InterproceduralCFG;
 import heros.solver.IDESolver;
 import heros.template.DefaultIDETabulationProblem;
 
-abstract class DefaultSPLIFDSTabulationProblem<N,D,M, I extends InterproceduralCFG<N,M>> extends DefaultIDETabulationProblem<N, D, M, FeatureExpr, I> {
+abstract class DefaultLiftedIFDSTabulationProblem<N,D,M, I extends InterproceduralCFG<N,M>> extends DefaultIDETabulationProblem<N, D, M, FeatureExpr, I> {
     private final IFDSTabulationProblem<N, D, M, I> problem;
 
     @SuppressWarnings("unchecked")
-    DefaultSPLIFDSTabulationProblem(final IFDSTabulationProblem<N, D, M, I> ifdsProblem) {
+    DefaultLiftedIFDSTabulationProblem(final IFDSTabulationProblem<N, D, M, I> ifdsProblem) {
         super(ifdsProblem.interproceduralCFG());
         this.problem = ifdsProblem;
     }

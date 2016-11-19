@@ -16,7 +16,7 @@ import java.util.Set;
 public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, FeatureExpr, CInterCFG> {
 
     public LiftedIFDSSolver(final IFDSTabulationProblem<CICFGNode, D, CICFGFDef, CInterCFG> ifdsProblem, final FeatureModel fm, final boolean useFMInEdgeComputations) {
-        super(new DefaultSPLIFDSTabulationProblem<CICFGNode, D, CICFGFDef, CInterCFG>(ifdsProblem) {
+        super(new DefaultLiftedIFDSTabulationProblem<CICFGNode, D, CICFGFDef, CInterCFG>(ifdsProblem) {
             @Override
             public Map<CICFGNode, Set<D>> initialSeeds() {
                 return ifdsProblem.initialSeeds();
@@ -138,8 +138,7 @@ public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, Feat
                 return ifdsProblem.zeroValue();
             }
 
-            private final FlowFunctions<CICFGNode, D, CICFGFDef> flowFunctions =
-                    ifdsProblem.autoAddZero() ? new ZeroedFlowFunctions<>(ifdsProblem.flowFunctions(), ifdsProblem.zeroValue()) : ifdsProblem.flowFunctions();
+            private final FlowFunctions<CICFGNode, D, CICFGFDef> flowFunctions = ifdsProblem.flowFunctions();
 
         });
     }

@@ -21,8 +21,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.Source;
-import de.fosd.typechef.cspllift.cintercfg.CICFGFDef;
-import de.fosd.typechef.cspllift.cintercfg.CICFGNode;
 import de.fosd.typechef.cspllift.cintercfg.CInterCFG;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
@@ -348,19 +346,13 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
         logger.trace("Processing call to {}", n);
 
         final D d2 = edge.factAtTarget();
-        EdgeFunction<V> f = jumpFunction(edge);
-        final EdgeFunction<V> f_org = f;
+        final EdgeFunction<V> f = jumpFunction(edge);
+
         Collection<N> returnSiteNs = icfg.getReturnSitesOfCallAt(n);
 
         //for each possible callee
         Collection<M> callees = icfg.getCalleesOfCallAt(n);
         for (M sCalledProcN : callees) { //still line 14
-            /*
-             * Calculates the points-to presence condition and annotates the resulting edge with the correct flow presence condition.
-             * Otherwise we would assume this flow edge has the presence condition of true.
-             */
-            f = getConditionalFlowEdgeFunction(n, sCalledProcN, f_org);
-
             //compute the call-flow function
             FlowFunction<D> function = flowFunctions.getCallFlowFunction(n, sCalledProcN);
             flowFunctionConstructionCount++;
@@ -370,12 +362,13 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
             for (N sP : startPointsOf) { // our icfg enforces unique function entry points, otherwise it would not compute a sound result regarding the flow presence condition
                 saveEdges(n, sP, d2, res, true);
                 //for each result node of the call-flow function
-                for (D d3 : res) {
-                    //create initial self-loop
+                for (D d3 : res) { //create initial self-loop
+
                     /*
-                     * Instead of push an identity edge, we are pushing the correct flow edge according to the points-to condition.
+                     * Instead of propagating an identity edge, we are pushing the correct flow edge according to the points-to condition.
                      */
-                    propagate(d3, sP, d3, f, n, false); //line 15
+                    EdgeFunction<V> fE = edgeFunctions.getCallEdgeFunction(n, d2, sCalledProcN, d3);
+                    propagate(d3, sP, d3, fE.composeWith(f), n, false); //line 15
 
                     //register the fact that <sp,d3> has an incoming edge from <n,d2>
                     Set<Cell<N, D, EdgeFunction<V>>> endSumm;
@@ -424,27 +417,9 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
             saveEdges(n, returnSiteN, d2, returnFacts, false);
             for (D d3 : returnFacts) {
                 EdgeFunction<V> edgeFnE = edgeFunctions.getCallToReturnEdgeFunction(n, d2, returnSiteN, d3);
-                propagate(d1, returnSiteN, d3, f_org.composeWith(edgeFnE), n, false);
+                propagate(d1, returnSiteN, d3, f.composeWith(edgeFnE), n, false);
             }
         }
-    }
-
-    /**
-     * Custom function for lifting IFDS problems on configurable software systems.
-     * This function determines by querying the icfg the correct edge constraint for call and return-flows.
-     *
-     * @param call   call site of the call
-     * @param callee target site of the call
-     * @param f      original flow edge
-     * @return correct flow edge
-     */
-    private EdgeFunction<V> getConditionalFlowEdgeFunction(N call, M callee, EdgeFunction<V> f) {
-        if (icfg instanceof CInterCFG && call instanceof CICFGNode && callee instanceof CICFGFDef) {
-            @SuppressWarnings("unchecked")
-            EdgeFunction<V> f3 = (EdgeFunction<V>) ((CInterCFG) icfg).getConditionalEdgeFunction((CICFGNode) call, (CICFGFDef) callee);
-            f = f.composeWith(f3);
-        }
-        return f;
     }
 
     /**
