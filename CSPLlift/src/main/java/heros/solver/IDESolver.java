@@ -20,8 +20,6 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
-import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.Source;
-import de.fosd.typechef.cspllift.cintercfg.CInterCFG;
 import heros.*;
 import heros.edgefunc.EdgeIdentity;
 import org.slf4j.Logger;
@@ -213,24 +211,13 @@ public class IDESolver<N, D, M, V, I extends InterproceduralCFG<N, M>> {
      * their own. Normally, {@link #solve()} should be called instead.
      */
     protected void submitInitialSeeds() {
-        for (Entry<N, Set<D>> seed : initialSeeds.entrySet()) {
+        for(Entry<N, Set<D>> seed: initialSeeds.entrySet()) {
             N startPoint = seed.getKey();
-            for (D val : seed.getValue()) {
-                propagate(zeroValue, startPoint, val, getInitialSeedEdge(val), null, false);
+            for(D val: seed.getValue()) {
+                propagate(zeroValue, startPoint, val, EdgeIdentity.<V>v(), null, false);
             }
             jumpFn.addFunction(zeroValue, startPoint, zeroValue, EdgeIdentity.<V>v());
         }
-    }
-
-    /**
-     * Retrieves for lifting based IFDS problems the correct flow-condition of an initial seed value.
-     * Otherwise we would assume an inital fact is always true.
-     */
-    private EdgeFunction<V> getInitialSeedEdge(D seedFact) {
-        @SuppressWarnings("unchecked")
-        EdgeFunction<V> edge = (icfg instanceof CInterCFG && seedFact instanceof Source) ?
-                (EdgeFunction<V> )((CInterCFG) icfg).getConditionalEdgeFunction(((Source) seedFact).getCIFGStmt()) : EdgeIdentity.<V>v();
-        return edge;
     }
 
     /**

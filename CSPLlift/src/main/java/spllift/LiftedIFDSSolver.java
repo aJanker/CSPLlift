@@ -7,13 +7,12 @@ import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import de.fosd.typechef.featureexpr.FeatureModel;
 import heros.*;
-import heros.solver.IDESolver;
 
 import java.util.Map;
 import java.util.Set;
 
 
-public class LiftedIFDSSolver<D> extends IDESolver<CICFGNode, D, CICFGFDef, FeatureExpr, CInterCFG> {
+public class LiftedIFDSSolver<D> extends LiftedIDESolver<D> {
 
     public LiftedIFDSSolver(final IFDSTabulationProblem<CICFGNode, D, CICFGFDef, CInterCFG> ifdsProblem, final FeatureModel fm, final boolean useFMInEdgeComputations) {
         super(new DefaultLiftedIFDSTabulationProblem<CICFGNode, D, CICFGFDef, CInterCFG>(ifdsProblem) {
