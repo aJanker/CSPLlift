@@ -67,10 +67,10 @@ object TaintCheck {
     def check(cInterCFG : CInterCFG) : List[LiftedCFlowFact[InformationFlowFact]] = {
         val (_, solution) = StopWatch.measureSystemTime("taintCheck", {
             val seeds = new GlobalSourcesProblem(cInterCFG)
-            CSPLlift.solve(seeds)
+            CSPLlift.solveAndCollectResults(seeds)
 
             val problem = new InformationFlowProblem(cInterCFG, seeds.getGlobalSources)
-            CSPLlift.solve(problem)
+            CSPLlift.solveAndCollectResults(problem)
         })
         solution
     }

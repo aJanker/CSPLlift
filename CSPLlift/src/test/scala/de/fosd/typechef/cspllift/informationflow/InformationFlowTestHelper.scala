@@ -19,7 +19,7 @@ trait InformationFlowTestHelper extends CSPLliftTestHelper {
 
         val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)
         val problem = new InformationFlowProblem(cInterCFG)
-        val solution = CSPLlift.solve(problem)
+        val solution = CSPLlift.solveAndCollectResults(problem)
         val allSinks = InformationFlow.allSinks(solution)
 
         // matches all expectes sinks with found ones

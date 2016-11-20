@@ -232,12 +232,12 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             if (!options.noInitalSeeds && problem.isInstanceOf[InformationFlowProblem]) {
                 val seedCFG = new CInterCFG(ast, fm, cInterCFGOptions)
                 val seeds = new GlobalSourcesProblem(seedCFG)
-                CSPLlift.solve(seeds)
+                CSPLlift.solveAndCollectResults(seeds)
                 logger.info("Computed initial seeds.")
                 problem = new InformationFlowProblem(cInterCFG, seeds.getGlobalSources).asInstanceOf[T]
             }
 
-            (CSPLlift.solve[D](problem, benchmarkTag = benchmarkTag), cInterCFG)
+            (CSPLlift.solveAndCollectResults[D](problem, benchmarkTag = benchmarkTag), cInterCFG)
         })
 
     private def writeVariants[T <: CIFDSProblem[D], D <: CFlowFact](icfg: CInterCFG, method: String = "", index: Option[Int] = None, config: Option[SimpleConfiguration] = None) = {

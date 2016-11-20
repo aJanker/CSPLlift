@@ -19,7 +19,7 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         lazy val cInterCFGConfiguration = new DefaultCInterCFGConfiguration(opt.getCLinkingInterfacePath, opt.resolveFunctionPointer)
 
         if (opt.IFDSTaintAnalysis)
-            TaintCheck.checkAES(ast, fm, opt, cInterCFGConfiguration)
+            TaintCheck.checkAll(ast, fm, opt, cInterCFGConfiguration)
     }
 }
 
@@ -28,7 +28,17 @@ class CSPLliftFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
   */
 object CSPLlift {
 
-    def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, benchmarkTag : Option[String] = None): List[LiftedCFlowFact[D]] = {
+    def solve[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, benchmarkTag : Option[String] = None) : LiftedIFDSSolver[D] = {
+        SuperCallGraph.clear()
+
+        val solver = new LiftedIFDSSolver(problem, fm, true)
+
+        StopWatch.measureWallTime(benchmarkTag.getOrElse("") + "SOLVING", {solver.solve()})
+
+        solver
+    }
+
+    def solveAndCollectResults[D <: CFlowFact](problem: IFDSProblem[D], fm: FeatureModel = BDDFeatureModel.empty, benchmarkTag : Option[String] = None): List[LiftedCFlowFact[D]] = {
         SuperCallGraph.clear()
 
         val solver = new LiftedIFDSSolver(problem, fm, false)
