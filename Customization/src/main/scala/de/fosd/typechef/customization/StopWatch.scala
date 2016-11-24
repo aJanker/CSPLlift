@@ -56,9 +56,9 @@ object StopWatch {
 
     def measureThreadUserTime[R](checkpoint: String, block: => R): (Long, R) = measureCheckpoint(checkpoint, block, threadMXBean.getCurrentThreadUserTime, TimeUnit.NANOSECONDS.toMillis)
 
-    def measureProcessUserTime[R](block: => R): (Long, R) = measure(block, readProcessCPUTime, TimeUnit.NANOSECONDS.toMillis)
+    def measureProcessCPUTime[R](block: => R): (Long, R) = measure(block, readProcessCPUTime, TimeUnit.NANOSECONDS.toMillis)
 
-    def measureProcessUserTime[R](checkpoint: String, block: => R): (Long, R) = measureCheckpoint(checkpoint, block, readProcessCPUTime, TimeUnit.NANOSECONDS.toMillis)
+    def measureProcessCPUTime[R](checkpoint: String, block: => R): (Long, R) = measureCheckpoint(checkpoint, block, readProcessCPUTime, TimeUnit.NANOSECONDS.toMillis)
 
     def measureWallTime[R](block: => R): (Long, R) = measure(block, System.currentTimeMillis)
 
@@ -102,17 +102,11 @@ object StopWatch {
       * @throws JMException If the operation is unsupported.
       */
     def readProcessCPUTime(): Long = {
-        val cputime = mbeanServer.getAttribute(osMbean, PROCESS_CPU_TIME)
+        val cputime: Long = mbeanServer.getAttribute(osMbean, PROCESS_CPU_TIME).asInstanceOf[Long]
 
-        if (!cputime.isInstanceOf[Long]) {
-            throw new JMException("Invalid value received for cpu time: " + cputime)
-        }
+        if (cputime < 0) // value might be -1 if unsupported
+            throw new JMException("Current platform does not support reading the process cpu time")
 
-        val time: Long = cputime.asInstanceOf[Long]
-
-        if (time < 0) // value might be -1 if unsupported
-            throw new JMException("Current platform does not support reading the process cpu time");
-
-        time
+        cputime
     }
 }
