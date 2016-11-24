@@ -33,7 +33,7 @@ object CSPLlift {
 
         val solver = new LiftedIFDSSolver(problem, fm, true)
 
-        StopWatch.measureWallTime(benchmarkTag.getOrElse("") + "SOLVING", {solver.solve()})
+        StopWatch.measureWallTime(benchmarkTag.getOrElse("") + "WALL_SOLVER_RUN", {solver.solve()})
 
         solver
     }
@@ -43,7 +43,7 @@ object CSPLlift {
 
         val solver = new LiftedIFDSSolver(problem, fm, false)
 
-        StopWatch.measureWallTime(benchmarkTag.getOrElse("") + "SOLVING", {solver.solve()})
+        StopWatch.measureWallTime(benchmarkTag.getOrElse("") + "WALL_SOLVER_RUN", {solver.solve()})
 
         liftedFlowFactsAsScala(solver.getAllResults)
     }
