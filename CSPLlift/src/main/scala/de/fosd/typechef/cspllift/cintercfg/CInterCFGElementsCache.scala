@@ -97,7 +97,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     private val fileToTUnit: util.HashMap[String, TranslationUnit] = new util.HashMap()
     private val tunitToPseudoCall: util.IdentityHashMap[AST, Opt[FunctionDef]] = new util.IdentityHashMap()
 
-    private var cFunctionPointerEQRelation: Option[CPointerAnalysisContext] = None
+    var cFunctionPointerEQRelation: Option[CPointerAnalysisContext] = None
 
     private val cModuleInterface: Option[CModuleInterface] =
         cModuleInterfacePath match {
@@ -146,13 +146,13 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         /**
           * Perform upfront tunit init tasks like rewriting for IFDS/IDE and typechecking
           */
-        val init = StopWatch.measureSystemTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_INIT, {
+        val init = StopWatch.measureProcessUserTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_INIT, {
             var res: TranslationUnit = tunit
             if (logger.isInfoEnabled) logger.info("Upfront computation of newly loaded translation unit started for " + file + ".")
 
             var pseudoSystemFunctionCall : Option[Opt[FunctionDef]] = None
 
-            res = StopWatch.measureSystemTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_REWRITE, {
+            res = StopWatch.measureProcessUserTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_REWRITE, {
                 res = prepareAST(res)
 
                 val pos = new TokenPosition(file, 0, 0, 0)
@@ -171,7 +171,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
             if (options.silentTypeCheck) ts.makeSilent()
 
             if (logger.isInfoEnabled) logger.info("Typechecking " + file)
-            StopWatch.measureSystemTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_TYPECHECK, {
+            StopWatch.measureProcessUserTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_TYPECHECK, {
                 ts.checkAST(printResults = !options.silentTypeCheck)
             })
 
@@ -197,7 +197,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
     }
 
     private def calculatePointerEquivalenceRelations =
-        if (options.computePointer) StopWatch.measureSystemTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.POINTER_COMPUTATION, {
+        if (options.computePointer) StopWatch.measureProcessUserTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.POINTER_COMPUTATION, {
             val cFunctionPointerAnalysis = new CPointerAnalysisFrontend(fm)
             val env = (getEnvs, envToTS)
             cFunctionPointerEQRelation = Some(cFunctionPointerAnalysis.calculatePointerEquivalenceRelation(getAllKnownTUnitsAsSingleTUnit, env))
@@ -253,7 +253,7 @@ class CInterCFGElementsCacheEnv private(initialTUnit: TranslationUnit, fm: Featu
         }
 
     def loadTUnit(inputfile: String): Option[TranslationUnit] = {
-        val tunit = StopWatch.measureSystemTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_LOAD, {
+        val tunit = StopWatch.measureProcessUserTime(benchmarkTag.getOrElse("") + CInterCFGBenchmarkMarks.TUNIT_LOAD, {
             val fileExtension = if (inputfile.endsWith(".pi")) ".pi" else ".c"
             val filename = if (inputfile.startsWith("file ")) inputfile.substring("file ".length) else inputfile
             val dbgName = filename//.replace("/home/janker/Masterarbeit", "/Users/andi/Masterarbeit")

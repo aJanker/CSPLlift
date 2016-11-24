@@ -225,7 +225,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         }
 
     private def runSPLLift[D <: CFlowFact, T <: CIFDSProblem[D]](ifdsProblem: Class[T], cInterCFGOptions: CInterCFGConfiguration, benchmarkTag: Option[String] = None): (Long, (List[LiftedCFlowFact[D]], CInterCFG)) =
-        StopWatch.measureSystemTime(benchmarkTag.getOrElse("") + RUN_MARK, {
+        StopWatch.measureProcessUserTime(benchmarkTag.getOrElse("") + RUN_MARK, {
             val cInterCFG = new CInterCFG(ast, fm, cInterCFGOptions, benchmarkTag)
             var problem = getCIFDSProblemInstance[D, T](ifdsProblem)(cInterCFG, List())
 
