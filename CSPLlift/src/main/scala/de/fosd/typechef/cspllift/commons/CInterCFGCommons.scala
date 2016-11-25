@@ -41,6 +41,13 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
         res
     }
 
+    def getPath(str: String): String = {
+        val filePrefix = "file "
+        val prefixFree = if (str.startsWith(filePrefix)) str.substring(filePrefix.length) else str
+        val index = prefixFree.lastIndexOf(File.separatorChar)
+        prefixFree.substring(0, index)
+    }
+
     /*
      * Creates a java "IdentitySet" as normal java set implementation would remove equal but not identical objects like return statements
      */

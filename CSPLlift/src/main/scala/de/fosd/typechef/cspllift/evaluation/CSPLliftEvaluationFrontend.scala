@@ -120,7 +120,22 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
-        val configs = sampling.getCodeCoverageConfigs(options.includeHeaderVariability)
+        val configs = {
+            val files = icfg.cInterCFGElementsCacheEnv.getAllFiles.map(_._1)
+            val codeCoverageConfigExists = files.forall(file => {
+                val configFile = new File(getCodeCoverageConfigFilePath(file))
+                configFile.exists && configFile.isFile
+            })
+
+            if (codeCoverageConfigExists) {
+                logger.info("Loading precomputed code coverage configurations.")
+                files.flatMap(file => {
+                    val configFile = getCodeCoverageConfigFilePath(file)
+                    sampling.loadConfigurations(configFile)
+                }).distinct
+            }
+            else sampling.getCodeCoverageConfigs(options.includeHeaderVariability)
+        }
 
         // 3. Run Analysis for every generated config
         // 4. Compare
@@ -323,5 +338,11 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         writer.write("#SOLVINGMIN:\t" + samplingSolvingMin + "\n")
 
         writer.close()
+    }
+
+    private def getCodeCoverageConfigFilePath(file: String): String = {
+        val fileName = getPlainFileNameS(file)
+        val path = getPath(file)
+        path + fileName + "_codeCov.config"
     }
 }

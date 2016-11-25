@@ -86,8 +86,8 @@ object Launch extends App {
         if (opt.genCodeCoverageConfigurations) {
             val sampling = new Sampling(ast, fullFM)
             val configs = sampling.getCodeCoverageConfigs()
-
-
+            val configsFile = opt.getOutputLocation + "_codeCov.config"
+            sampling.saveConfigurations(configs, configsFile)
 
             // to not perform any further computation if this option is set
             return
