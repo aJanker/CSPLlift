@@ -81,7 +81,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
 
                 if (!allStmtConditions.equivalentTo(parentCondition, fm)) {
                     val sampling = new Sampling(c, BDDNoFeatureModel)
-                    val configs = sampling.conditionCoverageConfigs(stmtConditions.toSet)
+                    val configs = sampling.getConditionCoverageConfigs(stmtConditions.toSet)
                     val products = configs.flatMap(config => {
 
                         val trueCond = config.getTrueSet.foldLeft(FeatureExprFactory.True)(_ and _)

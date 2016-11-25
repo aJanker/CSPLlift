@@ -4,7 +4,7 @@ import java.io.File
 
 import de.fosd.typechef.Frontend
 import de.fosd.typechef.Frontend._
-import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
+import de.fosd.typechef.cspllift.evaluation.{CSPLliftEvaluationFrontend, Sampling}
 import de.fosd.typechef.cspllift.options.CInterAnalysisOptions
 import de.fosd.typechef.cspllift.setup.CModuleInterfaceGenerator
 import de.fosd.typechef.customization.StopWatch
@@ -80,6 +80,16 @@ object Launch extends App {
         if (ast == null) {
             println("Invocation error: no file loaded.")
             println("use parameter --help for more information.")
+            return
+        }
+
+        if (opt.genCodeCoverageConfigurations) {
+            val sampling = new Sampling(ast, fullFM)
+            val configs = sampling.getCodeCoverageConfigs()
+
+
+
+            // to not perform any further computation if this option is set
             return
         }
 

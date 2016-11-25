@@ -1,6 +1,7 @@
 package de.fosd.typechef.cspllift.evaluation
 
-import java.io.{File, FileWriter}
+import java.io._
+import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.fosd.typechef.conditional.{Choice, One, Opt}
 import de.fosd.typechef.cspllift.commons.ConditionTools
@@ -9,6 +10,7 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureMod
 import de.fosd.typechef.parser.c.AST
 
 import scala.collection.immutable.HashMap
+import scala.collection.mutable
 import scala.io.Source
 
 /**
@@ -25,12 +27,25 @@ class Sampling(tunit: AST, fm: FeatureModel = BDDNoFeatureModel) extends Conditi
     /**
       * Extracts a minimal number of configurations which include each statement of the program at least once.
       */
-    def codeCoverageConfigs(headerVariability: Boolean = false): List[SimpleConfiguration] = configurationCoverage(tunit, fm, features, includeVariabilityFromHeaderFiles = headerVariability)._1
+    def getCodeCoverageConfigs(headerVariability: Boolean = false): List[SimpleConfiguration] = configurationCoverage(tunit, fm, features, includeVariabilityFromHeaderFiles = headerVariability)._1
 
     /**
       * Extracts a minimal number of configurations which include each input condition at least once.
       */
-    def conditionCoverageConfigs(cfgConditions: Set[FeatureExpr]): List[SimpleConfiguration] = conditionCoverage(cfgConditions)._1
+    def getConditionCoverageConfigs(cfgConditions: Set[FeatureExpr]): List[SimpleConfiguration] = conditionCoverage(cfgConditions)._1
+
+    def saveConfigurations(configs: List[SimpleConfiguration], filename: String): Unit = {
+        val fw = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(filename)))
+        fw.writeObject(configs)
+        fw.close()
+    }
+
+    def loadConfigurations(filename: String): List[SimpleConfiguration] = {
+        val fr = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename)))
+        val configs = fr.readObject()
+        fr.close()
+        configs.asInstanceOf[List[SimpleConfiguration]]
+    }
 
     /*
         Configuration Coverage Method copied from Joerg and heavily modified :)
@@ -259,16 +274,15 @@ class Sampling(tunit: AST, fm: FeatureModel = BDDNoFeatureModel) extends Conditi
 
 // representation of a product configuration that can be dumped into a file
 // and loaded at further runs
-class SimpleConfiguration(private val features: List[SingleFeatureExpr], private val featureIDHashmap: Map[SingleFeatureExpr, Int], private val config: scala.collection.immutable.BitSet) extends scala.Serializable {
+class SimpleConfiguration(private val features: List[SingleFeatureExpr], private val featureIDHashmap: Map[SingleFeatureExpr, Int], private val config: mutable.BitSet) extends scala.Serializable {
 
     def this(trueSet: List[SingleFeatureExpr], falseSet: List[SingleFeatureExpr], features: List[SingleFeatureExpr], featureIDHashmap: Map[SingleFeatureExpr, Int]) =
         this(features, featureIDHashmap, {
             val ret: scala.collection.mutable.BitSet = scala.collection.mutable.BitSet()
             for (tf: SingleFeatureExpr <- trueSet) ret.add(featureIDHashmap(tf))
             for (ff: SingleFeatureExpr <- falseSet) ret.remove(featureIDHashmap(ff))
-            ret.toImmutable
-        }
-        )
+            ret
+        })
 
     def getTrueSet: Set[SingleFeatureExpr] = {
         features.filter({

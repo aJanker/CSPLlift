@@ -120,7 +120,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 2. Generate Code Coverage Configurations for all referenced files
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
-        val configs = sampling.codeCoverageConfigs(options.includeHeaderVariability)
+        val configs = sampling.getCodeCoverageConfigs(options.includeHeaderVariability)
 
         // 3. Run Analysis for every generated config
         // 4. Compare
@@ -175,7 +175,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
 
         // 3. Generate ConditionalEdgeFunction Coverage Configurations for all distinct warning conditions
         val sampling = new Sampling(icfg.cInterCFGElementsCacheEnv.getAllKnownTUnitsAsSingleTUnit, fm)
-        val configs = sampling.conditionCoverageConfigs(cfgConditions.asInstanceOf[Set[FeatureExpr]])
+        val configs = sampling.getConditionCoverageConfigs(cfgConditions.asInstanceOf[Set[FeatureExpr]])
 
         // 5. Compare
         val (unmatchedLiftedFacts, unmatchedCoverageFacts) = analyzeConfigsAndCompare(ifdsProblem, configs, liftedFacts, method)
