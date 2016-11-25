@@ -124,7 +124,11 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
             val files = icfg.cInterCFGElementsCacheEnv.getAllFiles.map(_._1)
             val codeCoverageConfigExists = files.forall(file => {
                 val configFile = new File(getCodeCoverageConfigFilePath(file))
-                configFile.exists && configFile.isFile
+                if (configFile.exists && configFile.isFile) true
+                else {
+                    println(getCodeCoverageConfigFilePath(file))
+                    false
+                }
             })
 
             if (codeCoverageConfigExists) {
@@ -348,6 +352,6 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     private def getCodeCoverageConfigFilePath(file: String): String = {
         val fileName = getPlainFileNameS(file)
         val path = getPath(file)
-        path + fileName + "_codeCov.config"
+        path + File.separatorChar + fileName + "_codeCov.config"
     }
 }
