@@ -21,6 +21,8 @@ trait CSPLliftOptions {
     def isIFDSBenchmarkEnabled: Boolean
     def isMergeLinkingInterfacesEnabled: Boolean
 
+    def genCodeCoverageConfigurations: Boolean
+
     def isIFDSSamplingEvaluationEnabled: Boolean
     def isIFDSSingleEvaluationEnabled: Boolean
     def isIFDSPrintExplodedSuperCallGraphEnabled: Boolean

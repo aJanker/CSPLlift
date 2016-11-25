@@ -21,4 +21,6 @@ class InformationFlowTestOptions(interface : Option[String] = None) extends CSPL
     override def warmupJVM: Boolean = false
 
     override def includeHeaderVariability: Boolean = false
+
+    override def genCodeCoverageConfigurations: Boolean = false
 }
