@@ -289,6 +289,7 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
     private def sumResults[D](method: String, icfg: CInterCFG, configs: List[SimpleConfiguration], liftedFacts: List[(D, FeatureExpr)], unmatchedLiftedFacts: List[(D, FeatureExpr)], unmatchedCoverageFacts: List[(List[(D, FeatureExpr)], SimpleConfiguration)]) = {
         val location = options.getOutputLocation
         val extension = method + ".sum"
+        val extensionFileLogging = method + ".files"
         val writer = new BufferedWriter(new FileWriter(location + extension))
 
         // Total Lifted Facts
@@ -299,6 +300,10 @@ class CSPLliftEvaluationFrontend(ast: TranslationUnit, fm: FeatureModel = BDDFea
         writer.write("#VARIANTS:\t" + configs.size + "\n")
         // Loaded files
         writer.write("#FILES:\t" + icfg.cInterCFGElementsCacheEnv.getAllKnownTUnits.size + "\n")
+        val fileLoggingWriter = new BufferedWriter(new FileWriter(location + extensionFileLogging))
+        icfg.cInterCFGElementsCacheEnv.getAllFiles.foreach { case (file, _) => fileLoggingWriter.write(file + "\n") }
+        fileLoggingWriter.close()
+
         // Timings
         val separator = "_init_"
 
