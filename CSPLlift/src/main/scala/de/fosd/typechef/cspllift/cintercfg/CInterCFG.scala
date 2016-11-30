@@ -336,6 +336,11 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * Look up the target destination of a given function call.
       */
     private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[CICFGFDef] = {
+        def returnPseudoFunctionCall = {
+                val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
+                List(CICFGFDef(pseudoCall))
+        }
+
         lazy val dstCond = name.condition
         lazy val noVariability = options.getConfiguration.isDefined
 
@@ -351,16 +356,17 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
         def findCalleeWithBruteForce() = {
             val bruteForceResult = cInterCFGElementsCacheEnv.getAllKnownTUnits.par.flatMap(findCalleeInTunit).toList
 
-            if (bruteForceResult.isEmpty && logger.isDebugEnabled) logger.debug("No function definiton found for " + name + " with brute force!")
-
-            bruteForceResult
+            if (bruteForceResult.isEmpty) {
+                if (logger.isDebugEnabled) logger.debug("No function definiton found for " + name + " with brute force!")
+                if (options.pseudoVisitingSystemLibFunctions)
+                    returnPseudoFunctionCall
+                else bruteForceResult
+            }
+            else bruteForceResult
         }
 
         if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
-            return {
-                val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
-                List(CICFGFDef(pseudoCall))
-            }
+            return returnPseudoFunctionCall
 
         val localDef = findCalleeInTunit(callTUnit)
         val externalDef = getExternalDefinitions(name)
