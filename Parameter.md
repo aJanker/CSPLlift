@@ -1,0 +1,107 @@
+Parameters: 
+
+  System configuration
+    --systemRoot=dir (-r)          Path to system root. Default: '/'.
+    --platfromHeader=file (-h)     Header files with platform macros (create with 'cpp -dM -std=gnu99 -'). Default: 'platform.h'.
+    --systemIncludes=dir           System include directory. Default: '$systemRoot/usr/include'.
+    --preIncludes=dir              Extra include directories, before system includes, relative to $systemRoot
+    --postIncludes=dir             Extra include directories, after system includes, relative to $systemRoot
+    --predefMacros=file            Header with compiler-defined macros (e.g., generated with `gcc -dM   -x c - -E`)
+    --settingsFile=dir (-c)        Property file specifying system root, platform headers, and system include directories.
+
+  General processing options (lexing, parsing, type checking, interfaces; select only highest)
+    --lex (-E)                     Stop after lexing; no parsing.
+    --parse                        Lex and parse the file; no type checking (default).
+    --typecheck (-t)               Lex, parse, and type check; but do not create interfaces.
+    --interface                    Lex, parse, type check, and create interfaces.
+    --dumpcfg                      Lex, parse, and dump control flow graph
+    --output=file (-o)             Path to output files (no extension, creates .pi, .macrodbg etc files).
+    --writePI                      Write lexer output into .pi file
+    --debugInterface               Write interface in human readable format (requires --interface)
+    --serializeAST                 Write ast to .ast file after parsing.
+    --reuseAST                     Reuse serialized .ast instead of parsing, if availabe.
+    --recordTiming                 Report times for all phases.
+    --filePC=file                  Presence condition for the file, in a file (format like --featureModelFExpr). Default '$file.pc'.
+    --bdd                          Use BDD engine instead of SAT engine (provide as first parameter).
+    --errorXML[=file]              File to store syntax and type errors in XML format.
+
+  Parser options
+    --hideparserresults            Do not show parser results.
+    --parserstatistics             Print parser statistics.
+    --simplifyPresenceConditions   Simplify presence conditions after parsing.
+
+  Preprocessor configuration
+    --define=name[=definition] (-D)
+                                   Defines the given macro (may currently not be used to define parametric macros).
+    --undefine=name (-U)           Undefines the given macro, previously either builtin or defined using -D.
+    --include=file                 Process file as if "#include "file"" appeared as the first line of the primary source file.
+    --incdir=dir (-I)              Adds the directory dir to the list of directories to be searched for header files.
+    --iquote=dir                   Adds the directory dir to the list of directories to be searched for header files included using "".
+    --lexOutput=file               Output file (typically .pi).
+    --xtc                          Use xtc/SuperC lexer instead of TypeChef lexer (experimental).
+
+  Preprocessor flag filter
+    --prefixfilter=text (-p)       Analysis excludes all flags beginning with this prefix.
+    --postfixfilter=text (-P)      Analysis excludes all flags ending with this postfix.
+    --prefixonly=text (-x)         Analysis includes only flags beginning with this prefix.
+    --openFeat=text                List of flags with an unspecified value; other flags are considered undefined.
+
+  Preprocessor warnings and debugging
+    --warning=type (-W)            Enables the named warning class (trigraphs, undef, endif-labels, error).
+    --no-warnings (-w)             Disables ALL warnings.
+    --verbose (-v)                 Operates incredibly verbosely.
+    --lexdebug                     Create debug files for macros and sources (enables debugfile-sources and debugfile-macrotable).
+    --lexEnable=type               Enables a specific lexer feature (digraphs, trigraphs, linemarkers*, csyntax, keepcomments, keepallcomments, includenext*, gnucextensions*, debug-includepath, debug-verbose, debugfile-log, debugfile-sources, debugfile-macrotable, debugfile-tokenstream) Features with * are activated by default.
+    --lexDisable=type              Disable a specific lexer feature.
+    --lexNoStdout                  Do not print to stdout.
+    --adjustLines                  Report line numbers in output (.pi) file instead of source (.c and .h) files.
+
+  General options for static IFDS data-flow analysis:
+    --spllift=type                 Enables the lifted analysis class: 
+                                    - TAINT: Issues a warning when a potential taint memory leak is found.
+                                   (Analyses with * are activated by default).
+    --noFP                         Disable function pointer computation for call graph.
+    --noWarmup                     Disable vm warm-up in evaluation mode.
+    --noSeeds                      Disable initial seed computation.
+    --genCodeCovConfigs            Generate code coverage configurations for the input file.
+    --headerCoverage               Include variability introduced by header files.
+    --linkingInterface=file        Linking interface for all externally exported functions.
+    --mergeLinkingInterface=file   Merges all single file linking interfaces into a global file linking interface into a given directory.
+
+  Analysis
+    --analysis=type (-A)           Enables the analysis class: 
+                                    * pointer-sign: Issue type error when pointers have incompatible signedness (undefined behavior)
+                                    * integer-overflow: Issue security warning on possible integer overflows in security-relevant locations (unintended effects and undefined behavior)
+                                    * implicit-coercion: Issue security warning on implicit integer coercion (unintended side effects)
+                                    * long-designator: Issue security warning on lowercase long designators (readability)
+                                    * implicit-identifier: Issue security warning on implicit identifier definitions (undefined behavior)
+                                    * conflicting-linkage: Issue security warning on conflicting linkage declarations (undefined behavior)
+                                    * volatile: Issue security warning on referencing a volatile object using a nonvolatile value (undefined behavior)
+                                    * const: Issue security warning on assigning to const value or casting away const qualification (undefined behavior)
+                                    * char: Issue warning when converting between 'char' types of different signness (unintended effects)
+                                    * doublefree: Issue a warning when dynamically allocated memory is freed multiple times
+                                    * xfree: Issue a warning when trying to free memory that was not allocated dynamically
+                                    * uninitializedmemory: Issue a warning when the value of a non-initialized variable is used
+                                    * casetermination: Issue a warning when statements following a case block within a switch aren't terminated using a break statement
+                                    * danglingswitchcode: Issue a warning when code in a switch statement doesn't occur within the control flow of a case or default statement
+                                    * cfginnonvoidfunction: Issue a warning when control flow in non-void function reaches no return statement
+                                    * checkstdlibfuncreturn: Issue a warning when the return value of a standard library function is not check for its error values
+                                    * deadstore: Issue a warning when values stored to variables are never read afterwards
+                                   (Analyses with * are activated by default).
+    --no-analysis (-a)             Disables ALL analyses.
+
+  Feature models
+    --featureModelDimacs=file      Dimacs file describing a feature model.
+    --featureModelFExpr=file       File in FExpr format describing a feature model.
+    --smallFeatureModelDimacs=file Dimacs file describing a feature model.
+    --smallFeatureModelFExpr=file  File in FExpr format describing a feature model.
+    --partialConfiguration=file    Loads a partial configuration to the type-system feature model (file with #define and #undef lines).
+    --dimacsFeaturePrefix=prefix   Prefix that is added to all names in the dimacs file loaded after this option (default: CONFIG_). Use two double-quotes ("") as an empty prefix.
+
+  Misc
+    --printIncludes                Prints gathered include information for debugging
+    --version                      Prints version number
+    --help                         Displays help and usage information.
+
+Invocation error: No file specified.
+use parameter --help for more information.
