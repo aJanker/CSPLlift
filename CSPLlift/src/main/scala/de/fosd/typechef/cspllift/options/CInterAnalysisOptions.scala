@@ -76,19 +76,19 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
     override def getOptionGroups = {
         val r = super.getOptionGroups
 
-        r.add(new Options.OptionGroup("General options for interprocedural analysis with SPLLift", 100,
+        r.add(new Options.OptionGroup("General options for static IFDS data-flow analysis:", 100,
             new Options.Option("spllift", LongOpt.REQUIRED_ARGUMENT, F_SPLLIFT, "type",
                 "Enables the lifted analysis class: \n" +
-                  liftopts.map(o => " * " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
+                  liftopts.map(o => " - " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
                   "\n(Analyses with * are activated by default)."
             ),
             new Options.Option("noFP", LongOpt.NO_ARGUMENT, F_NOFUNCTIONPOINTER, null, "Disable function pointer computation for call graph."),
-            new Options.Option("noWarmup", LongOpt.NO_ARGUMENT, F_NOWARMUP, null, "Disable vm warmup in evaluation mode."),
+            new Options.Option("noWarmup", LongOpt.NO_ARGUMENT, F_NOWARMUP, null, "Disable vm warm-up in evaluation mode."),
             new Options.Option("noSeeds", LongOpt.NO_ARGUMENT, F_NOSEEDS, null, "Disable initial seed computation."),
             new Options.Option("genCodeCovConfigs", LongOpt.NO_ARGUMENT, F_CODECOVCONFIGS, null, "Generate code coverage configurations for the input file."),
             new Options.Option("headerCoverage", LongOpt.NO_ARGUMENT, F_HEADERCOVERAGE, null, "Include variability introduced by header files."),
             new Options.Option("linkingInterface", LongOpt.REQUIRED_ARGUMENT, F_LINKINTERFACE, "file", "Linking interface for all externally exported functions."),
-            new Options.Option("mergeLinkingInterface", LongOpt.REQUIRED_ARGUMENT, F_MERGELINKINTERFACE, "file", "Merges all sinkle file linking interfaces into a global file linking interface in a given directory.")
+            new Options.Option("mergeLinkingInterface", LongOpt.REQUIRED_ARGUMENT, F_MERGELINKINTERFACE, "file", "Merges all single file linking interfaces into a global file linking interface into a given directory.")
         ))
 
         r
