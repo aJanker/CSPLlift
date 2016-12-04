@@ -79,7 +79,7 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
         r.add(new Options.OptionGroup("General options for interprocedural analysis with SPLLift", 100,
             new Options.Option("spllift", LongOpt.REQUIRED_ARGUMENT, F_SPLLIFT, "type",
                 "Enables the lifted analysis class: \n" +
-                  opts.map(o => " * " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
+                  liftopts.map(o => " * " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
                   "\n(Analyses with * are activated by default)."
             ),
             new Options.Option("noFP", LongOpt.NO_ARGUMENT, F_NOFUNCTIONPOINTER, null, "Disable function pointer computation for call graph."),

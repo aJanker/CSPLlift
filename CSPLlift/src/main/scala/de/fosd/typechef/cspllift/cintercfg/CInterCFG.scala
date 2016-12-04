@@ -358,9 +358,9 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
 
             if (bruteForceResult.isEmpty) {
                 if (logger.isDebugEnabled) logger.debug("No function definiton found for " + name + " with brute force!")
-                if (options.pseudoVisitingSystemLibFunctions)
+                /* if (options.pseudoVisitingSystemLibFunctions)
                     returnPseudoFunctionCall
-                else bruteForceResult
+                else  */ bruteForceResult
             }
             else bruteForceResult
         }
