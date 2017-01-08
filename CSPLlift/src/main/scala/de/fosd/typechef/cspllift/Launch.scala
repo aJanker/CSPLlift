@@ -4,21 +4,26 @@ import java.io.File
 
 import de.fosd.typechef.Frontend
 import de.fosd.typechef.Frontend._
-import de.fosd.typechef.cspllift.evaluation.{CSPLliftEvaluationFrontend, Sampling}
+import de.fosd.typechef.cmodule.CModule
+import de.fosd.typechef.cmodule.ccallgraph.clinking.CModuleLinkMapGenerator
+import de.fosd.typechef.crewrite.IntraCFG
+import de.fosd.typechef.cspllift.evaluation.CSPLliftEvaluationFrontend
 import de.fosd.typechef.cspllift.options.CInterAnalysisOptions
-import de.fosd.typechef.cspllift.setup.CModuleInterfaceGenerator
 import de.fosd.typechef.customization.StopWatch
+import de.fosd.typechef.customization.conditional.Sampling
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
 import de.fosd.typechef.options.{FrontendOptions, OptionException}
 import de.fosd.typechef.parser.TokenReader
 import de.fosd.typechef.parser.c._
 import org.slf4j.{Logger, LoggerFactory}
 
-object Launch extends App {
+object Launch extends App with ASTNavigation with IntraCFG {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
-    override def main(args: Array[String]): Unit = {
+    liftMain()
+
+    private def liftMain(): Unit = {
         setDefaultLogging()
 
         val opt = new CInterAnalysisOptions
@@ -31,7 +36,12 @@ object Launch extends App {
             }
 
             if (opt.isMergeLinkingInterfacesEnabled) {
-                CModuleInterfaceGenerator.mergeAndWriteInterfaces(opt.getCModuleInterfaceMergeDir)
+                val (mergeTime, _) = StopWatch.measureProcessCPUTime({
+                    CModuleLinkMapGenerator.mergeAndWriteMaps(opt.getCLinkMapMergeDir)
+                })
+
+                logger.info("Merged linking maps in " + mergeTime + "ms.")
+
                 return
             }
         } catch {
@@ -90,20 +100,26 @@ object Launch extends App {
             logger.info("Saving codecoverage configuration to:\t" + configsFile)
             sampling.saveConfigurations(configs, configsFile)
 
-            // to not perform any further computation if this option is set
+            // do not perform any further computation if this option is set
             return
         }
 
         if (opt.isIFDSAnalysisEnabled) {
             logger.info("Starting static analysis with IFDS-Lifting")
 
+            opt.getCLinkingInterfacePath
+
+            val moduleEnv = new CModule(rewriteTasks = CSPLlift.getIFDSRewriteRules, linkingMapDir = opt.getRootDir)
+            moduleEnv.addTUnit(ast)
+            moduleEnv.solveAliasing()
+
             if (opt.isIFDSEvaluationModeEnabled) {
-                val cSPLliftEvalFrontend = new CSPLliftEvaluationFrontend(ast, fullFM, opt)
+                val cSPLliftEvalFrontend = new CSPLliftEvaluationFrontend(moduleEnv, opt)
                 val successful = cSPLliftEvalFrontend.evaluate()
 
                 logger.info("Static analysis with IFDS-Lifting was complete:\t" + successful)
             } else {
-                val cSPLliftFrontend = new CSPLliftFrontend(ast, fullFM)
+                val cSPLliftFrontend = new CSPLliftFrontend(moduleEnv)
                 cSPLliftFrontend.analyze(opt)
             }
         }
@@ -118,7 +134,8 @@ object Launch extends App {
 
     private def setFeatureModels(opt: CInterAnalysisOptions): (FeatureModel, FeatureModel) = {
         val smallFM = opt.getSmallFeatureModel.and(opt.getLocalFeatureModel).and(opt.getFilePresenceCondition)
-        opt.setSmallFeatureModel(smallFM) //otherwise the lexer does not get the updated feature model with file presence conditions
+        opt.setSmallFeatureModel(smallFM)
+        //otherwise the lexer does not get the updated feature model with file presence conditions
         val fullFM = opt.getFullFeatureModel.and(opt.getLocalFeatureModel).and(opt.getFilePresenceCondition)
         opt.setFullFeatureModel(fullFM) // should probably be fixed in how options are read
         (smallFM, fullFM)

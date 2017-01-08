@@ -1,17 +1,24 @@
 package de.fosd.typechef.cspllift.cintercfg
 
+import java.io.Writer
+
 import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.error.Position
 import de.fosd.typechef.parser.c._
 
-sealed abstract class CICFGNode(stmt: Opt[AST]) extends Product with Serializable {
-    def getStmt = stmt
-    def getCondition = getStmt.condition
-    def getASTEntry = getStmt.entry
+sealed abstract class CInterCFGNode() extends Product with Serializable {
+    def get: AST
 
-    def hasPosition = getASTEntry.hasPosition
-    def getPosition = getASTEntry.range
+    def hasPosition: Boolean = get.hasPosition
 
-    def toText: String
+    def getPosition: Option[(Position, Position)] = get.range
+
+    def toText: String = PrettyPrinter.print(get)
+
+    def write(writer: Writer): Writer = {
+        writer.write(toText)
+        writer
+    }
 
     /**
       * The equality operation for AST elements does not consider the position within the Translation Unit.
@@ -19,42 +26,27 @@ sealed abstract class CICFGNode(stmt: Opt[AST]) extends Product with Serializabl
       * equals operator. However, for example two different return() statements would return true in the AST implementation of
       * TypeChef. Therefore we are wrapping these elements for Heros.
       */
-    override def equals(x: Any) = {
-        def equalsASTElement(that: CICFGNode): Boolean = {
-            val eqPosition =
-                if (hasPosition && that.hasPosition) getPosition.equals(that.getPosition)
-                else true
-            lazy val eqAST = getASTEntry.equals(that.getASTEntry)
-
-            eqPosition && eqAST
-        }
-
-        x match {
-            case c: CICFGNode => (c.getCondition eq getCondition) && equalsASTElement(c)
-            case _ => false
-        }
+    override def equals(other: Any): Boolean = other match {
+        case c: CInterCFGNode => c.get eq get
+        case _ => false
     }
 
-    override def canEqual(that: Any): Boolean = that.isInstanceOf[CICFGNode]
-
-    override def hashCode(): Int = {
-        val positionHashCode =
-            if (hasPosition) getPosition.get.hashCode()
-            else 0
-        this.getStmt.hashCode() + positionHashCode
+    def equivalentTo(other: Any): Boolean = other match {
+        case c: CInterCFGNode if c.get.canEqual(get) => c.get.equals(get)
+        case _ => false
     }
+
+    override def canEqual(that: Any): Boolean = that.isInstanceOf[CInterCFGNode]
+
+    override def hashCode(): Int = System.identityHashCode(get)
 }
 
-case class CICFGStmt(stmt: Opt[AST]) extends CICFGNode(stmt) {
-    override def toText: String =
-        stmt match {
-            case Opt(condition, s: Statement) => PrettyPrinter.print(CompoundStatement(List(Opt(condition, s))))
-            case Opt(condition, e: Expr) => PrettyPrinter.print(CompoundStatement(List(Opt(condition, ExprStatement(e)))))
-            case _ => PrettyPrinter.print(stmt.entry)
-        }
+case class CInterCFGStmt(stmt: AST) extends CInterCFGNode() {
+    override def get: AST = stmt
 }
 
-case class CICFGFDef(method: Opt[FunctionDef]) extends CICFGNode(method) {
-    override def toText: String = PrettyPrinter.print(TranslationUnit(List(method)))
-}
+case class CInterCFGFDef(method: Opt[FunctionDef]) extends CInterCFGNode() {
+    override def get: AST = getMethod.entry
 
+    def getMethod: Opt[FunctionDef] = method
+}

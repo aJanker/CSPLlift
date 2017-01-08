@@ -84,6 +84,7 @@ int cipher1(int i) {
 };
 
 int cipher2(int j) {
+    ;
 #ifdef B
   j = 0;
 #endif
@@ -95,13 +96,15 @@ struct cipher_ctx{
 };
 
 void cipher_init(struct cipher_ctx *c, int (*f)(int)) {
+#ifdef C
     c->cipherfun = (int (*)(int)) f;
+#endif
     return;
 }
 
 int cipher_do(struct cipher_ctx *c, int value) {
     int result;
-    result = (*c->cipherfun)(value);
+    result = c->cipherfun(value);
     return result;
 }
 

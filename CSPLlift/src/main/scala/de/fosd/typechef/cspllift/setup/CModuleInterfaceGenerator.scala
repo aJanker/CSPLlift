@@ -2,16 +2,16 @@ package de.fosd.typechef.cspllift.setup
 
 import java.io.File
 
-import de.fosd.typechef.customization.clinking.CInterfaceWriter
+import de.fosd.typechef.customization.clinking.CModuleInterfaceWriter
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.typesystem.linker._
 import org.slf4j.{Logger, LoggerFactory}
 
 
 /**
-  * Interface for generating linking information of a whole project
+  * Interface for generating module linking information for a whole project
   */
-object CModuleInterfaceGenerator extends App with CInterfaceWriter {
+object CModuleInterfaceGenerator extends App with CModuleInterfaceWriter {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 

@@ -2,8 +2,8 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorso
 
 import de.fosd.typechef.crewrite.ProductDerivation
 import de.fosd.typechef.cspllift.cifdsproblem.CFlowFact
-import de.fosd.typechef.cspllift.cintercfg.CICFGNode
-import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
+import de.fosd.typechef.cspllift.cintercfg.CInterCFGNode
+import de.fosd.typechef.customization.conditional.SimpleConfiguration
 import de.fosd.typechef.parser.c.Id
 
 sealed abstract class SourceType(name: Id) extends Serializable {
@@ -33,28 +33,28 @@ case class Variable(name: Id) extends SourceType(name) {
     }
 }
 
-sealed abstract class Source(sourceType: SourceType, override val cICFGStmt: CICFGNode, scope: Int) extends SinkOrSource(cICFGStmt) {
+sealed abstract class Source(sourceType: SourceType, override val cfgNode: CInterCFGNode, scope: Int) extends SinkOrSource(cfgNode) {
 
-    def getScope = scope
+    def getScope: Int = scope
 
     def getType : SourceType = sourceType
 
-    def getCIFGStmt = cICFGStmt
+    def getCIFGStmt: CInterCFGNode = cfgNode
 
     override def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = {
         if (!canEqual(other)) return false
 
         val otherSource = other.asInstanceOf[Source]
 
-        lazy val stmtProduct = ProductDerivation.deriveProduct(getCIFGStmt.getStmt.entry, configuration.getTrueFeatures)
-        lazy val eqStmt = stmtProduct.equals(otherSource.getCIFGStmt.getStmt.entry)
+        lazy val stmtProduct = ProductDerivation.deriveProduct(getCIFGStmt.get, configuration.getTrueFeatures)
+        lazy val eqStmt = stmtProduct.equals(otherSource.getCIFGStmt.get)
 
         otherSource.getType.isEquivalentTo(getType, configuration) && eqStmt
     }
 }
 
-case class SourceDefinition(sourceType: SourceType, override val cICFGStmt: CICFGNode, scope: Int) extends Source(sourceType, cICFGStmt, scope)
+case class SourceDefinition(sourceType: SourceType, override val cfgNode: CInterCFGNode, scope: Int) extends Source(sourceType, cfgNode, scope)
 
-case class SourceDefinitionOf(sourceType: SourceType, override val cICFGStmt: CICFGNode, define: SourceDefinition, scope: Int) extends Source(sourceType, cICFGStmt, scope) {
-    def getDefinition = define
+case class SourceDefinitionOf(sourceType: SourceType, override val cfgNode: CInterCFGNode, define: SourceDefinition, scope: Int) extends Source(sourceType, cfgNode, scope) {
+    def getDefinition: SourceDefinition = define
 }

@@ -2,16 +2,17 @@ package de.fosd.typechef.cspllift.analysis
 
 import java.io.{File, FileWriter}
 
+import de.fosd.typechef.cmodule.CModule
 import de.fosd.typechef.cspllift._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource.{Sink, SourceDefinition}
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.globalsources.GlobalSourcesProblem
-import de.fosd.typechef.cspllift.cintercfg.{CICFGNode, CInterCFG, DefaultCInterCFGConfiguration}
+import de.fosd.typechef.cspllift.cintercfg.{CInterCFG, CInterCFGNode, DefaultCInterCFGConfiguration}
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 import de.fosd.typechef.customization.StopWatch
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureModel}
-import de.fosd.typechef.parser.c.{AST, TranslationUnit}
+import de.fosd.typechef.featureexpr.FeatureExpr
+import de.fosd.typechef.parser.c.AST
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.GenTraversable
@@ -23,8 +24,8 @@ object TaintCheck {
 
     private val taintedSource = "key" // TODO External Parameter
 
-    def checkAES(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
-        val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)
+    def checkAES(env: CModule, opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+        val cInterCFG = new CInterCFG(env, cInterCFGConfiguration)
         val solution = check(cInterCFG)
         val allSinks = InformationFlow.allSinks(solution)
 
@@ -35,15 +36,18 @@ object TaintCheck {
         writeStmtFlowGraph(taintedSinks, cInterCFG, opt.getInformationFlowGraphsOutputDir)
         writeTaintFlowGraph(sinksWithTaintedSource, cInterCFG, opt.getInformationFlowGraphsOutputDir)
 
+        if (opt.isIFDSPrintExplodedSuperCallGraphEnabled)
+            writeExplodedSuperCallGraph(opt)
+
         logger.info("Static taint analysis with spllift - result")
 
-        logger.info("Sinks: ")
-        logger.info(InformationFlow.prettyPrintSinks(taintedSinks))
+        logger.info("Sinks:\t" + taintedSinks.size)
+        //logger.info(InformationFlow.prettyPrintSinks(taintedSinks))
     }
 
-    def checkAll(tunit: TranslationUnit, fm : FeatureModel, opt : CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
+    def checkAll(env: CModule, opt: CSPLliftOptions, cInterCFGConfiguration: DefaultCInterCFGConfiguration): Unit = {
 
-        val cInterCFG = new CInterCFG(tunit, fm, cInterCFGConfiguration)
+        val cInterCFG = new CInterCFG(env)
 
         val solution = check(cInterCFG)
 
@@ -58,20 +62,21 @@ object TaintCheck {
 
         logger.info("Static taint analysis result")
 
-        logger.info("Sinks")
-        logger.info(InformationFlow.prettyPrintSinks(allSinks))
+        logger.info("Sinks:\t" + allSinks.size)
+        // logger.info(InformationFlow.prettyPrintSinks(allSinks))
 
-        logger.info("Used tunits number:\t" + cInterCFG.cInterCFGElementsCacheEnv.getAllKnownTUnits.size)
+        logger.info("Used tunits number:\t" + env.getAllKnownTUnits.size)
     }
 
     def check(cInterCFG : CInterCFG) : List[LiftedCFlowFact[InformationFlowFact]] = {
-        val (_, solution) = StopWatch.measureProcessCPUTime("taintCheck", {
+        val (runtime, solution) = StopWatch.measureProcessCPUTime("IFDS-Solve", {
             val seeds = new GlobalSourcesProblem(cInterCFG)
             CSPLlift.solveAndCollectResults(seeds)
 
             val problem = new InformationFlowProblem(cInterCFG, seeds.getGlobalSources)
             CSPLlift.solveAndCollectResults(problem)
         })
+        logger.info("Finished IFDS Solving in " + runtime + "ms")
         solution
     }
 
@@ -85,10 +90,10 @@ object TaintCheck {
 
     private def getSinksAtTaintedSink(taintedSink: AST, sinks: GenTraversable[StmtFlowFacts[Sink]]): GenTraversable[StmtFlowFacts[Sink]] =
         sinks.par.filter {
-            case (stmt, _) => stmt.getASTEntry.equals(taintedSink)
+            case (stmt, _) => stmt.get.equals(taintedSink)
         }
 
-    private def getSinksWithTaintedSourceEntry(taintedSinks: GenTraversable[(CICFGNode, List[(Sink, FeatureExpr)])], taintedSource : String) =
+    private def getSinksWithTaintedSourceEntry(taintedSinks: GenTraversable[(CInterCFGNode, List[(Sink, FeatureExpr)])], taintedSource: String) =
         taintedSinks.par.flatMap(_._2).filter(s => containsName(s._1, taintedSource))
 
     private def containsName(sink : Sink, name : String) : Boolean = {
@@ -97,7 +102,7 @@ object TaintCheck {
     }
 
     private def containsAST(sink : Sink, ast : AST) : Boolean = {
-        val sourceAST= sink.getOriginSource.getCIFGStmt.getASTEntry
+        val sourceAST = sink.getOriginSource.getCIFGStmt.get
         sourceAST.equals(ast)
     }
 
@@ -128,12 +133,12 @@ object TaintCheck {
 
                 // write nodes first
                 val sourceNodes = sinks._2.flatMap(sink => {
-                    val stmts = List(sink._1.cICFGStmt, sink._1.getOriginSource.getCIFGStmt)
+                    val stmts = List(sink._1.cfgNode, sink._1.getOriginSource.getCIFGStmt)
                     stmts.map(getNode(_, cICFG))
                 }).distinct
                 sourceNodes.foreach(writer.writeNode)
 
-                val edges = sinks._2.map(sink => getEdge(sink._1.getOriginSource.getCIFGStmt, sink._1.cICFGStmt, sink._2, cICFG)).distinct
+                val edges = sinks._2.map(sink => getEdge(sink._1.getOriginSource.getCIFGStmt, sink._1.cfgNode, sink._2, cICFG)).distinct
                 edges.foreach(writer.writeEdge)
 
                 writer.writeFooter()
@@ -149,12 +154,12 @@ object TaintCheck {
 
         // write nodes first
         val sourceNodes = sinks.flatMap(sink => {
-            val stmts = List(sink._1.cICFGStmt, sink._1.source.getCIFGStmt)
+            val stmts = List(sink._1.cfgNode, sink._1.source.getCIFGStmt)
             stmts.map(getNode(_, cICFG))
         }).distinct
         sourceNodes.foreach(writer.writeNode)
 
-        val edges = sinks.map(sink => getEdge(sink._1.getOriginSource.getCIFGStmt, sink._1.cICFGStmt, sink._2, cICFG)).distinct
+        val edges = sinks.map(sink => getEdge(sink._1.getOriginSource.getCIFGStmt, sink._1.cfgNode, sink._2, cICFG)).distinct
         edges.foreach(writer.writeEdge)
 
         writer.writeFooter()
@@ -164,17 +169,11 @@ object TaintCheck {
     /**
       * Retrieves the original presence condition in the ast, not the dataflow condition
       */
-    private def getNode(x: CICFGNode, icfg: CInterCFG): Node[AST] = {
-        val stmt = x.getStmt
-        icfg.getEnv(stmt.entry) match {
-            case Some(env) => Node(x.getStmt)
-            case _ => Node(stmt)
-        }
-    }
+    private def getNode(x: CInterCFGNode, icfg: CInterCFG): Node[AST] = Node(icfg.getCFGPresenceNode(x.get))
 
-    private def getEdge(f: CICFGNode, t: CICFGNode, icfg: CInterCFG): Edge[AST] = getEdge(f, t, f.getCondition.and(t.getCondition), icfg)
+    private def getEdge(f: CInterCFGNode, t: CInterCFGNode, icfg: CInterCFG): Edge[AST] = getEdge(f, t, icfg.getSuccFlowCondition(f, t), icfg)
 
-    private def getEdge(f: CICFGNode, t: CICFGNode, flowCondition : FeatureExpr, icfg: CInterCFG): Edge[AST] =
+    private def getEdge(f: CInterCFGNode, t: CInterCFGNode, flowCondition: FeatureExpr, icfg: CInterCFG): Edge[AST] =
         Edge(getNode(f, icfg), getNode(t, icfg), flowCondition)
 
     private def writeExplodedSuperCallGraph(opt: CSPLliftOptions) : Unit = {

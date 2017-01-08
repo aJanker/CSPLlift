@@ -1,10 +1,16 @@
 package de.fosd.typechef.cspllift
 
+import java.io.File
+
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
 
 
 abstract class CSPLliftTestOptions(interface: Option[String] = None) extends CSPLliftOptions {
     override def getCLinkingInterfacePath: Option[String] = interface
+
+    override def getRootDir: Option[String] =
+        if (getCLinkingInterfacePath.isDefined) Some(getCLinkingInterfacePath.get.substring(0, getCLinkingInterfacePath.get.lastIndexOf(File.separator)) + "typechef_modules")
+        else None
 
     override def getInformationFlowGraphExtension: String = ""
 
@@ -16,7 +22,7 @@ abstract class CSPLliftTestOptions(interface: Option[String] = None) extends CSP
 
     override def getOutputLocation: String = ""
 
-    override def getCModuleInterfaceMergeDir: String = ""
+    override def getCLinkMapMergeDir: String = ""
 
     override def isIFDSEvaluationModeEnabled: Boolean = true
 

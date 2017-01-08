@@ -1,5 +1,9 @@
 package de.fosd.typechef.cspllift.options
 
+import java.io.File
+import java.util
+
+import de.fosd.typechef.options.Options.OptionGroup
 import de.fosd.typechef.options.{FrontendOptionsWithConfigFiles, OptionException, Options}
 import gnu.getopt.{Getopt, LongOpt}
 
@@ -35,7 +39,11 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def getCLinkingInterfacePath: Option[String] = cLinkingInterfacePath
 
-    override def getCModuleInterfaceMergeDir: String = cLinkingInterfaceMergeDir.getOrElse(getOutputStem)
+    override def getRootDir: Option[String] = // TODO Replace with clean function, this way only because of backwards compatibility
+        if (getCLinkingInterfacePath.isDefined) Some(getCLinkingInterfacePath.get.substring(0, getCLinkingInterfacePath.get.lastIndexOf(File.separator)))
+        else None
+
+    override def getCLinkMapMergeDir: String = cLinkingInterfaceMergeDir.getOrElse(getOutputStem)
 
     override def getInformationFLowGraphFilename: String = getOutputStem + getInformationFlowGraphExtension
 
@@ -73,13 +81,13 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
 
     override def getProfileType: Option[String] = None
 
-    override def getOptionGroups = {
+    override def getOptionGroups: util.ArrayList[OptionGroup] = {
         val r = super.getOptionGroups
 
         r.add(new Options.OptionGroup("General options for static IFDS data-flow analysis:", 100,
             new Options.Option("spllift", LongOpt.REQUIRED_ARGUMENT, F_SPLLIFT, "type",
                 "Enables the lifted analysis class: \n" +
-                  liftopts.map(o => " - " + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
+                  liftopts.map(o => "" + o.param + (if (o.dflt) "*" else "") + ": " + o.expl).mkString("\n") +
                   "\n(Analyses with * are activated by default)."
             ),
             new Options.Option("noFP", LongOpt.NO_ARGUMENT, F_NOFUNCTIONPOINTER, null, "Disable function pointer computation for call graph."),
@@ -114,7 +122,6 @@ class CInterAnalysisOptions extends FrontendOptionsWithConfigFiles with CSPLlift
         }
 
         if (c == F_LINKINTERFACE) {
-            checkFileExists(g.getOptarg)
             cLinkingInterfacePath = Some(g.getOptarg)
         } else if (c == F_MERGELINKINTERFACE) {
             checkDirectoryExists(g.getOptarg)

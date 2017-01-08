@@ -61,5 +61,5 @@ trait CSPLliftTestHelper extends TestHelper with Matchers {
 
     }
 
-    private def setDefaultLogging() = if (System.getProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY) == null) System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO")
+    private def setDefaultLogging() = {} //if (System.getProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY) == null) System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO")
 }

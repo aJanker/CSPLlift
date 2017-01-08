@@ -1,9 +1,10 @@
 package de.fosd.typechef.cspllift.commons
 
-import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.conditional.{Conditional, Opt}
 import de.fosd.typechef.crewrite.ProductDerivation
-import de.fosd.typechef.cspllift.evaluation.Sampling
+import de.fosd.typechef.customization.conditional.Sampling
 import de.fosd.typechef.error.Position
+import de.fosd.typechef.featureexpr.FeatureExprFactory.True
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, BDDNoFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
@@ -16,11 +17,56 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
 
     private var tmpVariablesCount = 0
 
+    def getIFDSRewriteRules: List[((TranslationUnit, FeatureModel) => TranslationUnit)] = List(
+        rewriteUndisciplinedVariability,
+        rewriteSingleStmtBranches,
+        rewriteCombinedCallAndExitStmts,
+        rewriteNestedFunctionCalls,
+        enforceSingleFunctionEntryPoint,
+        addReturnStmtsForNonReturnVoidExits
+    )
+
+    /**
+      * Rewrites branching statements which are not compound statements into compound statements.
+      */
+    def rewriteSingleStmtBranches[T <: Product](ast: T, fm: FeatureModel = BDDNoFeatureModel): T = {
+        val clone = everywherebu(rule[Product] {
+            // if (expr)
+            //      singleStmt causes problems for some data-flow analysis strategies
+            // to solve this, we write such expressions into:
+            // if (expr) {
+            //      singleStmt
+            // }
+            case i@IfStatement(_, thenBranch, _, _) if !thenBranch.forall(_.isInstanceOf[CompoundStatement]) =>
+                val c = i.copy(thenBranch = transformSingleStatementToCompoundStatment(thenBranch))
+                c.range = i.range
+                c
+            case i@IfStatement(_, _, _, Some(elseBranch)) if !elseBranch.forall(_.isInstanceOf[CompoundStatement]) =>
+                val c = i.copy(elseBranch = Some(transformSingleStatementToCompoundStatment(elseBranch)))
+                c.range = i.range
+                c
+            case w@WhileStatement(_, s) if !s.forall(_.isInstanceOf[CompoundStatement]) =>
+                val c = w.copy(s = transformSingleStatementToCompoundStatment(s))
+                c.range = w.range
+                c
+            case d@DoStatement(_, s) if !s.forall(_.isInstanceOf[CompoundStatement]) =>
+                val c = d.copy(s = transformSingleStatementToCompoundStatment(s))
+                c.range = d.range
+                c
+            case f@ForStatement(_, _, _, s) if !s.forall(_.isInstanceOf[CompoundStatement]) =>
+                val c = f.copy(s = transformSingleStatementToCompoundStatment(s))
+                c.range = f.range
+                c
+            case n: AST => n.clone()
+        })
+        clone(ast).get.asInstanceOf[T]
+    }
+
     /**
       * Rewrites all innerstatements of a function definition to enforce
       * a single entry point for analysis with IFDS/IDE.
       */
-    def enforceSingleFunctionEntryPoint[T <: Product](ast: T): T = {
+    def enforceSingleFunctionEntryPoint[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
         val astEnv = CASTEnv.createASTEnv(ast)
         filterAllASTElems[FunctionDef](ast).foldLeft(ast)((a, fDef) => {
             lazy val cond = astEnv.featureExpr(fDef)
@@ -40,7 +86,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
       * Adds a return statement for all function exit points which are no return statements (e.g. only applicable in void function).
       */
     def addReturnStmtsForNonReturnVoidExits[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
-        val astEnv = CASTEnv.createASTEnv(ast)
+        lazy val astEnv = CASTEnv.createASTEnv(ast)
 
         val voidFunctions = filterAllASTElems[FunctionDef](ast).filter(fDef => fDef.specifiers.exists(_.entry match {
             case v: VoidSpecifier => true
@@ -67,8 +113,8 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
       * Moves variability nested in CFG-Statements (undisciplined variability) up to the CFG Statement by code duplication.
       * We are otherwise unable to use CSPLlift as CSPLlift is only able to resolve variability on statement level but not below.
       */
-    def removeUndisciplinedVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
-        val astEnv = CASTEnv.createASTEnv(ast)
+    def rewriteUndisciplinedVariability[T <: Product](ast: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
+        lazy val astEnv = CASTEnv.createASTEnv(ast)
 
         val cfgStmts = getCFGStatements(ast)
         val replacements = cfgStmts.flatMap {
@@ -115,7 +161,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
 
         if (allReturnStatementsWithFunctionCall.isEmpty) return tunit
 
-        val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache with CDeclUse
+        val ts = new CTypeSystemFrontend(tunit, fm) with CTypeCache
         ts.checkASTSilent
 
         def extractExprFromReturnStatement(r: Opt[ReturnStatement]): List[Opt[Statement]] = {
@@ -153,7 +199,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
       * int foo = outer(tmp);
       */
     def rewriteNestedFunctionCalls[T <: Product](tunit: T, fm: FeatureModel = BDDFeatureModel.empty): T = {
-        def rewrite(nestedFCalls : List[FunctionCall], t : T) : T =
+        def rewrite(nestedFCalls: List[FunctionCall], t: T): T =
             if (nestedFCalls.isEmpty) t
             else {
                 val replacement = rewriteNestedFCalls(t, fm, nestedFCalls.head)
@@ -162,6 +208,18 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
             }
 
         rewrite(getNestedFunctionCalls(tunit), tunit)
+    }
+
+    private def transformSingleStatementToCompoundStatment(thenBranch: Conditional[Statement]): Conditional[CompoundStatement] = {
+        // transform single statements of then branch at if branch into compound statement
+        val clone = thenBranch.vmap(True, {
+            case (f, c: CompoundStatement) => c
+            case (f, s: Statement) =>
+                val c = CompoundStatement(List(Opt(f, s)))
+                c.range = s.range
+                c
+        })
+        clone
     }
 
     private def replaceFCallInTunit[T <: Product](tunit: T, replacement: (FunctionCall, FunctionCall, List[Opt[Statement]])): T = {
@@ -185,7 +243,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
     }
 
     private def rewriteNestedFCalls[T <: Product](tunit: T, fm: FeatureModel = BDDFeatureModel.empty, orgFCall: FunctionCall): (FunctionCall, FunctionCall, List[Opt[Statement]]) = {
-        val ts = new CTypeSystemFrontend(tunit.asInstanceOf[TranslationUnit], fm) with CTypeCache with CDeclUse
+        val ts = new CTypeSystemFrontend(tunit.asInstanceOf[TranslationUnit], fm) with CTypeCache
         val env = CASTEnv.createASTEnv(tunit)
         ts.checkASTSilent
 
@@ -216,14 +274,18 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
         case _ =>
     }
 
-
-    private def genTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
-        val tmpSpecifiers = getExprTypeSpecifiers(expr, ts)
+    private def genTmpDeclarationFromExpr(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache, namePrefix: String = "__SPLLIFT_TMP"): (String, Opt[DeclarationStatement]) = {
         val tmpName = namePrefix + tmpVariablesCount
-        val tmpNameDeclarator = AtomicNamedDeclarator(List(), Id(tmpName), List())
+        tmpVariablesCount += 1
+
+        val tmpSpecifiers = getExprTypeSpecifiers(expr, ts)
+        val tmpPointer = isPointer(expr, ts).toOptList.flatMap {
+            case Opt(_, false) => None
+            case Opt(ft, true) => Some(Opt(ft, Pointer(List())))
+        }
+        val tmpNameDeclarator = AtomicNamedDeclarator(tmpPointer, Id(tmpName), List())
         val tmpInitializer = Some(Initializer(None, expr.entry))
         val tmpInitDeclarator = List(Opt(expr.condition, InitDeclaratorI(tmpNameDeclarator, List(), tmpInitializer)))
-        tmpVariablesCount += 1
 
         val decl = DeclarationStatement(Declaration(tmpSpecifiers, tmpInitDeclarator))
 
@@ -232,7 +294,14 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
         (tmpName, Opt(expr.condition, decl))
     }
 
-    private def getExprTypeSpecifiers(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache with CDeclUse) = {
+    private def isPointer(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache): Conditional[Boolean] = {
+        ts.lookupExprType(expr.entry).map(_.atype match {
+            case CPointer(_) => true
+            case _ => false
+        })
+    }
+
+    private def getExprTypeSpecifiers(expr: Opt[Expr], ts: CTypeSystemFrontend with CTypeCache) = {
         def aTypeToASTTypeSpecifier(a: AType, condition: FeatureExpr = FeatureExprFactory.True): List[Opt[TypeSpecifier]] =
             a match {
                 case CSigned(b) => Opt(condition, SignedSpecifier()) :: basicTypeToASTTypeSpecifier(b, condition)
@@ -260,6 +329,7 @@ trait RewriteEngine extends ASTNavigation with ConditionalNavigation with Rewrit
                 case CInt() => List(Opt(condition, IntSpecifier()))
                 case CShort() => List(Opt(condition, ShortSpecifier()))
             }
+
         ts.lookupExprType(expr.entry).toOptList.flatMap(t => aTypeToASTTypeSpecifier(t.entry.atype, t.condition.and(expr.condition)))
     }
 

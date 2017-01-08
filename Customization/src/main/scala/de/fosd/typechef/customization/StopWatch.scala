@@ -17,20 +17,20 @@ import scala.collection.JavaConverters._
  */
 object StopWatch {
 
-    //necessary stuff to query for the process or thread cpu time or
+    //necessary stuff to query for the process or thread cpu time
     private val mbeanServer = ManagementFactory.getPlatformMBeanServer
     private val osMbean = new ObjectName(ManagementFactory.OPERATING_SYSTEM_MXBEAN_NAME)
     private val threadMXBean = ManagementFactory.getThreadMXBean
     private val PROCESS_CPU_TIME = "ProcessCpuTime"
 
-    private lazy val times: util.Map[(Int, String), Long] = new ConcurrentHashMap[(Int, String), Long]()
+    private val times: util.Map[(Int, String), Long] = new ConcurrentHashMap[(Int, String), Long]()
     private var currentPeriod: Int = 0
 
     private def getCurrentPeriod: Int = this.synchronized {
         currentPeriod += 1; currentPeriod
     }
 
-    def reset() = times.clear()
+    def reset(): Unit = times.clear()
 
     def measure[R](block: => R, takeTime: () => Long, convertToUnit: Long => Long = identity): (Long, R) = {
         val t0 = takeTime()
@@ -82,15 +82,14 @@ object StopWatch {
         writer
     }
 
-    override def toString = print(new StringWriter()).toString
+    override def toString: String = print(new StringWriter()).toString
 
     def print(writer: Writer): Writer = {
         def writeItem(w: Writer, item: (String, Long)) = w.append("\n(" + item._1 + "\t" + item._2 + ")")
+
         val items = getMeasurements
         if (items.nonEmpty) writer.append("#stopwatch timings:\n")
-        items.foldLeft(writer) {
-            writeItem
-        }
+        items.foldLeft(writer) { writeItem }
     }
 
     /**
@@ -102,11 +101,11 @@ object StopWatch {
       * @throws JMException If the operation is unsupported.
       */
     def readProcessCPUTime(): Long = {
-        val cputime: Long = mbeanServer.getAttribute(osMbean, PROCESS_CPU_TIME).asInstanceOf[Long]
+        val cpuTime: Long = mbeanServer.getAttribute(osMbean, PROCESS_CPU_TIME).asInstanceOf[Long]
 
-        if (cputime < 0) // value might be -1 if unsupported
+        if (cpuTime < 0) // value might be -1 if unsupported
             throw new JMException("Current platform does not support reading the process cpu time")
 
-        cputime
+        cpuTime
     }
 }

@@ -1,6 +1,6 @@
 package de.fosd.typechef.cspllift.cintercfg
 
-import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
+import de.fosd.typechef.customization.conditional.SimpleConfiguration
 
 /**
   * Configuration of the interprocedural control-flow graph for TypeChef IFDS connector.

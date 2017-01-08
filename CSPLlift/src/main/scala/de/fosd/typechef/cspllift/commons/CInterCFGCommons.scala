@@ -4,17 +4,18 @@ import java.io.{File, FileOutputStream, PrintWriter}
 import java.util
 import java.util.zip.GZIPOutputStream
 
+import de.fosd.typechef.cmodule.CModuleNamings
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.cintercfg.CICFGFDef
+import de.fosd.typechef.cspllift.cintercfg.CInterCFGFDef
 import de.fosd.typechef.customization.crewrite.AssignDeclDefUse
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c.{DeclParameterDeclList, ParameterDeclarationD, _}
 
 import scala.collection.JavaConverters._
 
-trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with ConditionalNavigation with RewriteEngine {
+trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with ConditionalNavigation with RewriteEngine with CModuleNamings {
 
-    def writeStringToGZipFile(output : String, destination : String) = {
+    def writeStringToGZipFile(output: String, destination: String): Unit = {
         val fw = new PrintWriter(new GZIPOutputStream(new FileOutputStream(destination + ".gz")))
         fw.write(output)
         fw.close()
@@ -26,13 +27,12 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
             case Some(path) => Some(getPlainFileNameS(path))
         }
 
-    def getPlainFileName(ast: AST, default: String = "NOFILENAME_AST"): String = getPlainFileNameS(ast.getFile.getOrElse(default))
+    def getPlainFileName(ast: AST, default: String = NO_FILENAME): String = getPlainFileNameS(ast.getFile.getOrElse(default))
 
-    def getPlainFileNameS(str: String, default: String = "NOFILENAME"): String = {
+    def getPlainFileNameS(str: String, default: String = NO_FILENAME): String = {
         if (str.equalsIgnoreCase(default)) return default
 
-        val filePrefix = "file "
-        val prefixFree = if (str.startsWith(filePrefix)) str.substring(filePrefix.length) else str
+        val prefixFree = if (str.startsWith(TYPECHEF_FILE_PREFIX)) str.substring(TYPECHEF_FILE_PREFIX.length) else str
         val index = prefixFree.lastIndexOf(File.separatorChar)
         val fName = if (index != -1) prefixFree.substring(index + 1) else prefixFree
         val extensionIndex = fName.lastIndexOf('.')
@@ -42,10 +42,9 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
     }
 
     def getPath(str: String): String = {
-        val filePrefix = "file "
-        val prefixFree = if (str.startsWith(filePrefix)) str.substring(filePrefix.length) else str
+        val prefixFree = if (str.startsWith(TYPECHEF_FILE_PREFIX)) str.substring(TYPECHEF_FILE_PREFIX.length) else str
         val index = prefixFree.lastIndexOf(File.separatorChar)
-        prefixFree.substring(0, index)
+        if (index > 0) prefixFree.substring(0, index) else prefixFree
     }
 
     /*
@@ -83,7 +82,7 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
         (group.reverse :: groups).reverse
     }
 
-    def getCalleeParameters(fDef: CICFGFDef): List[Opt[ParameterDeclarationD]] = getCalleeParameters(fDef.method)
+    def getCalleeParameters(fDef: CInterCFGFDef): List[Opt[ParameterDeclarationD]] = getCalleeParameters(fDef.method)
 
     def getCalleeParameters(fDef: Opt[FunctionDef]): List[Opt[ParameterDeclarationD]] = getCalleeParameters(fDef.entry)
 
@@ -97,7 +96,7 @@ trait CInterCFGCommons extends AssignDeclDefUse with ASTNavigation with Conditio
             case _ => None
         }
 
-    def getPointerFDefParamNames(fDef: CICFGFDef): List[Opt[Id]] = getPointerFDefParamNames(fDef.method)
+    def getPointerFDefParamNames(fDef: CInterCFGFDef): List[Opt[Id]] = getPointerFDefParamNames(fDef.method)
     def getPointerFDefParamNames(fDef: Opt[FunctionDef]): List[Opt[Id]] = getPointerFDefParamNames(fDef.entry)
     def getPointerFDefParamNames(fDef: FunctionDef): List[Opt[Id]] = {
         def andAll(a: FeatureExpr, b: Opt[_]): FeatureExpr = a.and(b.condition)

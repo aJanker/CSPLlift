@@ -8,7 +8,7 @@ import de.fosd.typechef.cspllift.cifdsproblem.CIFDSProblem
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorsource._
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfunction.{IFCallFlowFunction, IFDefaultFlowFunction}
-import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CInterCFG}
+import de.fosd.typechef.cspllift.cintercfg._
 import de.fosd.typechef.parser.c._
 import heros.{FlowFunction, FlowFunctions}
 import org.slf4j.{Logger, LoggerFactory}
@@ -32,7 +32,7 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    private lazy val zero: InformationFlowFact = Zero()
+    private val zero: InformationFlowFact = Zero()
 
     override def zeroValue(): InformationFlowFact = zero
 
@@ -40,8 +40,8 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
       * Returns initial seeds to be used for the analysis. This is a mapping of statements to initial analysis facts.
       * We consider global variables as initial sources.
       */
-    override def initialSeeds(): util.Map[CICFGNode, util.Set[InformationFlowFact]] = {
-        val initialSeeds = new util.HashMap[CICFGNode, util.Set[InformationFlowFact]]()
+    override def initialSeeds(): util.Map[CInterCFGNode, util.Set[InformationFlowFact]] = {
+        val initialSeeds = new util.HashMap[CInterCFGNode, util.Set[InformationFlowFact]]()
 
         interproceduralCFG.getEntryFunctions.foreach {
             entryFunction => interproceduralCFG.getStartPointsOf(entryFunction).asScala.foreach(initialSeeds.put(_, GEN(zeroValue() :: globalSources)))
@@ -57,9 +57,9 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
       * <b>NOTE:</b> this method could be called many times. Implementations of this
       * interface should therefore cache the return value!
       */
-    override def flowFunctions(): FlowFunctions[CICFGNode, InformationFlowFact, CICFGFDef] = flowFunctionFactory
+    override def flowFunctions(): FlowFunctions[CInterCFGNode, InformationFlowFact, CInterCFGFDef] = flowFunctionFactory
 
-    private lazy val flowFunctionFactory: FlowFunctions[CICFGNode, InformationFlowFact, CICFGFDef] = new FlowFunctions[CICFGNode, InformationFlowFact, CICFGFDef] {
+    private lazy val flowFunctionFactory: FlowFunctions[CInterCFGNode, InformationFlowFact, CInterCFGFDef] = new FlowFunctions[CInterCFGNode, InformationFlowFact, CInterCFGFDef] {
 
         /**
           * Returns the flow function that computes the flow for a normal statement,
@@ -72,7 +72,7 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
           * be used to compute a branched analysis that propagates
           * different values depending on where controlflow branches.
           */
-        override def getNormalFlowFunction(curr: CICFGNode, succ: CICFGNode): FlowFunction[InformationFlowFact] = {
+        override def getNormalFlowFunction(curr: CInterCFGNode, succ: CInterCFGNode): FlowFunction[InformationFlowFact] = {
             new IFDefaultFlowFunction(interproceduralCFG, curr, succ) {
                 override def computeStruct(source: Source): util.Set[InformationFlowFact] = {
                     assert(source.getType.isInstanceOf[Struct], "Computation source must be a struct.")
@@ -183,15 +183,15 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
           * @param destinationMethod
           * The concrete target method for which the flow is computed.
           */
-        override def getCallFlowFunction(callStmt: CICFGNode, destinationMethod: CICFGFDef): FlowFunction[InformationFlowFact] = {
-            lazy val flowCondition = interproceduralCFG.getPointsToCondition(callStmt, destinationMethod).and(callStmt.getStmt.condition)
+        override def getCallFlowFunction(callStmt: CInterCFGNode, destinationMethod: CInterCFGFDef): FlowFunction[InformationFlowFact] = {
+            lazy val flowCondition = interproceduralCFG.getPointsToCondition(callStmt, destinationMethod)
             lazy val destinationEnv = interproceduralCFG().getASTEnv(destinationMethod)
-            lazy val destinationOpt = parentOpt(destinationMethod.getStmt.entry, destinationEnv).asInstanceOf[Opt[FunctionDef]]
+            lazy val destinationOpt = parentOpt(destinationMethod.get, destinationEnv).asInstanceOf[Opt[FunctionDef]]
 
             if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && destinationMethod.method.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                 return pseudoSystemFunctionCallCallFlowFunction(callStmt, interproceduralCFG.getASTEnv(callStmt), interproceduralCFG)
 
-            def addCallToCallGraph() = SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).getStmt.asInstanceOf[Opt[FunctionDef]]), Node(destinationOpt), flowCondition))
+            def addCallToCallGraph() = SuperCallGraph.addEge(Edge(Node(interproceduralCFG.getMethodOf(callStmt).method), Node(destinationOpt), flowCondition))
 
             new IFCallFlowFunction(interproceduralCFG, callStmt, destinationMethod) {
                 override def computeZero(z: Zero): util.Set[InformationFlowFact] = {
@@ -293,16 +293,16 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
           * does not contain a caller for the method that is returned from.
           * @return
           */
-        override def getReturnFlowFunction(callSite: CICFGNode, calleeMethod: CICFGFDef, exitStmt: CICFGNode, returnSite: CICFGNode): FlowFunction[InformationFlowFact] = {
+        override def getReturnFlowFunction(callSite: CInterCFGNode, calleeMethod: CInterCFGFDef, exitStmt: CInterCFGNode, returnSite: CInterCFGNode): FlowFunction[InformationFlowFact] = {
             if (interproceduralCFG.getOptions.pseudoVisitingSystemLibFunctions && calleeMethod.method.entry.getName.equalsIgnoreCase(SPLLIFT_PSEUDO_SYSTEM_FUNCTION_CALL_NAME))
                 return pseudoSystemFunctionCallReturnFlow
 
             lazy val fCall = filterASTElems[FunctionCall](callSite)
-            lazy val fCallOpt = parentOpt(callSite.getStmt.entry, interproceduralCFG.getASTEnv(callSite)).asInstanceOf[Opt[AST]]
-            lazy val exitOpt = parentOpt(exitStmt.getStmt.entry, interproceduralCFG.getASTEnv(exitStmt)).asInstanceOf[Opt[AST]]
+            lazy val fCallOpt = parentOpt(callSite.get, interproceduralCFG.getASTEnv(callSite)).asInstanceOf[Opt[AST]]
+            lazy val exitOpt = parentOpt(exitStmt.get, interproceduralCFG.getASTEnv(exitStmt)).asInstanceOf[Opt[AST]]
             lazy val pointerParamNames = getPointerFDefParamNames(calleeMethod.method)
 
-            exitStmt.getStmt.entry match {
+            exitStmt.get match {
                 case ReturnStatement(_) =>
                 case _ => if (logger.isDebugEnabled) logger.debug("Exiting " + calleeMethod.method.entry.getName + " without return statement.")
             }
@@ -313,7 +313,7 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
                 call.map((_, ret))
             }
 
-            lazy val assignments = assignsReturnVariablesTo(callSite.getStmt.entry, exitStmt.getStmt.entry)
+            lazy val assignments = assignsReturnVariablesTo(callSite.get, exitStmt.get)
 
             new IFDefaultFlowFunction(interproceduralCFG, exitStmt, callSite) {
                 override def computeStruct(source: Source): util.Set[InformationFlowFact] = {
@@ -354,8 +354,8 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
                             val scopes = getCurrentScope(assignee)
 
                             val sourceType =
-                                if (assignsField(callSite.getStmt).isEmpty) List(Variable(assignee))
-                                else assignsField(callSite.getStmt).flatMap(field => genSourceForField(field._1, field._2, scopes).map(_.getType)) // variable to struct field
+                                if (assignsField(callSite.get).isEmpty) List(Variable(assignee))
+                                else assignsField(callSite.get).flatMap(field => genSourceForField(field._1, field._2, scopes).map(_.getType)) // variable to struct field
 
                             val sources = sourceType.flatMap { st =>
                                 scopes.flatMap(scope => {
@@ -396,7 +396,7 @@ class InformationFlowProblem(cICFG: CInterCFG, globalSources: List[InformationFl
           * exceptional flow, this may actually be the start of an
           * exception handler.
           */
-        override def getCallToReturnFlowFunction(callSite: CICFGNode, returnSite: CICFGNode): FlowFunction[InformationFlowFact] = {
+        override def getCallToReturnFlowFunction(callSite: CInterCFGNode, returnSite: CInterCFGNode): FlowFunction[InformationFlowFact] = {
             new IFDefaultFlowFunction(interproceduralCFG, callSite, returnSite) {
                 private def computeSource(source: Source): util.Set[InformationFlowFact] = source match {
                     case cs: Source if cs.getScope == SCOPE_GLOBAL => KILL // Kill this fact, as it is handled at return flow

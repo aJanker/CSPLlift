@@ -6,7 +6,7 @@ import java.util.Collections
 import de.fosd.typechef.cspllift.IFDSProblem
 import de.fosd.typechef.cspllift.cintercfg.CInterCFG
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
-import de.fosd.typechef.cspllift.evaluation.SimpleConfiguration
+import de.fosd.typechef.customization.conditional.SimpleConfiguration
 
 import scala.collection.JavaConverters._
 
@@ -33,6 +33,14 @@ trait CFlowFact extends Cloneable with Product with Serializable {
     def isEvaluationFact: Boolean
 
     def toText: String
+}
+
+trait CDefaultFlowFact extends CFlowFact {
+    def isEquivalentTo(other: CFlowFact, configuration: SimpleConfiguration): Boolean = false
+
+    def isEvaluationFact: Boolean = false
+
+    def toText: String = toString
 }
 
 trait CFlowOperations[D <: CFlowFact] extends CFlowConstants {

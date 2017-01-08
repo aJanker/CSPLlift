@@ -18,11 +18,18 @@ int main() {
     int secret = 2;
 #endif
 
-    int dafuq;
+    int dafuq = 3;
+
+    int key = dafuq;
+
+    int value = dafuq;
 
     int sink1 = foo();
     int sink2 = secret;
 
+    if (dafuq) {
+        int x = pseudo(key);
+    }
 
     return;
 }

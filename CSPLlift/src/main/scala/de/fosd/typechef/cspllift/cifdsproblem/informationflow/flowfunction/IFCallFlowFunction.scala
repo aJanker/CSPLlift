@@ -1,8 +1,9 @@
 package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfunction
 
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.cspllift.cintercfg.{CICFGFDef, CICFGNode, CInterCFG}
+import de.fosd.typechef.cspllift.cintercfg._
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
@@ -10,14 +11,14 @@ import scala.collection.JavaConverters._
 /**
   * Adds additional methods for call and callee parameter matching requiered at call-flow edges.
   */
-abstract class IFCallFlowFunction(interproceduralCFG: CInterCFG, callStmt: CICFGNode, destinationMethod: CICFGFDef) extends IFDefaultFlowFunction(interproceduralCFG, callStmt, destinationMethod) {
+abstract class IFCallFlowFunction(interproceduralCFG: CInterCFG, callStmt: CInterCFGNode, destinationMethod: CInterCFGFDef) extends IFDefaultFlowFunction(interproceduralCFG, callStmt, destinationMethod) {
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
-    lazy val destinationStmt = interproceduralCFG.getSuccsOf(destinationMethod).asScala.headOption.getOrElse(destinationMethod)
-    lazy val destinationTS = interproceduralCFG.getTS(destinationStmt)
-    lazy val destinationVarEnv = destinationTS.lookupEnv(destinationStmt.getStmt.entry)
-    lazy val fCallParamsToFDefParams = matchCallParamsToDefParams(fCallExprs, calleeParams)
-    private lazy val fCall = filterASTElems[FunctionCall](callStmt.getStmt.entry).head
+    private[informationflow] lazy val destinationStmt: CInterCFGNode = interproceduralCFG.getSuccsOf(destinationMethod).asScala.headOption.getOrElse(destinationMethod)
+    private[informationflow] lazy val destinationTS: CTypeSystemFrontend with CTypeCache with CDeclUse = interproceduralCFG.getTS(destinationStmt)
+    private[informationflow] lazy val destinationVarEnv = destinationTS.lookupEnv(destinationStmt.get)
+    private[informationflow] lazy val fCallParamsToFDefParams: List[(List[Opt[Expr]], List[Opt[ParameterDeclarationD]])] = matchCallParamsToDefParams(fCallExprs, calleeParams)
+    private lazy val fCall = filterASTElems[FunctionCall](callStmt.get).head
     private lazy val fCallExprs = fCall.params.exprs
     private lazy val calleeParams = getCalleeParameters(destinationMethod.method)
 

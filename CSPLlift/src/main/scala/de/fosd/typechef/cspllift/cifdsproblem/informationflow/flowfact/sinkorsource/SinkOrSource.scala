@@ -2,6 +2,6 @@ package de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.sinkorso
 
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.InformationFlowFactOperations
 import de.fosd.typechef.cspllift.cifdsproblem.informationflow.flowfact.InformationFlowFact
-import de.fosd.typechef.cspllift.cintercfg.CICFGNode
+import de.fosd.typechef.cspllift.cintercfg.CInterCFGNode
 
-abstract class SinkOrSource(val cICFGStmt: CICFGNode) extends InformationFlowFact with InformationFlowFactOperations
+abstract class SinkOrSource(val cfgNode: CInterCFGNode) extends InformationFlowFact with InformationFlowFactOperations

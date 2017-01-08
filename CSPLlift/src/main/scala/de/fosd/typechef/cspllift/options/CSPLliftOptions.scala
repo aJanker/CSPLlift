@@ -8,12 +8,14 @@ trait CSPLliftOptions {
     def includeHeaderVariability : Boolean
 
     def getCLinkingInterfacePath: Option[String]
+    def getRootDir: Option[String]
     def getInformationFlowGraphExtension: String
     def getInformationFLowGraphFilename: String
     def getInformationFlowGraphsOutputDir: String
     def getVariantsOutputDir: String
     def getOutputLocation: String
-    def getCModuleInterfaceMergeDir: String
+
+    def getCLinkMapMergeDir: String
 
     def isIFDSEvaluationModeEnabled: Boolean
 

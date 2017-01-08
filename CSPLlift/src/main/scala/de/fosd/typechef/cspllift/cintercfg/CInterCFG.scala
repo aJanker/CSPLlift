@@ -1,61 +1,66 @@
 package de.fosd.typechef.cspllift.cintercfg
 
 import java.util
+import java.util.concurrent.ConcurrentHashMap
 
+import de.fosd.typechef.cmodule.CModule
 import de.fosd.typechef.conditional.Opt
-import de.fosd.typechef.crewrite._
+import de.fosd.typechef.crewrite.{CFG, IntraCFG}
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, FeatureModel}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.typesystem.linker.SystemLinker
-import de.fosd.typechef.typesystem.{CDeclUse, CTypeCache, CTypeSystemFrontend}
-import heros.InterproceduralCFG
+import de.fosd.typechef.typesystem.CTypeSystemFrontend
+import de.fosd.typechef.typesystem.modulelinking.CLinkingExtractor
 import org.slf4j.{Logger, LoggerFactory}
 import spllift.ConditionalEdgeFunction
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 /**
-  * Extensions to the InterproceduralCFG of the IFDS Framework used in TypeChef
+  * Connector between the interprocedural CFG requiered by Heros/SPLLift and the TypeChef implementation of
+  * the call graph and intraprocedural CFG. Note: variability lower than a CFG statement is not supported,
+  * therefore the input AST must be rewritten to remove undisciplined variability.
   */
-trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
+class CInterCFG(cModuleEnv: CModule, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration, benchmarkTag: Option[String] = None) extends CIFDSInterCFG[CInterCFGNode, CInterCFGFDef] with IntraCFG with CInterCFGCommons {
+
+    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
+
+    private val cInterCFGVisitedNodes = java.util.Collections.newSetFromMap[CInterCFGNode](new ConcurrentHashMap()) asScala
 
     /**
       * Returns all functions which are considered entry functions in the programm flow (such as main)
       */
-    def getEntryFunctions: List[M]
+    override def getEntryFunctions: List[CInterCFGFDef] = getModuleEnv.getCallGraph.getEntryFunctions.map(CInterCFGFDef)
 
     /**
       * Retrieves the TypeChef FeatureModel
       */
-    def getFeatureModel: FeatureModel
+    override def getFeatureModel: FeatureModel = getModuleEnv.getFeatureModel
 
     /**
       * Retrieves the configuration options of the cfg.
       */
-    def getOptions: CInterCFGConfiguration
+    override def getOptions: CInterCFGConfiguration = options
 
     /**
       * Retrieves the cfg contraint of a given node.
       */
-    def getCondition(node: N): FeatureExpr
+    override def getCondition(node: CInterCFGNode): FeatureExpr = getModuleEnv.getCondition(node.get)
 
     /**
       * Gets the context of a given node.
       */
-    def getASTEnv(node: N): ASTEnv
+    override def getASTEnv(node: CInterCFGNode): ASTEnv = getModuleEnv.getASTEnv(node.get)
 
     /**
       * Gets the translationunit containing a node.
       */
-    def getTUnit(node: N): TranslationUnit
+    override def getTUnit(node: CInterCFGNode): TranslationUnit = getModuleEnv.getTranslationUnit(node.get)
 
     /**
       * Gets the typesystem of a given node.
       */
-    def getTS(node: N): CTypeSystemFrontend with CTypeCache with CDeclUse
+    override def getTS(node: CInterCFGNode): CTypeSystemFrontend with CLinkingExtractor = getModuleEnv.getTypeSystem(node.get)
 
     /**
       * Gets the correctly annotated (lifted) call edge condition between a call site and its corresponding target callee.
@@ -65,15 +70,23 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
       * @param callee   the target of the call
       * @return the correct points to flow constraint
       */
-    def getPointsToCondition(callSite: N, callee: M): FeatureExpr
+    override def getPointsToCondition(callSite: CInterCFGNode, callee: CInterCFGFDef): FeatureExpr = {
+        val destinations = getModuleEnv.getCallGraph.getCalleesOfCallAt(callSite.get)
+        val dest = destinations.find(d => d.getOpt.entry eq callee.get)
+
+        if (dest.isDefined) dest.get.pointsToCondition
+        else FeatureExprFactory.False
+    }
 
     /**
       * Gets the correctly annotated (lifted) call edge function for a single statement.
       * With the use of this method, SPLlift is able to introduce initial seeds according to their presence conditions
+      *
       * @param stmt the statement (generally a global variable)
       * @return the correct conditional flow edge
       */
-    def getConditionalEdgeFunction(stmt: CICFGNode) : ConditionalEdgeFunction
+    override def getConditionalEdgeFunction(stmt: CInterCFGNode): ConditionalEdgeFunction =
+        new ConditionalEdgeFunction(getModuleEnv.getCondition(stmt.get), getModuleEnv.getFeatureModel, false)
 
     /**
       * Gets the correctly annotated (lifted) call edge function between a call site and its corresponding target callee.
@@ -83,102 +96,79 @@ trait CInterproceduralCFG[N, M] extends InterproceduralCFG[N, M] {
       * @param callee   the target of the call
       * @return the correct points-to conditional flow edge
       */
-    def getConditionalEdgeFunction(callSite: N, callee: M) : ConditionalEdgeFunction
+    override def getConditionalEdgeFunction(callSite: CInterCFGNode, callee: CInterCFGFDef): ConditionalEdgeFunction =
+        new ConditionalEdgeFunction(getPointsToCondition(callSite, callee), getModuleEnv.getFeatureModel, false)
 
     /**
       * Gets the full flow condition between a source node and its successor node.
       *
-      * @param srcStmt the source statement
-      * @param succStmt  the successor statement
+      * @param srcStmt  the source statement
+      * @param succStmt the successor statement
       * @return the correct flow constraint
       */
-    def getFlowCondition(srcStmt: N, succStmt: N): FeatureExpr
-}
+    override def getSuccFlowCondition(srcStmt: CInterCFGNode, succStmt: CInterCFGNode): FeatureExpr = getFlowCondition(srcStmt, succStmt, succ)
 
-class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.empty, options: CInterCFGConfiguration = new DefaultCInterCFGConfiguration, benchmarkTag : Option[String] = None)
-  extends CInterproceduralCFG[CICFGNode, CICFGFDef] with IntraCFG with CInterCFGCommons with CInterCFGElementsCache {
-
-    private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
-
-    private val cInterCFGVisitedNodes = new mutable.HashSet[CICFGNode]()
-
-    override val cInterCFGElementsCacheEnv: CInterCFGElementsCacheEnv = new CInterCFGElementsCacheEnv(startTunit, fm, options, benchmarkTag)
-
-    override def getEntryFunctions =
-        filterAllASTElems[FunctionDef](cInterCFGElementsCacheEnv.startTUnit) filter {
-            fdef => options.getGraphEntryFunctionNames.exists(fdef.getName.equalsIgnoreCase)
-        } map {
-            fdef => CICFGFDef(Opt(getASTEnv(fdef).featureExpr(fdef), fdef))
-        }
-
-    override def getFeatureModel = fm
-
-    override def getOptions = options
-
-    override def getCondition(node: CICFGNode): FeatureExpr = node.getStmt.condition
-
-    override def getFlowCondition(currStmt: CICFGNode, succStmt: CICFGNode): FeatureExpr = succStmt.getCondition.and(currStmt.getCondition)
-
-    override def getConditionalEdgeFunction(currStmt: CICFGNode, callee: CICFGFDef) : ConditionalEdgeFunction = new ConditionalEdgeFunction(getPointsToCondition(currStmt, callee), getFeatureModel, false)
-
-    override def getConditionalEdgeFunction(stmt: CICFGNode) : ConditionalEdgeFunction = new ConditionalEdgeFunction(stmt.getCondition, getFeatureModel, false)
-
-    override def getPointsToCondition(callSite: CICFGNode, callee: CICFGFDef): FeatureExpr = {
-        val pointsTo = getCalleesOfCallAtS(callSite).find(pointTo => pointTo.method.entry.equals(callee.method.entry)).getOrElse(callee)
-
-        val callCond = getASTEnv(callSite.getStmt.entry).featureExpr(callSite.getStmt.entry)
-        val calleeCond = pointsTo.getCondition
-
-        calleeCond.and(callCond)
-    }
-
-    override def getASTEnv(node: CICFGNode): ASTEnv = getASTEnv(node.getStmt.entry)
-
-    private def getASTEnv(node: AST): ASTEnv =
-        getEnv(node) match {
-            case Some(env) => env
-            case _ => throw new NoSuchElementException("No env found for node: " + node)
-        }
-
-    override def getTUnit(node: CICFGNode): TranslationUnit = getTUnit(node.getStmt.entry)
-
-    private def getTUnit(node: AST): TranslationUnit =
-        getTranslationUnit(node) match {
-            case Some(tunit) => tunit
-            case _ => throw new NoSuchElementException("No tunit found for node: " + node)
-        }
-
-    override def getTS(node: CICFGNode): CTypeSystemFrontend with CTypeCache with CDeclUse = getTS(node.getStmt.entry)
-
-    private def getTS(node: AST): CTypeSystemFrontend with CTypeCache with CDeclUse =
-        getTypeSystem(node) match {
-            case Some(ts) => ts
-            case _ => throw new NoSuchElementException("No TypeSystem found for node: " + node)
-        }
+    /**
+      * Gets the full flow condition between a source node and its successor node.
+      *
+      * @param srcStmt  the source statement
+      * @param predStmt the predcessor statement
+      * @return the correct flow constraint
+      */
+    override def getPredFlowCondition(srcStmt: CInterCFGNode, predStmt: CInterCFGNode): FeatureExpr = getFlowCondition(srcStmt, predStmt, pred)
 
     /**
       * Returns the method containing a node.
       *
       * @param node The node for which to get the parent method
       */
-    override def getMethodOf(node: CICFGNode): CICFGFDef = {
+    override def getMethodOf(node: CInterCFGNode): CInterCFGFDef = {
         val env = getASTEnv(node)
-        findPriorASTElem[FunctionDef](node.getStmt.entry, env) match {
-            case Some(f: FunctionDef) => CICFGFDef(Opt(env.featureExpr(f), f))
+        findPriorASTElem[FunctionDef](node.get, env) match {
+            case Some(f: FunctionDef) => CInterCFGFDef(Opt(getModuleEnv.getCondition(f), f))
             case _ => throw new NoSuchElementException("No prior function found for node: " + node)
         }
     }
 
     /**
-      * Returns whether succ is a branch target of stmt.
+      * Returns the predecessor nodes.
       */
-    override def isBranchTarget(stmt: CICFGNode, suc: CICFGNode): Boolean = !isFallThroughSuccessor(stmt, suc)
+    override def getPredsOf(node: CInterCFGNode): util.List[CInterCFGNode] = getPredsOfS(node).asJava
+
+    /**
+      * Returns the successor nodes.
+      */
+    override def getSuccsOf(node: CInterCFGNode): util.List[CInterCFGNode] = getSuccsOfS(node).asJava
+
+    /**
+      * Returns all callee methods for a given call.
+      */
+    override def getCalleesOfCallAt(node: CInterCFGNode): util.Collection[CInterCFGFDef] = {
+        val destinations = getModuleEnv.getCallGraph.getCalleesOfCallAt(node.get)
+        if (!isRecursiveCall(node)) destinations.map(dest => CInterCFGFDef(dest.getOpt)).asJava
+        else util.Collections.emptySet()
+    }
 
     /**
       * Returns all caller statements/nodes of a given method.
       */
-    override def getCallersOf(m: CICFGFDef): util.Set[CICFGNode] =
-    throw new UnsupportedOperationException("Reverse lookup of calling origins is not supported by TypeChef.")
+    override def getCallersOf(method: CInterCFGFDef) =
+        throw new UnsupportedOperationException("Reverse lookup of calling origins is not supported by TypeChef.")
+
+    /**
+      * Returns all call sites within a given method.
+      */
+    override def getCallsFromWithin(method: CInterCFGFDef): util.Set[CInterCFGNode] = {
+        val callsWithIn = filterAllASTElems[PostfixExpr](method.method.entry.stmt.innerStatements).map(call =>
+            CInterCFGStmt(getCFGPresenceNode(call).entry)).filter(isCallStmt)
+        asJavaIdentitySet(callsWithIn)
+    }
+
+    /**
+      * Returns true is this is a method's start statement. For backward analyses
+      * those may also be return or throws statements.
+      */
+    override def getStartPointsOf(method: CInterCFGFDef): util.Collection[CInterCFGNode] = getSuccsOfS(method).asJava
 
     /**
       * Returns all statements to which a call could return.
@@ -186,140 +176,52 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * We, however, use as return site the successor statements, of which
       * there can be many in case of exceptional flow.
       */
-    override def getReturnSitesOfCallAt(node: CICFGNode): util.List[CICFGNode] =
-    if (isCallStmt(node)) getSuccsOf(node)
-    else java.util.Collections.emptyList[CICFGNode]
+    override def getReturnSitesOfCallAt(node: CInterCFGNode): util.Collection[CInterCFGNode] = getSuccsOf(node)
 
-    /**
-      * Returns all callee methods for a given call.
-      */
-    override def getCalleesOfCallAt(call: CICFGNode): util.Set[CICFGFDef] = {
-        val satCallees = getCalleesOfCallAtS(call).map(getOriginalOptCalleeNode).filter(callee => getPointsToCondition(call, callee).and(call.getCondition).isSatisfiable())
-        asJavaIdentitySet(satCallees)
+    private def isRecursiveCall(node: CInterCFGNode) : Boolean = {
+        val method = getMethodOf(node)
+        val callees = getModuleEnv.getCallGraph.getCalleesOfCallAt(node.get)
+        callees.exists(_.getFDef.getName.equalsIgnoreCase(method.getMethod.entry.getName))
     }
 
     /**
-      * Every callee found by the function getCalleesOfCallAtS has the presence condition of its flow condition but not of its original presence condition within the ast.
-      * SPLlift requieres for a sound result the callee orignal node!
+      * Returns <code>true</code> if the given statement is a call site.
       */
-    private def getOriginalOptCalleeNode(callee: CICFGFDef): CICFGFDef = callee.copy(method = parentOpt(callee.method.entry, getASTEnv(callee)).asInstanceOf[Opt[FunctionDef]])
+    override def isCallStmt(node: CInterCFGNode): Boolean = getModuleEnv.getCallGraph.isFunctionCall(node.get) && !isRecursiveCall(node)
 
-    private def getCalleesOfCallAtS(call: CICFGNode): List[CICFGFDef] = {
-        if (!isCallStmt(call)) return List[CICFGFDef]()
-
-        val calleeNames = getCalleeNames(call)
-        val tunit = getTUnit(call)
-
-        val callees =
-            if (calleeNames.nonEmpty) calleeNames.flatMap(findCallees(_, tunit))
-            else filterAllASTElems[PostfixExpr](call.getStmt).flatMap {
-                case PostfixExpr(pointer, FunctionCall(_)) => getFunctionPointerDestNames(pointer).flatMap(findCallees(_, tunit))
-                case _ => None
-            }
-
-        if (callees.isEmpty && logger.isDebugEnabled) logger.debug("No function destinations found for:\t" + call)
-
-        callees
+    /**
+      * Returns <code>true</code> if the given statement leads to a method return
+      * (exceptional or not). For backward analyses may also be start statements.
+      */
+    override def isExitStmt(node: CInterCFGNode): Boolean = {
+        val succs = succ(node.get, getASTEnv(node))
+        if (succs.isEmpty) true
+        else succs.exists {
+            case Opt(_, f: FunctionDef) => true
+            case _ => false
+        }
     }
 
     /**
       * Returns true is this is a method's start statement. For backward analyses
       * those may also be return or throws statements.
       */
-    override def isStartPoint(stmt: CICFGNode): Boolean = {
-        val preds = pred(stmt.getStmt.entry, getASTEnv(stmt))
+    override def isStartPoint(node: CInterCFGNode): Boolean = {
+        val preds = pred(node.get, getASTEnv(node))
         if (preds.isEmpty) true
         else preds.exists {
-            case Opt(_, f: FunctionDef) => true // check for variability
+            case Opt(_, f: FunctionDef) => true
             case _ => false
         }
     }
 
     /**
-      * Returns all start points of a given method. There may be
-      * more than one start point in case of a backward analysis.
-      */
-    override def getStartPointsOf(fDef: CICFGFDef): util.Set[CICFGNode] = asJavaIdentitySet(getSuccsOf(fDef))
-
-    /**
-      * Returns if for a given pointer expression a corresponding function definition exists
-      */
-    private def hasDestination(pointer: Expr): Boolean = {
-        val destNames = getFunctionPointerDestNames(pointer)
-
-        if (destNames.isEmpty && logger.isDebugEnabled) logger.debug("No function pointer destination found for: " + pointer + " @ " + pointer.getPositionFrom + "\n" + PrettyPrinter.print(pointer))
-
-        destNames.nonEmpty
-    }
-
-    /**
-      * Returns <code>true</code> if the given statement is a call site.
-      */
-    override def isCallStmt(cICFGStmt: CICFGNode): Boolean =
-    filterAllASTElems[PostfixExpr](cICFGStmt.getStmt).exists {
-        case PostfixExpr(Id(name), FunctionCall(_)) => !isRecursive(name, cICFGStmt)
-        case PostfixExpr(pointer, FunctionCall(_)) => hasDestination(pointer)
-        case _ => false
-    }
-
-    /**
-      * Returns the successor nodes.
-      */
-    override def getSuccsOf(cICFGStmt: CICFGNode): util.List[CICFGNode] = {
-        val succs = getSuccsOfS(cICFGStmt)
-        cInterCFGVisitedNodes.++=(succs)
-        succs.asJava
-    }
-
-    private def getSuccsOfS(cICFGStmt: CICFGNode): List[CICFGNode] = getCFGElements(succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
-
-    /**
-      * Returns the predecessor nodes.
-      */
-    override def getPredsOf(cICFGStmt: CICFGNode): util.List[CICFGNode] = {
-        val preds = getPredsOfS(cICFGStmt)
-        cInterCFGVisitedNodes.++=(preds)
-        preds.asJava
-    }
-
-    private def getPredsOfS(cICFGStmt: CICFGNode): List[CICFGNode] = getCFGElements(pred(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)))
-
-    private def getCFGElements(elements: CFG): List[CICFGNode] = {
-        elements.filter {
-            case Opt(_, f: FunctionDef) => false
-            case x => x.condition.isSatisfiable(fm)
-        }.map(CICFGStmt)
-    }
-
-    /**
-      * Returns <code>true</code> if the given statement leads to a method return
-      * (exceptional or not). For backward analyses may also be start statements.
-      */
-    override def isExitStmt(cICFGStmt: CICFGNode): Boolean =
-    succ(cICFGStmt.getStmt.entry, getASTEnv(cICFGStmt)).exists {
-        case Opt(_, f: FunctionDef) => true
-        case _ => false
-    }
-
-    /**
-      * Returns all call sites within a given method.
-      */
-    override def getCallsFromWithin(method: CICFGFDef): util.Set[CICFGNode] = {
-        val callsWithIn = filterAllASTElems[PostfixExpr](method.method.entry.stmt.innerStatements).map(getPresenceNode).filter(isCallStmt)
-        asJavaIdentitySet(callsWithIn)
-    }
-
-    /**
       * Returns the set of all nodes that are neither call nor start nodes.
       */
-    override def allNonCallStartNodes(): util.Set[CICFGNode] = {
-        def nonCallStartOptNode(n: CICFGNode) = nonCallStartNode(n.getStmt.entry)
-        def nonCallStartNode(n: AST) = {
-            val node = getPresenceNode(n)
-            !(isCallStmt(node) || isStartPoint(node))
-        }
+    override def allNonCallStartNodes(): util.Set[CInterCFGNode] = {
+        def nonCallStartNode(node: CInterCFGNode) = !(isCallStmt(node) || isStartPoint(node))
 
-        asJavaIdentitySet(cInterCFGVisitedNodes.toList filter nonCallStartOptNode)
+        asJavaIdentitySet(cInterCFGVisitedNodes.toList filter nonCallStartNode)
     }
 
     /**
@@ -327,71 +229,52 @@ class CInterCFG(startTunit: TranslationUnit, fm: FeatureModel = BDDFeatureModel.
       * i.e., the unique successor that is be reached when stmt
       * does not branch.
       */
-    override def isFallThroughSuccessor(stmt: CICFGNode, succ: CICFGNode): Boolean = {
-        val successors = getSuccsOfS(stmt)
-        successors.size > 1 && successors.last.getStmt.entry.equals(succ.getStmt.entry) && !getPresenceNode(succ.getStmt.entry).getStmt.condition.equals(succ.getStmt.condition) && successors.reverse.tail.foldLeft(FeatureExprFactory.True)((condition, cSucc) => cSucc.getStmt.condition.and(condition)).not().equivalentTo(successors.last.getStmt.condition)
-    }
+    override def isFallThroughSuccessor(stmt: CInterCFGNode, succStmt: CInterCFGNode): Boolean =
+        !isBranchTarget(stmt, succStmt)
 
     /**
-      * Look up the target destination of a given function call.
+      * Returns whether succ is a branch target of stmt.
       */
-    private def findCallees(name: Opt[String], callTUnit: TranslationUnit): List[CICFGFDef] = {
-        def returnPseudoFunctionCall = {
-                val pseudoCall = cInterCFGElementsCacheEnv.getPseudoSystemFunctionCall(callTUnit)
-                List(CICFGFDef(pseudoCall))
-        }
-
-        lazy val dstCond = name.condition
-        lazy val noVariability = options.getConfiguration.isDefined
-
-        def findCalleeInTunit(tunit: TranslationUnit) = {
-            tunit.defs.flatMap {
-                case o@Opt(ft, f@FunctionDef(_, decl, _, _)) if decl.getName.equalsIgnoreCase(name.entry) && (noVariability || ft.and(dstCond).isSatisfiable(getFeatureModel)) =>
-                    val cond = if (noVariability) FeatureExprFactory.True else ft.and(dstCond)
-                    Some(CICFGFDef(Opt(cond, f)))
-                case _ => None
-            }
-        }
-
-        def findCalleeWithBruteForce() = {
-            val bruteForceResult = cInterCFGElementsCacheEnv.getAllKnownTUnits.par.flatMap(findCalleeInTunit).toList
-
-            if (bruteForceResult.isEmpty) {
-                if (logger.isDebugEnabled) logger.debug("No function definiton found for " + name + " with brute force!")
-                /* if (options.pseudoVisitingSystemLibFunctions)
-                    returnPseudoFunctionCall
-                else  */ bruteForceResult
-            }
-            else bruteForceResult
-        }
-
-        if (SystemLinker.allLibs.contains(name.entry) && options.pseudoVisitingSystemLibFunctions)
-            return returnPseudoFunctionCall
-
-        val localDef = findCalleeInTunit(callTUnit)
-        val externalDef = getExternalDefinitions(name)
-
-        val result = externalDef ++ localDef
-
-        if (result.nonEmpty) result else findCalleeWithBruteForce()
-    }
-
-    private def isRecursive(fCallName: String, fCallStmt: CICFGNode): Boolean = fCallName.equalsIgnoreCase(getMethodOf(fCallStmt).method.entry.getName)
-
-    private def getCalleeNames(call: CICFGNode): List[Opt[String]] =
-        filterAllASTElems[PostfixExpr](call.getStmt).flatMap {
-            case pf@PostfixExpr(Id(calleeName), FunctionCall(_)) => Some(Opt(getASTEnv(pf).featureExpr(pf), calleeName))
-            case _ => None
-        }
+    override def isBranchTarget(stmt: CInterCFGNode, succStmt: CInterCFGNode): Boolean =
+        groupOptListVAware(succ(stmt.get, getASTEnv(stmt)), getFeatureModel).exists(succs =>
+            if (succs.size > 1) succs.exists(_.entry eq succStmt.get) // we consider branching a statement has at least two or more successor statements in the same config
+            else false
+        )
 
     /**
       * Retrieves the node according to its presence conditon in the source code
       * and not according to its cfg flow-condition.
       */
-    private def getPresenceNode(node: AST): CICFGNode = CICFGStmt(Opt(getASTEnv(node).featureExpr(node), node))
+    private[cspllift] def getCFGPresenceNode(node: AST): Opt[AST] = Opt(getModuleEnv.getCondition(node), node)
 
-    private def getFunctionPointerDestNames(pointer: Expr): List[Opt[String]] = {
-        val pointerNode = getPresenceNode(pointer)
-        cInterCFGElementsCacheEnv.getFPointerDestDefsNames(pointerNode.getStmt.asInstanceOf[Opt[Expr]], getMethodOf(pointerNode).method.entry.getName)
+    private[cspllift] def getModuleEnv = cModuleEnv
+
+    private[cspllift] def getSuccsOfS(node: CInterCFGNode) = getCFGElements(succ(node.get, getASTEnv(node)))
+
+    private[cspllift] def getPredsOfS(node: CInterCFGNode) = getCFGElements(pred(node.get, getASTEnv(node)))
+
+    private def getCFGElements(elements: CFG): List[CInterCFGNode] = {
+        val res = elements.filter {
+            case Opt(_, f: FunctionDef) => false
+            case x => x.condition.isSatisfiable(getModuleEnv.getFeatureModel)
+        }.map(x => CInterCFGStmt(x.entry))
+
+        res.foreach(cInterCFGVisitedNodes.add)
+
+        res
+    }
+
+    private def getFlowCondition(start: CInterCFGNode, end: CInterCFGNode, cfg: (AST, ASTEnv) => CFG): FeatureExpr = {
+        val res = end match {
+            case _: CInterCFGFDef =>
+                getModuleEnv.getCondition(start.get).and(getModuleEnv.getCondition(end.get))
+            case _ =>
+                val r = cfg(start.get, getASTEnv(start)).find {
+                    _.entry eq end.get
+                }
+
+                if (r.isDefined) r.get.condition else FeatureExprFactory.False
+        }
+        res
     }
 }
