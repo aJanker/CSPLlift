@@ -15,7 +15,7 @@ import scala.io.Source
 /**
   * Adapted from the sampling infrastructure of Jörg Liebig, Alex von Rhein, and me.
   */
-class Sampling(tunit: AST, fm: FeatureModel = BDDNoFeatureModel) extends ConditionTools {
+class Sampling(tunit: AST, fm: FeatureModel = BDDNoFeatureModel) extends ConditionalCommons {
 
     /** List of all features found in the currently processed file */
     private val features: List[SingleFeatureExpr] = getAllFeatures(tunit)

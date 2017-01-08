@@ -123,9 +123,9 @@ class EQClassesMap() {
     /**
       * Adds a new equivalence class.
       */
-    def addEQ(updatedValue: Opt[EQClass], oldE1: List[Opt[EQClass]], oldE2: List[Opt[EQClass]], fm: FeatureModel = BDDNoFeatureModel): Opt[EQClass] = {
+    def addEQClass(updatedValue: Opt[EQClass], oldE1: List[Opt[EQClass]], oldE2: List[Opt[EQClass]], fm: FeatureModel = BDDNoFeatureModel): Opt[EQClass] = {
         /**
-          * Reduce the amount of variability by collecting all EQClasses which have are exactly the same.
+          * Reduce the amount of variability by collecting all EQClasses which are exactly the same.
           */
         def cleanEqualEQClasses(objectName: ObjectName): Option[Opt[EQClass]] = {
             val oldMapEntry = eqClassMap(objectName)
@@ -139,14 +139,14 @@ class EQClassesMap() {
         }
 
         val eqClassObjectNames = updatedValue.entry.objectNames.toList
-        val distinctEQ = eqClassObjectNames.flatMap(cleanEqualEQClasses).foldLeft(updatedValue)((u, v) =>
+        val distinctEQClass = eqClassObjectNames.flatMap(cleanEqualEQClasses).foldLeft(updatedValue)((u, v) =>
             if (!v.condition eq u.condition) u.copy(condition = v.condition or u.condition)
             else u
         )
 
-        eqClassObjectNames.foreach(o => eqClassMap += (o -> (distinctEQ :: eqClassMap(o))))
+        eqClassObjectNames.foreach(o => eqClassMap += (o -> (distinctEQClass :: eqClassMap(o))))
 
-        distinctEQ
+        distinctEQClass
     }
 
     /**

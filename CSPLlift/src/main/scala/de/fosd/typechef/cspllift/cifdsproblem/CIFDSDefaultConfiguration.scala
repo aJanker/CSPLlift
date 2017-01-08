@@ -40,7 +40,7 @@ trait CIFDSDefaultConfiguration extends SolverConfiguration {
       * These nodes are not used by the solver, but may be useful for debugging the solver
       * or flow functions (see {@link FlowFunctionDotExport}).
       */
-    def recordEdges: Boolean = false
+    override def recordEdges: Boolean = false
 
     /**
       * If true, the solver will cache flow functions and edge functions.

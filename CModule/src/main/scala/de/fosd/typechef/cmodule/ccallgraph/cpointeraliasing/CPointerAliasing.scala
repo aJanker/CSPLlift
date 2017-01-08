@@ -87,18 +87,24 @@ class CPointerAliasing(private var objectNames: Set[Opt[ObjectName]], private va
       * Computes the final equivalence classes based on the extracted assignments.
       */
     def solve(): Boolean = {
+        if (solved) return true
         if (this.objectNames.isEmpty) return false
 
-        val pointerSolvingTime = StopWatch.measureProcessCPUTime({
+        val pointerSolvingTime = StopWatch.measureThreadUserTime({
             initEQClassMap()
+
             logger.info("Assignments:\t" + assignments.size)
             logger.info("ObjectNames:\t" + objectNames.size)
+
             val step = assignments.size / 10
+
             assignments.toList.zipWithIndex.foreach { case (assignment, i) =>
-                val leftEQClass = equivClassesMap.find(assignment.entry.left)
-                val rightEQClass = equivClassesMap.find(assignment.entry.right)
                 if (step != 0 && (i % step == 0))
                     logger.info("Solved: " + i + " of " + assignments.size + " assignments")
+
+                val leftEQClass = equivClassesMap.find(assignment.entry.left)
+                val rightEQClass = equivClassesMap.find(assignment.entry.right)
+
                 merge(leftEQClass, rightEQClass, assignment.condition)
             }
         })._1
@@ -134,12 +140,13 @@ class CPointerAliasing(private var objectNames: Set[Opt[ObjectName]], private va
       * Merges two equivalence classes variational according to the algorithm of Zhang.
       *
       * Note: The implementation is very feature sensitive but the strategy of Zhang may cause exponential explosion
-      * feature-wise: currently at a threshold of 75 distinct variants we are forced to reduce the precision of
+      * feature-wise: currently at a threshold of 150 distinct variants we are forced to reduce the precision of
       * the pointer analysis strategy since otherwise we are not able to compute all pointer equality relationships.
       * This is NOT sound, but in practice does not alter the result of our function points-to target computation strategy,
       * since we are later simplify the feature condition to the minimum presence condition.
       */
     private val mergedEQs: util.Set[Opt[EQClass]] = java.util.Collections.newSetFromMap[Opt[EQClass]](new java.util.IdentityHashMap())
+
     private def merge(eqClass1: List[Opt[EQClass]], eqClass2: List[Opt[EQClass]], mergeCondition: FeatureExpr, prefixMerge: Boolean = false): Unit = {
         def getPrefixSets(e1: Opt[EQClass], e2: Opt[EQClass]) = (equivClassesMap.getPrefix(e1), equivClassesMap.getPrefix(e2))
 
@@ -153,7 +160,7 @@ class CPointerAliasing(private var objectNames: Set[Opt[ObjectName]], private va
             e1L.foreach(mergedEQs.add)
             e2L.foreach(mergedEQs.add)
 
-            val unionEQClass = equivClassesMap.addEQ(Opt(localMergeCondition, e1.entry.union(e2.entry)), e1L, e2L, fm)
+            val unionEQClass = equivClassesMap.addEQClass(Opt(localMergeCondition, e1.entry.union(e2.entry)), e1L, e2L, fm)
             mergedEQs.add(unionEQClass)
 
             /**
@@ -192,14 +199,15 @@ class CPointerAliasing(private var objectNames: Set[Opt[ObjectName]], private va
     }
 
     private val reducedObjectNames = new mutable.HashSet[ObjectName]
-    private def determineSolveableUniqueMergeConditions(eqClass1: List[Opt[EQClass]], eqClass2: List[Opt[EQClass]], mergeCondition: FeatureExpr, prefixMerge: Boolean = false) = {
-        def and(f1 : FeatureExpr, f2 : FeatureExpr) = f1 and f2
-        def or(f1 : FeatureExpr, f2 : FeatureExpr) = f1 or f2
-        def f(f1 : FeatureExpr, f2 : FeatureExpr) = f1
-        def t(f1 : FeatureExpr, f2 : FeatureExpr) = FeatureExprFactory.True
 
-        def getUniqueMerges(condition : FeatureExpr = FeatureExprFactory.True, op: (FeatureExpr, FeatureExpr) => FeatureExpr = and) = {
-            val featurePairs = for {e1 <- eqClass1; e2 <- eqClass2} yield (op (e1.condition, e2.condition) and mergeCondition, (e1, e2))
+    private def determineSolveableUniqueMergeConditions(eqClass1: List[Opt[EQClass]], eqClass2: List[Opt[EQClass]], mergeCondition: FeatureExpr, prefixMerge: Boolean = false) = {
+        def and(f1: FeatureExpr, f2: FeatureExpr) = f1 and f2
+        def or(f1: FeatureExpr, f2: FeatureExpr) = f1 or f2
+        def f(f1: FeatureExpr, f2: FeatureExpr) = f1
+        def t(f1: FeatureExpr, f2: FeatureExpr) = FeatureExprFactory.True
+
+        def getUniqueMerges(condition: FeatureExpr = FeatureExprFactory.True, op: (FeatureExpr, FeatureExpr) => FeatureExpr = and) = {
+            val featurePairs = for {e1 <- eqClass1; e2 <- eqClass2} yield (op(e1.condition, e2.condition) and mergeCondition, (e1, e2))
             featurePairs.groupBy(_._1).toList.map(x => (x._1, x._2.map(_._2)))
         }
 
@@ -208,8 +216,9 @@ class CPointerAliasing(private var objectNames: Set[Opt[ObjectName]], private va
 
         val uniqueMerges = if (!previouslyReduced) getUniqueMerges(mergeCondition) else reducedMerges
 
-        if (uniqueMerges.size > 150) { // Note: we are currently forced to reduce the precision if we are merging more than 100 variants.
-        val reduced = reducedMerges
+        if (uniqueMerges.size > 150) {
+            // Note: we are currently forced to reduce the precision if we are merging more than 150 variants.
+            val reduced = reducedMerges
             if (!prefixMerge) {
                 logger.warn("Forced to reduce pointer aliasing precision because of conditional explosion.")
                 logger.info("Old merges:\t" + uniqueMerges.size)

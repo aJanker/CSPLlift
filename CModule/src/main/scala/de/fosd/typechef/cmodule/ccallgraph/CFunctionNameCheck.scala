@@ -9,7 +9,7 @@ import de.fosd.typechef.typesystem.linker.SystemLinker
   */
 trait CFunctionNameCheck {
 
-    private lazy val unsupportedNames: Set[String] = Set("mbedtls_free", "mbedtls_calloc")
+    private lazy val unsupportedNames: Set[String] = Set("mbedtls_free", "mbedtls_calloc", "mbedtls_ripemd160_process")
     private lazy val unsupportPrefixes: Set[String] = Set("__builtin")
 
     def isIgnoredName(functionName: Id): Boolean = isIgnoredName(functionName.name)

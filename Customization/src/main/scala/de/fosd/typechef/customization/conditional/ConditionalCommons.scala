@@ -3,7 +3,7 @@ package de.fosd.typechef.customization.conditional
 import de.fosd.typechef.conditional.{Choice, Opt}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, SingleFeatureExpr}
 
-trait ConditionTools {
+trait ConditionalCommons {
 
     def isSatisfiableInConfiguration(cons: FeatureExpr, configuration: SimpleConfiguration): Boolean = cons.evaluate(configuration.getTrueFeatures)
 

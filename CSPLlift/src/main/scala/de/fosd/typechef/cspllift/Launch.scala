@@ -21,11 +21,10 @@ object Launch extends App with ASTNavigation with IntraCFG {
 
     private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
+    setDefaultLogging()
     liftMain()
 
     private def liftMain(): Unit = {
-        setDefaultLogging()
-
         val opt = new CInterAnalysisOptions
 
         try {

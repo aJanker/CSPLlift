@@ -13,7 +13,7 @@ import de.fosd.typechef.cspllift.cifdsproblem.{CFlowFact, CIFDSProblem}
 import de.fosd.typechef.cspllift.cintercfg._
 import de.fosd.typechef.cspllift.commons.CInterCFGCommons
 import de.fosd.typechef.cspllift.options.CSPLliftOptions
-import de.fosd.typechef.customization.conditional.{ConditionTools, Sampling, SimpleConfiguration}
+import de.fosd.typechef.customization.conditional.{ConditionalCommons, Sampling, SimpleConfiguration}
 import de.fosd.typechef.customization.{ProfilingNames, StopWatch}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.parser.c.PrettyPrinter
@@ -21,7 +21,7 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.concurrent.TrieMap
 
-class CSPLliftEvaluationFrontend(env: CModule, options: CSPLliftOptions) extends ConditionTools with CInterCFGCommons with ProfilingNames {
+class CSPLliftEvaluationFrontend(env: CModule, options: CSPLliftOptions) extends ConditionalCommons with CInterCFGCommons with ProfilingNames {
 
     env.solveAliasing()
 
@@ -112,6 +112,7 @@ class CSPLliftEvaluationFrontend(env: CModule, options: CSPLliftOptions) extends
 
             val sampleEvalFactsL = sampleEvalFacts.toList
 
+            // TODO compare by map
             satLiftedEvalFacts.par foreach (satFact => {
                 val hasMatch = sampleEvalFactsL.exists(sampleFact => {
                     if (satFact._1.isEquivalentTo(sampleFact._1, config)) true
