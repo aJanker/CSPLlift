@@ -97,7 +97,7 @@ class CPointerAliasing(private var objectNames: Set[Opt[ObjectName]], private va
             assignments.toList.zipWithIndex.foreach { case (assignment, i) =>
                 val leftEQClass = equivClassesMap.find(assignment.entry.left)
                 val rightEQClass = equivClassesMap.find(assignment.entry.right)
-                if (i % step == 0)
+                if (step != 0 && (i % step == 0))
                     logger.info("Solved: " + i + " of " + assignments.size + " assignments")
                 merge(leftEQClass, rightEQClass, assignment.condition)
             }

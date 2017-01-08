@@ -105,13 +105,20 @@ class CSPLliftEvaluationFrontend(env: CModule, options: CSPLliftOptions) extends
             logger.info("Sampling Facts:\t" + sampleEvalFacts.size)
             logger.info("Config Lifted Facts:\t" + satLiftedEvalFacts.size)
 
-            val unmatchedSampleEvalFacts = sampleEvalFacts.filterNot(fact => satLiftedEvalFacts.foldLeft(false)((found, oFact) =>
-                if (oFact._1.isEquivalentTo(fact._1, config)) {
-                    // is match, increase vaa match counter
-                    matchedLiftedFacts += (oFact -> (matchedLiftedFacts.getOrElse(oFact, 0) + 1))
-                    true
-                } else found
+            val unmatchedSampleEvalFacts = sampleEvalFacts.filterNot(fact => satLiftedEvalFacts.exists(oFact =>
+                if (oFact._1.isEquivalentTo(fact._1, config)) true
+                else false
             )).toList
+
+            val sampleEvalFactsL = sampleEvalFacts.toList
+
+            satLiftedEvalFacts.par foreach (satFact => {
+                val hasMatch = sampleEvalFactsL.exists(sampleFact => {
+                    if (satFact._1.isEquivalentTo(sampleFact._1, config)) true
+                    else false
+                })
+                if (hasMatch) matchedLiftedFacts += (satFact -> (matchedLiftedFacts.getOrElse(satFact, 0) + 1))
+            })
 
             if (unmatchedSampleEvalFacts.nonEmpty) Some((unmatchedSampleEvalFacts, config))
             else None
